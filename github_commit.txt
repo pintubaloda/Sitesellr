@@ -1,0 +1,8 @@
+Suggested commit message:
+feat: add auth security hardening (TOTP, WebAuthn, Turnstile), rate limits, migrations
+
+Notes:
+- Target net8.0; added EF models for users/tokens/webauthn/login attempts.
+- Added Turnstile verification, CSRF tokens, MFA (TOTP), WebAuthn flows.
+- Added migrations 20260217121000_SecurityHardening, 20260217190000_WebAuthn.
+- Update README and appsettings defaults; added security packages.

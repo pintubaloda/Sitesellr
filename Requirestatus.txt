@@ -1,0 +1,8 @@
+Repo commit base: e132012 (origin/main); local changes not committed.
+Doc generated: 2026-02-17T18:40:42.639270 UTC
+
+Implemented (local): security/auth hardening (opaque tokens, CSRF, Turnstile, TOTP, WebAuthn), EF models/migrations, rate limiting, lockout, status & auth APIs.
+Pending: all commerce features (storefront, products, orders, payments, logistics, marketing, analytics, SaaS billing, plugin marketplace, multi-tenant isolation).
+Migrations added: 20260217120000_InitialCreate; 20260217121000_SecurityHardening; 20260217190000_WebAuthn.
+
+Next actions: choose RP ID/origin per env; tighten CSP/CORS; design tenancy & RBAC; payment plugin skeleton; logistics/marketing/reporting engines; SaaS billing.

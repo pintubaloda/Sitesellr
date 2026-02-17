@@ -1,0 +1,32 @@
+name: Sitesellr .NET CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-dotnet
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore backend-dotnet.csproj
+
+      - name: Build
+        run: dotnet build backend-dotnet.csproj --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test backend-dotnet.csproj --configuration Release --no-build --verbosity normal

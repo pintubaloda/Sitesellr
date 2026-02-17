@@ -1,23 +1,20 @@
 Sitesellr Requirement Status
 Updated: 2026-02-17 (local)
 
-Developed (latest pushed)
+Developed (latest working tree)
 - Backend: .NET 8 API + PostgreSQL with tenancy resolver and RBAC policies.
 - Core domain endpoints: merchants, stores, products, customers, orders.
 - Security baseline: opaque tokens, lockout/rate-limit, Turnstile verify on auth, CSRF middleware, security headers.
 - Frontend wired to backend data without UI/theme redesign for Dashboard, Products, Customers, Orders, Settings.
 - Turnstile widget integrated on Login/Register and enforced via backend verification.
+- CRUD update: product/customer/order create+update+delete API wiring done end-to-end.
 
-Latest delivered update
-- Added backend update/delete APIs with policy and store-scope checks:
-  - PUT/DELETE /api/products/{id}
-  - PUT/DELETE /api/customers/{id}
-  - PUT/DELETE /api/orders/{id}
-- Wired frontend CRUD forms/actions:
-  - Products: create/edit dialog + delete action wired to API.
-  - Customers: create/edit dialog + delete action wired to API.
-  - Orders: create/update dialog + delete action wired to API.
-- Backend build validated successfully (`dotnet build`) with warnings only.
+New in this update
+- Fixed GitHub Actions CI failure (`MSB1003`) caused by invalid desktop workflow template.
+- Replaced workflow with backend .NET CI:
+  - `.github/workflows/dotnet-ci.yml`
+  - Runs restore/build/test in `backend-dotnet` project explicitly.
+- Verified locally: `dotnet test backend-dotnet/backend-dotnet.csproj` exits successfully.
 
 Pending / Partial
 - Some advanced form fields are minimal for now (e.g., rich item editing in orders, full address management).
@@ -32,5 +29,5 @@ DB/Migrations
 - Ensure target DB has latest migrations: dotnet ef database update
 
 Git state
-- Last pushed commit: 74645e0
-- Branch: main (origin/main synced)
+- Last pushed commit: 6fe7606
+- Current CI workflow fix is local and not pushed yet.

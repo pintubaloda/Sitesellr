@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
@@ -23,7 +22,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
@@ -35,12 +33,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "../../components/ui/dialog";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { formatCurrency, formatNumber } from "../../lib/utils";
 import useApiList from "../../hooks/useApiList";
+import useActiveStore from "../../hooks/useActiveStore";
+import { mapProductFromApi } from "../../lib/mappers";
 import {
   Search,
   Plus,
@@ -49,14 +48,10 @@ import {
   Trash2,
   Copy,
   Eye,
-  Package,
-  Filter,
-  Download,
   Upload,
   ChevronLeft,
   ChevronRight,
   ImagePlus,
-  X,
 } from "lucide-react";
 
 const getStockBadge = (status, stock) => {
@@ -192,13 +187,13 @@ const AddProductDialog = ({ open, onOpenChange }) => {
 };
 
 export const Products = () => {
-  const storeId = process.env.REACT_APP_STORE_ID;
+  const { storeId, loadingStores } = useActiveStore();
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const { data: apiProducts, loading } = useApiList("/products", { storeId, enabled: !!storeId });
 
-  const products = apiProducts ?? [];
+  const products = (apiProducts ?? []).map(mapProductFromApi);
 
   const filteredProducts = products.filter(
     (product) =>
@@ -292,6 +287,11 @@ export const Products = () => {
       {/* Products Table */}
       <Card className="border-slate-200 dark:border-slate-800">
         <CardContent className="p-0">
+          {loadingStores || loading ? (
+            <div className="p-6 text-sm text-slate-500 dark:text-slate-400">Loading products...</div>
+          ) : !storeId ? (
+            <div className="p-6 text-sm text-amber-600 dark:text-amber-400">Store is not selected. Set `REACT_APP_STORE_ID` or login with a store role.</div>
+          ) : null}
           <Table>
             <TableHeader>
               <TableRow>

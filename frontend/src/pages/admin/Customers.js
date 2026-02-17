@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
@@ -27,6 +27,8 @@ import {
 } from "../../components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import useApiList from "../../hooks/useApiList";
+import useActiveStore from "../../hooks/useActiveStore";
+import { mapCustomerFromApi } from "../../lib/mappers";
 import { formatCurrency, formatDate, getInitials } from "../../lib/utils";
 import {
   Search,
@@ -72,11 +74,11 @@ const getStatusBadge = (status) => {
 };
 
 export const Customers = () => {
-  const storeId = process.env.REACT_APP_STORE_ID;
-  const { data: apiCustomers } = useApiList("/customers", { storeId, enabled: !!storeId });
+  const { storeId, loadingStores } = useActiveStore();
+  const { data: apiCustomers, loading } = useApiList("/customers", { storeId, enabled: !!storeId });
   const [searchQuery, setSearchQuery] = useState("");
 
-  const customers = apiCustomers ?? [];
+  const customers = (apiCustomers ?? []).map(mapCustomerFromApi);
 
   const filteredCustomers = customers.filter(
     (customer) =>
@@ -208,6 +210,11 @@ export const Customers = () => {
       {/* Customers Table */}
       <Card className="border-slate-200 dark:border-slate-800">
         <CardContent className="p-0">
+          {loadingStores || loading ? (
+            <div className="p-6 text-sm text-slate-500 dark:text-slate-400">Loading customers...</div>
+          ) : !storeId ? (
+            <div className="p-6 text-sm text-amber-600 dark:text-amber-400">Store is not selected. Set `REACT_APP_STORE_ID` or login with a store role.</div>
+          ) : null}
           <Table>
             <TableHeader>
               <TableRow>

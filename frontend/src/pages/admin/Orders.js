@@ -37,6 +37,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Separator } from "../../components/ui/separator";
 import useApiList from "../../hooks/useApiList";
+import useActiveStore from "../../hooks/useActiveStore";
+import { mapOrderFromApi } from "../../lib/mappers";
 import { formatCurrency, formatDateTime, getInitials } from "../../lib/utils";
 import {
   Search,
@@ -133,7 +135,7 @@ const OrderDetailsDialog = ({ order, open, onOpenChange }) => {
           {/* Order Items */}
           <div>
             <h4 className="font-semibold text-slate-900 dark:text-white mb-3">
-              Order Items ({order.items})
+              Order Items ({order.itemsCount})
             </h4>
             <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
               <Table>
@@ -145,18 +147,20 @@ const OrderDetailsDialog = ({ order, open, onOpenChange }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                          <Package className="w-5 h-5 text-slate-400" />
+                  {order.items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                            <Package className="w-5 h-5 text-slate-400" />
+                          </div>
+                          <span className="font-medium">{item.title}</span>
                         </div>
-                        <span className="font-medium">Sample Product</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">1</TableCell>
-                    <TableCell className="text-right">{formatCurrency(order.total)}</TableCell>
-                  </TableRow>
+                      </TableCell>
+                      <TableCell className="text-center">{item.quantity}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.total)}</TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
@@ -206,13 +210,13 @@ const OrderDetailsDialog = ({ order, open, onOpenChange }) => {
 };
 
 export const Orders = () => {
-  const storeId = process.env.REACT_APP_STORE_ID;
+  const { storeId, loadingStores } = useActiveStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const { data: apiOrders } = useApiList("/orders", { storeId, enabled: !!storeId });
+  const { data: apiOrders, loading } = useApiList("/orders", { storeId, enabled: !!storeId });
 
-  const orders = apiOrders ?? [];
+  const orders = (apiOrders ?? []).map(mapOrderFromApi);
 
   const filteredOrders = orders.filter(
     (order) =>
@@ -309,6 +313,11 @@ export const Orders = () => {
       {/* Orders Table */}
       <Card className="border-slate-200 dark:border-slate-800">
         <CardContent className="p-0">
+          {loadingStores || loading ? (
+            <div className="p-6 text-sm text-slate-500 dark:text-slate-400">Loading orders...</div>
+          ) : !storeId ? (
+            <div className="p-6 text-sm text-amber-600 dark:text-amber-400">Store is not selected. Set `REACT_APP_STORE_ID` or login with a store role.</div>
+          ) : null}
           <Table>
             <TableHeader>
               <TableRow>
@@ -354,7 +363,7 @@ export const Orders = () => {
                   <TableCell className="text-slate-500 dark:text-slate-400">
                     {formatDateTime(order.date)}
                   </TableCell>
-                  <TableCell>{order.items} items</TableCell>
+                  <TableCell>{order.itemsCount} items</TableCell>
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
                   <TableCell>{getPaymentBadge(order.paymentStatus)}</TableCell>
                   <TableCell className="text-right font-medium">

@@ -5,6 +5,9 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Checkbox } from "../../components/ui/checkbox";
 import { useTheme } from "../../context/ThemeContext";
+import api, { setAuthToken } from "../../lib/api";
+import { setStoredTokens } from "../../lib/session";
+import TurnstileWidget from "../../components/security/TurnstileWidget";
 import {
   Store,
   Mail,
@@ -31,6 +34,10 @@ export const Register = () => {
   });
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReset, setTurnstileReset] = useState(0);
+  const turnstileSiteKey = process.env.REACT_APP_TURNSTILE_SITE_KEY || "";
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -38,12 +45,38 @@ export const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const token = turnstileToken || process.env.REACT_APP_TURNSTILE_DEV_TOKEN || "";
+    if (!token) {
+      setError("Please complete captcha verification.");
+      return;
+    }
+
     setIsLoading(true);
-    // Simulate registration
-    setTimeout(() => {
+    setError("");
+    try {
+      const registerResponse = await api.post("/auth/register", {
+        email: formData.email,
+        password: formData.password,
+        turnstile_token: token,
+      });
+      const accessToken = registerResponse?.data?.access_token;
+      const refreshToken = registerResponse?.data?.refresh_token;
+      setStoredTokens({ accessToken, refreshToken });
+      setAuthToken(accessToken);
       setIsLoading(false);
       navigate("/admin");
-    }, 1000);
+    } catch (err) {
+      const reason =
+        err?.response?.data?.error === "captcha_failed"
+          ? "Captcha verification failed. Please retry."
+          : "Registration failed. Try a different email.";
+      setError(reason);
+      if (err?.response?.data?.error === "captcha_failed") {
+        setTurnstileToken("");
+        setTurnstileReset((v) => v + 1);
+      }
+      setIsLoading(false);
+    }
   };
 
   const passwordStrength = () => {
@@ -308,6 +341,14 @@ export const Register = () => {
                   </span>
                 )}
               </Button>
+              <TurnstileWidget
+                siteKey={turnstileSiteKey}
+                onTokenChange={setTurnstileToken}
+                resetSignal={turnstileReset}
+              />
+              {error ? (
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              ) : null}
             </form>
 
             <div className="mt-8">

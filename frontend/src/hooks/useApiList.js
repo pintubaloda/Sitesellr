@@ -17,7 +17,17 @@ export const useApiList = (path, { storeId, params = {}, enabled = true } = {}) 
 
     api
       .get(path, { params: query, signal: controller.signal })
-      .then((res) => setData(res.data ?? []))
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setData(res.data);
+          return;
+        }
+        if (Array.isArray(res.data?.items)) {
+          setData(res.data.items);
+          return;
+        }
+        setData([]);
+      })
       .catch((err) => {
         if (controller.signal.aborted) return;
         setError(err);

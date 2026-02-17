@@ -6,6 +6,9 @@ import { Label } from "../../components/ui/label";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Card, CardContent } from "../../components/ui/card";
 import { useTheme } from "../../context/ThemeContext";
+import api, { setAuthToken } from "../../lib/api";
+import { setStoredTokens } from "../../lib/session";
+import TurnstileWidget from "../../components/security/TurnstileWidget";
 import {
   Store,
   Mail,
@@ -25,15 +28,45 @@ export const Login = () => {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReset, setTurnstileReset] = useState(0);
+  const turnstileSiteKey = process.env.REACT_APP_TURNSTILE_SITE_KEY || "";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const token = turnstileToken || process.env.REACT_APP_TURNSTILE_DEV_TOKEN || "";
+    if (!token) {
+      setError("Please complete captcha verification.");
+      return;
+    }
+
     setIsLoading(true);
-    // Simulate login
-    setTimeout(() => {
-      setIsLoading(false);
+    setError("");
+    try {
+      const response = await api.post("/auth/login", {
+        email,
+        password,
+        turnstile_token: token,
+      });
+      const accessToken = response?.data?.access_token;
+      const refreshToken = response?.data?.refresh_token;
+      setStoredTokens({ accessToken, refreshToken });
+      setAuthToken(accessToken);
       navigate("/admin");
-    }, 1000);
+    } catch (err) {
+      const reason =
+        err?.response?.data?.error === "captcha_failed"
+          ? "Captcha verification failed. Please retry."
+          : "Login failed. Check credentials and try again.";
+      setError(reason);
+      if (err?.response?.data?.error === "captcha_failed") {
+        setTurnstileToken("");
+        setTurnstileReset((v) => v + 1);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -197,6 +230,11 @@ export const Login = () => {
                   Remember me for 30 days
                 </Label>
               </div>
+              <TurnstileWidget
+                siteKey={turnstileSiteKey}
+                onTokenChange={setTurnstileToken}
+                resetSignal={turnstileReset}
+              />
 
               <Button
                 type="submit"
@@ -216,6 +254,9 @@ export const Login = () => {
                   </span>
                 )}
               </Button>
+              {error ? (
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              ) : null}
             </form>
 
             <div className="mt-8">

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -30,13 +31,13 @@ import {
   Cell,
 } from "recharts";
 import {
-  dashboardStats,
-  revenueData,
   salesByCategory,
-  orders,
   activityLogs,
 } from "../../lib/mock-data";
 import { formatCurrency, formatNumber, formatDateTime, getInitials } from "../../lib/utils";
+import useApiList from "../../hooks/useApiList";
+import useActiveStore from "../../hooks/useActiveStore";
+import { buildRevenueSeries, mapCustomerFromApi, mapOrderFromApi } from "../../lib/mappers";
 import {
   TrendingUp,
   TrendingDown,
@@ -109,6 +110,31 @@ const activityIcons = {
 };
 
 export const Dashboard = () => {
+  const { storeId } = useActiveStore();
+  const { data: apiOrders } = useApiList("/orders", { storeId, enabled: !!storeId, params: { pageSize: 100 } });
+  const { data: apiCustomers } = useApiList("/customers", { storeId, enabled: !!storeId, params: { pageSize: 100 } });
+
+  const orders = useMemo(() => (apiOrders ?? []).map(mapOrderFromApi), [apiOrders]);
+  const customers = useMemo(() => (apiCustomers ?? []).map(mapCustomerFromApi), [apiCustomers]);
+  const revenueData = useMemo(() => buildRevenueSeries(orders), [orders]);
+
+  const dashboardStats = useMemo(() => {
+    const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const totalOrders = orders.length;
+    const totalCustomers = customers.length;
+    const conversionRate = totalCustomers > 0 ? (totalOrders / totalCustomers) * 100 : 0;
+    return {
+      totalRevenue,
+      totalOrders,
+      totalCustomers,
+      conversionRate: conversionRate.toFixed(1),
+      revenueChange: 0,
+      ordersChange: 0,
+      customersChange: 0,
+      conversionChange: 0,
+    };
+  }, [orders, customers]);
+
   return (
     <div className="space-y-6" data-testid="admin-dashboard">
       {/* Page Header */}

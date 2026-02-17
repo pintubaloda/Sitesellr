@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -35,6 +35,8 @@ import {
   Plus,
   Key,
 } from "lucide-react";
+import useApiList from "../../hooks/useApiList";
+import useActiveStore from "../../hooks/useActiveStore";
 
 const SettingSection = ({ title, description, children }) => (
   <div className="space-y-4">
@@ -49,6 +51,12 @@ const SettingSection = ({ title, description, children }) => (
 );
 
 export const Settings = () => {
+  const { storeId } = useActiveStore();
+  const { data: stores } = useApiList("/stores", { enabled: true });
+  const selectedStore = useMemo(
+    () => (stores || []).find((store) => store.id === storeId) || null,
+    [stores, storeId]
+  );
   const [storeSettings, setStoreSettings] = useState({
     storeName: "My Awesome Store",
     storeEmail: "contact@mystore.com",
@@ -57,6 +65,16 @@ export const Settings = () => {
     currency: "INR",
     timezone: "Asia/Kolkata",
   });
+
+  useEffect(() => {
+    if (!selectedStore) return;
+    setStoreSettings((prev) => ({
+      ...prev,
+      storeName: selectedStore.name || prev.storeName,
+      currency: selectedStore.currency || prev.currency,
+      timezone: selectedStore.timezone || prev.timezone,
+    }));
+  }, [selectedStore]);
 
   return (
     <div className="space-y-6" data-testid="settings-page">
@@ -195,7 +213,7 @@ export const Settings = () => {
               <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-xl">
                 <div>
                   <p className="font-medium text-slate-900 dark:text-white">Current Domain</p>
-                  <p className="text-sm text-slate-500">myawesomestore.sitesellr.com</p>
+                  <p className="text-sm text-slate-500">{selectedStore?.subdomain ? `${selectedStore.subdomain}.sitesellr.com` : "Not configured"}</p>
                 </div>
                 <Badge className="bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">
                   Active

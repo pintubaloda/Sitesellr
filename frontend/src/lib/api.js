@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getStoredAccessToken, getStoredStoreId } from "./session";
 
 const baseURL = process.env.REACT_APP_API_BASE || "http://localhost:5000/api";
 
@@ -11,6 +12,16 @@ export const api = axios.create({
 const defaultStoreId = process.env.REACT_APP_STORE_ID;
 if (defaultStoreId) {
   api.defaults.headers.common["X-Store-Id"] = defaultStoreId;
+} else {
+  const savedStoreId = getStoredStoreId();
+  if (savedStoreId) {
+    api.defaults.headers.common["X-Store-Id"] = savedStoreId;
+  }
+}
+
+const savedToken = getStoredAccessToken();
+if (savedToken) {
+  api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
 }
 
 export const setAuthToken = (token) => {

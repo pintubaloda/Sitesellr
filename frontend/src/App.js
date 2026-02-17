@@ -18,6 +18,15 @@ import StoreBuilder from "./pages/admin/StoreBuilder";
 import Marketing from "./pages/admin/Marketing";
 import Analytics from "./pages/admin/Analytics";
 import Settings from "./pages/admin/Settings";
+import { getStoredAccessToken } from "./lib/session";
+
+const ProtectedRoute = ({ children }) => {
+  const token = getStoredAccessToken();
+  if (!token) {
+    return <Navigate to="/auth/login" replace />;
+  }
+  return children;
+};
 
 function App() {
   return (
@@ -32,7 +41,14 @@ function App() {
           <Route path="/auth/register" element={<Register />} />
           
           {/* Admin Dashboard Routes */}
-          <Route path="/admin" element={<DashboardLayout />}>
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<Dashboard />} />
             <Route path="products" element={<Products />} />
             <Route path="orders" element={<Orders />} />

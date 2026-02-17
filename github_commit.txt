@@ -1,6 +1,34 @@
-Suggested commit message:
-chore: wire frontend API proxy and refresh status docs
+Sitesellr Requirement Status
+Updated: 2026-02-17 (local)
 
-Notes:
-- Added frontend proxy to backend and shared axios client (src/lib/api.js); no UI changes.
-- Docs updated; reminder to apply migration 20260217192823_BillingAndRbac when DB reachable.
+Developed (latest working tree)
+- Backend: .NET 8 API + PostgreSQL with tenancy resolver middleware and RBAC policies.
+- Domain APIs: merchants, stores, products, customers, orders (list/get/create) with store-scoping and pagination.
+- Security: opaque tokens, lockout/rate-limit, CSRF middleware, security headers, Turnstile verify API on auth endpoints.
+- Frontend wired to backend (without UI/theme redesign):
+  - Auth pages call backend and persist opaque tokens.
+  - Admin pages wired: Dashboard, Products, Customers, Orders, Settings (store data), store switcher.
+  - Protected admin route based on stored access token.
+- Turnstile end-to-end now wired in frontend:
+  - Cloudflare Turnstile widget rendered on Login and Register pages.
+  - Captcha token passed to backend as `turnstile_token`.
+  - Captcha failure clears token and forces re-challenge.
+
+Pending / Partial
+- Many admin forms are still UI-only or create-only; full update/delete flows pending.
+- Billing plans/subscription enforcement not implemented yet.
+- Payment gateway plugins are scaffold only (dummy provider).
+- WebAuthn UI flows still pending.
+- CSP/CORS/rate-limit tuning for production is still pending.
+- Full Shopify-level modules (themes marketplace, logistics integrations, plugin marketplace, SaaS metering, etc.) are pending.
+
+Config needed for Turnstile
+- Frontend: REACT_APP_TURNSTILE_SITE_KEY
+- Backend: Turnstile__SecretKey
+
+DB/Migrations
+- Run latest migrations on target DB: dotnet ef database update
+
+Git state
+- Last pushed commit: c02864e
+- Current Turnstile + frontend wiring changes are local and not committed yet.

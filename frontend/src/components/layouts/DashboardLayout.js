@@ -22,6 +22,9 @@ import {
 import { useTheme } from "../../context/ThemeContext";
 import { cn } from "../../lib/utils";
 import { notifications } from "../../lib/mock-data";
+import useActiveStore from "../../hooks/useActiveStore";
+import api, { setAuthToken } from "../../lib/api";
+import { clearStoredTokens, getStoredRefreshToken } from "../../lib/session";
 import {
   Store,
   LayoutDashboard,
@@ -194,9 +197,25 @@ const SidebarContent = ({ collapsed, setCollapsed, onItemClick }) => {
 export const DashboardLayout = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const { stores, storeId, setStoreId } = useActiveStore();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const handleLogout = async () => {
+    try {
+      const refreshToken = getStoredRefreshToken();
+      if (refreshToken) {
+        await api.post("/auth/logout", { refresh_token: refreshToken });
+      }
+    } catch (_) {
+      // Ignore network/logout errors on client-side logout.
+    } finally {
+      clearStoredTokens();
+      setAuthToken("");
+      navigate("/auth/login");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -268,6 +287,23 @@ export const DashboardLayout = () => {
 
             {/* Right Side */}
             <div className="flex items-center gap-2">
+              {stores.length > 0 ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="hidden md:flex rounded-full">
+                      {stores.find((store) => store.id === storeId)?.name || "Select Store"}
+                      <ChevronDown className="w-4 h-4 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {stores.map((store) => (
+                      <DropdownMenuItem key={store.id} className="cursor-pointer" onClick={() => setStoreId(store.id)}>
+                        {store.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
               {/* View Store */}
               <Button
                 variant="outline"
@@ -368,7 +404,7 @@ export const DashboardLayout = () => {
                     Help & Support
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer text-red-600 dark:text-red-400" onClick={() => navigate("/")}>
+                  <DropdownMenuItem className="cursor-pointer text-red-600 dark:text-red-400" onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-2" />
                     Log out
                   </DropdownMenuItem>

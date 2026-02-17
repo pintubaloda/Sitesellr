@@ -36,7 +36,7 @@ import {
 } from "../../components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Separator } from "../../components/ui/separator";
-import { orders } from "../../lib/mock-data";
+import useApiList from "../../hooks/useApiList";
 import { formatCurrency, formatDateTime, getInitials } from "../../lib/utils";
 import {
   Search,
@@ -206,14 +206,18 @@ const OrderDetailsDialog = ({ order, open, onOpenChange }) => {
 };
 
 export const Orders = () => {
+  const storeId = process.env.REACT_APP_STORE_ID;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const { data: apiOrders } = useApiList("/orders", { storeId, enabled: !!storeId });
+
+  const orders = apiOrders ?? [];
 
   const filteredOrders = orders.filter(
     (order) =>
-      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer.name.toLowerCase().includes(searchQuery.toLowerCase())
+      (order.id || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (order.customer?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleViewOrder = (order) => {

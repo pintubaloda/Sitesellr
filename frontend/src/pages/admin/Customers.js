@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
-import { customers } from "../../lib/mock-data";
+import useApiList from "../../hooks/useApiList";
 import { formatCurrency, formatDate, getInitials } from "../../lib/utils";
 import {
   Search,
@@ -72,15 +72,19 @@ const getStatusBadge = (status) => {
 };
 
 export const Customers = () => {
+  const storeId = process.env.REACT_APP_STORE_ID;
+  const { data: apiCustomers } = useApiList("/customers", { storeId, enabled: !!storeId });
   const [searchQuery, setSearchQuery] = useState("");
+
+  const customers = apiCustomers ?? [];
 
   const filteredCustomers = customers.filter(
     (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchQuery.toLowerCase())
+      (customer.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (customer.email || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalSpent = customers.reduce((acc, c) => acc + c.totalSpent, 0);
+  const totalSpent = customers.reduce((acc, c) => acc + (c.totalSpent || 0), 0);
   const activeCustomers = customers.filter((c) => c.status === "active").length;
   const vipCustomers = customers.filter((c) => c.segment === "VIP").length;
 

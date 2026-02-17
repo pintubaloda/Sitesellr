@@ -39,8 +39,8 @@ import {
 } from "../../components/ui/dialog";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
-import { products } from "../../lib/mock-data";
 import { formatCurrency, formatNumber } from "../../lib/utils";
+import useApiList from "../../hooks/useApiList";
 import {
   Search,
   Plus,
@@ -192,14 +192,18 @@ const AddProductDialog = ({ open, onOpenChange }) => {
 };
 
 export const Products = () => {
+  const storeId = process.env.REACT_APP_STORE_ID;
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const { data: apiProducts, loading } = useApiList("/products", { storeId, enabled: !!storeId });
+
+  const products = apiProducts ?? [];
 
   const filteredProducts = products.filter(
     (product) =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchQuery.toLowerCase())
+      (product.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (product.sku || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const toggleSelectAll = () => {

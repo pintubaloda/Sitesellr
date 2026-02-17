@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -40,6 +40,7 @@ import { formatCurrency, formatNumber } from "../../lib/utils";
 import useApiList from "../../hooks/useApiList";
 import useActiveStore from "../../hooks/useActiveStore";
 import { mapProductFromApi } from "../../lib/mappers";
+import api from "../../lib/api";
 import {
   Search,
   Plus,
@@ -74,16 +75,90 @@ const getStockBadge = (status, stock) => {
   );
 };
 
-const AddProductDialog = ({ open, onOpenChange }) => {
-  const [images, setImages] = useState([]);
+const buildProductPayload = (form, storeId, currentProduct) => {
+  const price = Number(form.price || 0);
+  const stock = Number(form.stock || 0);
+  const base = currentProduct?.raw || {};
+  return {
+    ...base,
+    id: currentProduct?.id || base.id,
+    storeId,
+    title: form.name.trim(),
+    description: form.description.trim() || null,
+    sku: form.sku.trim() || null,
+    price,
+    compareAtPrice: form.comparePrice ? Number(form.comparePrice) : null,
+    currency: "INR",
+    status: 1,
+    isPublished: true,
+    variants: [
+      {
+        id: base.variants?.[0]?.id,
+        sku: form.sku.trim() || null,
+        price,
+        quantity: stock,
+        attributesJson: null,
+        isDefault: true,
+      },
+    ],
+    media: form.imageUrl
+      ? [
+          {
+            id: base.media?.[0]?.id,
+            url: form.imageUrl.trim(),
+            sortOrder: 0,
+          },
+        ]
+      : [],
+  };
+};
+
+const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading, mode }) => {
+  const [form, setForm] = useState({
+    name: "",
+    sku: "",
+    description: "",
+    price: "",
+    comparePrice: "",
+    stock: "",
+    imageUrl: "",
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      name: initialValues?.name || "",
+      sku: initialValues?.sku === "-" ? "" : initialValues?.sku || "",
+      description: initialValues?.raw?.description || "",
+      price: initialValues?.price != null ? String(initialValues.price) : "",
+      comparePrice:
+        initialValues?.raw?.compareAtPrice != null
+          ? String(initialValues.raw.compareAtPrice)
+          : "",
+      stock: initialValues?.stock != null ? String(initialValues.stock) : "",
+      imageUrl:
+        initialValues?.image &&
+        !initialValues.image.includes("placehold.co")
+          ? initialValues.image
+          : "",
+    });
+  }, [open, initialValues]);
+
+  const setField = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async () => {
+    await onSubmit(form);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Product</DialogTitle>
+          <DialogTitle>{mode === "edit" ? "Edit Product" : "Add New Product"}</DialogTitle>
           <DialogDescription>
-            Fill in the details to add a new product to your store.
+            Fill in the details to {mode === "edit" ? "update" : "add"} a product.
           </DialogDescription>
         </DialogHeader>
 
@@ -92,13 +167,25 @@ const AddProductDialog = ({ open, onOpenChange }) => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Product Name *</Label>
-              <Input id="name" placeholder="e.g., Premium Wireless Headphones" data-testid="product-name-input" />
+              <Input
+                id="name"
+                placeholder="e.g., Premium Wireless Headphones"
+                data-testid="product-name-input"
+                value={form.name}
+                onChange={(e) => setField("name", e.target.value)}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="sku">SKU</Label>
-                <Input id="sku" placeholder="e.g., WH-PRO-001" data-testid="product-sku-input" />
+                <Input
+                  id="sku"
+                  placeholder="e.g., WH-PRO-001"
+                  data-testid="product-sku-input"
+                  value={form.sku}
+                  onChange={(e) => setField("sku", e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
@@ -117,14 +204,16 @@ const AddProductDialog = ({ open, onOpenChange }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Describe your product..."
-                rows={4}
-                data-testid="product-description-input"
-              />
-            </div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Describe your product..."
+                  rows={4}
+                  data-testid="product-description-input"
+                  value={form.description}
+                  onChange={(e) => setField("description", e.target.value)}
+                />
+              </div>
           </div>
 
           {/* Pricing */}
@@ -133,11 +222,25 @@ const AddProductDialog = ({ open, onOpenChange }) => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="price">Price (₹) *</Label>
-                <Input id="price" type="number" placeholder="0.00" data-testid="product-price-input" />
+                <Input
+                  id="price"
+                  type="number"
+                  placeholder="0.00"
+                  data-testid="product-price-input"
+                  value={form.price}
+                  onChange={(e) => setField("price", e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="compare_price">Compare at Price (₹)</Label>
-                <Input id="compare_price" type="number" placeholder="0.00" data-testid="product-compare-price-input" />
+                <Input
+                  id="compare_price"
+                  type="number"
+                  placeholder="0.00"
+                  data-testid="product-compare-price-input"
+                  value={form.comparePrice}
+                  onChange={(e) => setField("comparePrice", e.target.value)}
+                />
               </div>
             </div>
           </div>
@@ -148,7 +251,14 @@ const AddProductDialog = ({ open, onOpenChange }) => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="stock">Stock Quantity</Label>
-                <Input id="stock" type="number" placeholder="0" data-testid="product-stock-input" />
+                <Input
+                  id="stock"
+                  type="number"
+                  placeholder="0"
+                  data-testid="product-stock-input"
+                  value={form.stock}
+                  onChange={(e) => setField("stock", e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="low_stock">Low Stock Alert</Label>
@@ -160,15 +270,14 @@ const AddProductDialog = ({ open, onOpenChange }) => {
           {/* Images */}
           <div className="space-y-4">
             <h4 className="font-medium text-slate-900 dark:text-white">Images</h4>
-            <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-8 text-center">
+            <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-6 text-center">
               <ImagePlus className="w-10 h-10 mx-auto text-slate-400 mb-4" />
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
-                Drag and drop images here, or click to browse
-              </p>
-              <Button variant="outline" size="sm" data-testid="upload-images-btn">
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Images
-              </Button>
+              <Input
+                placeholder="https://example.com/image.jpg"
+                data-testid="product-image-input"
+                value={form.imageUrl}
+                onChange={(e) => setField("imageUrl", e.target.value)}
+              />
             </div>
           </div>
         </div>
@@ -177,8 +286,13 @@ const AddProductDialog = ({ open, onOpenChange }) => {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700" data-testid="save-product-btn">
-            Add Product
+          <Button
+            className="bg-blue-600 hover:bg-blue-700"
+            data-testid="save-product-btn"
+            onClick={handleSubmit}
+            disabled={loading || !form.name.trim() || !form.price}
+          >
+            {loading ? "Saving..." : mode === "edit" ? "Update Product" : "Add Product"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -190,14 +304,22 @@ export const Products = () => {
   const { storeId, loadingStores } = useActiveStore();
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState("create");
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const { data: apiProducts, loading } = useApiList("/products", { storeId, enabled: !!storeId });
+  const products = rows;
 
-  const products = (apiProducts ?? []).map(mapProductFromApi);
+  useEffect(() => {
+    setRows((apiProducts ?? []).map(mapProductFromApi));
+  }, [apiProducts]);
 
   const filteredProducts = products.filter(
     (product) =>
-      (product.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (product.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (product.sku || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -214,6 +336,52 @@ export const Products = () => {
       setSelectedProducts(selectedProducts.filter((p) => p !== id));
     } else {
       setSelectedProducts([...selectedProducts, id]);
+    }
+  };
+
+  const openCreateDialog = () => {
+    setDialogMode("create");
+    setEditingProduct(null);
+    setError("");
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (product) => {
+    setDialogMode("edit");
+    setEditingProduct(product);
+    setError("");
+    setDialogOpen(true);
+  };
+
+  const handleSave = async (form) => {
+    if (!storeId) return;
+    setSaving(true);
+    setError("");
+    try {
+      const payload = buildProductPayload(form, storeId, editingProduct);
+      if (dialogMode === "edit" && editingProduct) {
+        const res = await api.put(`/products/${editingProduct.id}`, payload);
+        const updated = mapProductFromApi(res.data);
+        setRows((prev) => prev.map((p) => (p.id === editingProduct.id ? updated : p)));
+      } else {
+        const res = await api.post("/products", payload);
+        setRows((prev) => [mapProductFromApi(res.data), ...prev]);
+      }
+      setDialogOpen(false);
+    } catch (_) {
+      setError("Could not save product. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (productId) => {
+    if (!storeId) return;
+    try {
+      await api.delete(`/products/${productId}`, { params: { storeId } });
+      setRows((prev) => prev.filter((p) => p.id !== productId));
+    } catch (_) {
+      setError("Could not delete product. Please try again.");
     }
   };
 
@@ -234,7 +402,7 @@ export const Products = () => {
           </Button>
           <Button
             className="rounded-lg bg-blue-600 hover:bg-blue-700"
-            onClick={() => setAddDialogOpen(true)}
+            onClick={openCreateDialog}
             data-testid="add-product-btn"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -292,6 +460,7 @@ export const Products = () => {
           ) : !storeId ? (
             <div className="p-6 text-sm text-amber-600 dark:text-amber-400">Store is not selected. Set `REACT_APP_STORE_ID` or login with a store role.</div>
           ) : null}
+          {error ? <div className="px-6 py-3 text-sm text-red-600 dark:text-red-400">{error}</div> : null}
           <Table>
             <TableHeader>
               <TableRow>
@@ -365,7 +534,7 @@ export const Products = () => {
                           <Eye className="w-4 h-4 mr-2" />
                           View
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer">
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => openEditDialog(product)}>
                           <Edit className="w-4 h-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
@@ -374,7 +543,7 @@ export const Products = () => {
                           Duplicate
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="cursor-pointer text-red-600 dark:text-red-400">
+                        <DropdownMenuItem className="cursor-pointer text-red-600 dark:text-red-400" onClick={() => handleDelete(product.id)}>
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete
                         </DropdownMenuItem>
@@ -409,8 +578,14 @@ export const Products = () => {
         </CardContent>
       </Card>
 
-      {/* Add Product Dialog */}
-      <AddProductDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
+      <AddProductDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleSave}
+        initialValues={editingProduct}
+        loading={saving}
+        mode={dialogMode}
+      />
     </div>
   );
 };

@@ -2,33 +2,35 @@ Sitesellr Requirement Status
 Updated: 2026-02-17 (local)
 
 Developed (latest working tree)
-- Backend: .NET 8 API + PostgreSQL with tenancy resolver middleware and RBAC policies.
-- Domain APIs: merchants, stores, products, customers, orders (list/get/create) with store-scoping and pagination.
-- Security: opaque tokens, lockout/rate-limit, CSRF middleware, security headers, Turnstile verify API on auth endpoints.
-- Frontend wired to backend (without UI/theme redesign):
-  - Auth pages call backend and persist opaque tokens.
-  - Admin pages wired: Dashboard, Products, Customers, Orders, Settings (store data), store switcher.
-  - Protected admin route based on stored access token.
-- Turnstile end-to-end now wired in frontend:
-  - Cloudflare Turnstile widget rendered on Login and Register pages.
-  - Captcha token passed to backend as `turnstile_token`.
-  - Captcha failure clears token and forces re-challenge.
+- Backend: .NET 8 API + PostgreSQL with tenancy resolver and RBAC policies.
+- Core domain endpoints: merchants, stores, products, customers, orders.
+- Security baseline: opaque tokens, lockout/rate-limit, Turnstile verify on auth, CSRF middleware, security headers.
+- Frontend wired to backend data without UI/theme redesign for Dashboard, Products, Customers, Orders, Settings.
+- Turnstile widget integrated on Login/Register and enforced via backend verification.
+
+New in this update
+- Added backend update/delete APIs with policy and store-scope checks:
+  - PUT/DELETE /api/products/{id}
+  - PUT/DELETE /api/customers/{id}
+  - PUT/DELETE /api/orders/{id}
+- Wired frontend CRUD forms/actions:
+  - Products: create/edit dialog + delete action wired to API.
+  - Customers: create/edit dialog + delete action wired to API.
+  - Orders: create/update dialog + delete action wired to API.
+- Backend build validated successfully (`dotnet build`) with warnings only.
 
 Pending / Partial
-- Many admin forms are still UI-only or create-only; full update/delete flows pending.
-- Billing plans/subscription enforcement not implemented yet.
-- Payment gateway plugins are scaffold only (dummy provider).
-- WebAuthn UI flows still pending.
-- CSP/CORS/rate-limit tuning for production is still pending.
-- Full Shopify-level modules (themes marketplace, logistics integrations, plugin marketplace, SaaS metering, etc.) are pending.
+- Some advanced form fields are minimal for now (e.g., rich item editing in orders, full address management).
+- Billing plan enforcement, real payment providers, WebAuthn UI flows, and production CSP/CORS/rate tuning remain pending.
+- Full Shopify-level modules (theme marketplace, logistics integrations, plugin ecosystem, SaaS metering, etc.) remain pending.
 
-Config needed for Turnstile
-- Frontend: REACT_APP_TURNSTILE_SITE_KEY
-- Backend: Turnstile__SecretKey
+Config
+- Frontend Turnstile: REACT_APP_TURNSTILE_SITE_KEY
+- Backend Turnstile: Turnstile__SecretKey
 
 DB/Migrations
-- Run latest migrations on target DB: dotnet ef database update
+- Ensure target DB has latest migrations: dotnet ef database update
 
 Git state
-- Last pushed commit: c02864e
-- Current Turnstile + frontend wiring changes are local and not committed yet.
+- Last pushed commit: 9f3fbc4
+- Current CRUD wiring changes are local and not pushed yet.

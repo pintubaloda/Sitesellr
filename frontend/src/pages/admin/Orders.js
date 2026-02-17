@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { useEffect, useState } from "react";
+import { Card, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
@@ -22,7 +22,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
@@ -36,10 +35,13 @@ import {
 } from "../../components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Separator } from "../../components/ui/separator";
+import { Label } from "../../components/ui/label";
+import { Textarea } from "../../components/ui/textarea";
 import useApiList from "../../hooks/useApiList";
 import useActiveStore from "../../hooks/useActiveStore";
 import { mapOrderFromApi } from "../../lib/mappers";
 import { formatCurrency, formatDateTime, getInitials } from "../../lib/utils";
+import api from "../../lib/api";
 import {
   Search,
   MoreHorizontal,
@@ -51,11 +53,142 @@ import {
   ChevronRight,
   Package,
   MapPin,
-  Phone,
   Mail,
   Download,
   RefreshCw,
+  Plus,
 } from "lucide-react";
+
+const STATUS_TO_API = {
+  pending: 0,
+  processing: 1,
+  shipped: 2,
+  delivered: 3,
+  cancelled: 4,
+};
+
+const PAYMENT_TO_API = {
+  pending: 0,
+  paid: 1,
+  refunded: 3,
+};
+
+const buildOrderPayload = (form, storeId, currentOrder) => {
+  const base = currentOrder?.raw || {};
+  const subtotal = Number(form.total || 0);
+  const shipping = Number(form.shipping || 0);
+  const tax = Number(form.tax || 0);
+  return {
+    ...base,
+    id: currentOrder?.id || base.id,
+    storeId,
+    customerId: form.customerId?.trim() || null,
+    type: base.type ?? 0,
+    status: STATUS_TO_API[form.status] ?? 0,
+    paymentStatus: PAYMENT_TO_API[form.paymentStatus] ?? 0,
+    subtotal,
+    tax,
+    shipping,
+    total: subtotal + shipping + tax,
+    currency: "INR",
+    notes: form.notes.trim() || null,
+    items: base.items || [],
+  };
+};
+
+const OrderFormDialog = ({ open, onOpenChange, mode, initialValues, onSubmit, loading }) => {
+  const [form, setForm] = useState({
+    customerId: "",
+    status: "pending",
+    paymentStatus: "pending",
+    total: "",
+    shipping: "0",
+    tax: "0",
+    notes: "",
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      customerId: initialValues?.raw?.customerId || "",
+      status: initialValues?.status || "pending",
+      paymentStatus: initialValues?.paymentStatus || "pending",
+      total: initialValues?.raw?.subtotal != null ? String(initialValues.raw.subtotal) : initialValues?.total != null ? String(initialValues.total) : "",
+      shipping: initialValues?.raw?.shipping != null ? String(initialValues.raw.shipping) : "0",
+      tax: initialValues?.raw?.tax != null ? String(initialValues.raw.tax) : "0",
+      notes: initialValues?.raw?.notes || "",
+    });
+  }, [open, initialValues]);
+
+  const setField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{mode === "edit" ? "Update Order" : "Create Order"}</DialogTitle>
+          <DialogDescription>Save order details for this store.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Customer ID (optional)</Label>
+            <Input value={form.customerId} onChange={(e) => setField("customerId", e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(value) => setField("status", value)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Payment</Label>
+              <Select value={form.paymentStatus} onValueChange={(value) => setField("paymentStatus", value)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <Label>Subtotal</Label>
+              <Input type="number" value={form.total} onChange={(e) => setField("total", e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Shipping</Label>
+              <Input type="number" value={form.shipping} onChange={(e) => setField("shipping", e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Tax</Label>
+              <Input type="number" value={form.tax} onChange={(e) => setField("tax", e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Notes</Label>
+            <Textarea rows={3} value={form.notes} onChange={(e) => setField("notes", e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => onSubmit(form)} disabled={loading || !form.total}>
+            {loading ? "Saving..." : mode === "edit" ? "Update Order" : "Create Order"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const getStatusBadge = (status) => {
   const styles = {
@@ -87,7 +220,7 @@ const getPaymentBadge = (status) => {
   );
 };
 
-const OrderDetailsDialog = ({ order, open, onOpenChange }) => {
+const OrderDetailsDialog = ({ order, open, onOpenChange, onUpdate }) => {
   if (!order) return null;
 
   return (
@@ -195,7 +328,7 @@ const OrderDetailsDialog = ({ order, open, onOpenChange }) => {
             <Printer className="w-4 h-4 mr-2" />
             Print Invoice
           </Button>
-          <Button variant="outline" className="flex-1">
+          <Button variant="outline" className="flex-1" onClick={() => onUpdate(order)}>
             <Truck className="w-4 h-4 mr-2" />
             Update Status
           </Button>
@@ -214,9 +347,18 @@ export const Orders = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [rows, setRows] = useState([]);
+  const [formOpen, setFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState("create");
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const { data: apiOrders, loading } = useApiList("/orders", { storeId, enabled: !!storeId });
+  const orders = rows;
 
-  const orders = (apiOrders ?? []).map(mapOrderFromApi);
+  useEffect(() => {
+    setRows((apiOrders ?? []).map(mapOrderFromApi));
+  }, [apiOrders]);
 
   const filteredOrders = orders.filter(
     (order) =>
@@ -227,6 +369,57 @@ export const Orders = () => {
   const handleViewOrder = (order) => {
     setSelectedOrder(order);
     setDetailsOpen(true);
+  };
+
+  const openCreateOrder = () => {
+    setFormMode("create");
+    setEditingOrder(null);
+    setError("");
+    setFormOpen(true);
+  };
+
+  const openUpdateOrder = (order) => {
+    setFormMode("edit");
+    setEditingOrder(order);
+    setDetailsOpen(false);
+    setError("");
+    setFormOpen(true);
+  };
+
+  const handleSave = async (form) => {
+    if (!storeId) return;
+    setSaving(true);
+    setError("");
+    try {
+      const payload = buildOrderPayload(form, storeId, editingOrder);
+      if (formMode === "edit" && editingOrder) {
+        const res = await api.put(`/orders/${editingOrder.id}`, payload);
+        const updated = mapOrderFromApi(res.data);
+        setRows((prev) => prev.map((order) => (order.id === editingOrder.id ? updated : order)));
+      } else {
+        const res = await api.post("/orders", payload);
+        setRows((prev) => [mapOrderFromApi(res.data), ...prev]);
+      }
+      setFormOpen(false);
+    } catch (_) {
+      setError("Could not save order. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (orderId) => {
+    if (!storeId) return;
+    try {
+      await api.delete(`/orders/${orderId}`, { params: { storeId } });
+      setRows((prev) => prev.filter((order) => order.id !== orderId));
+      if (selectedOrder?.id === orderId) {
+        setDetailsOpen(false);
+        setSelectedOrder(null);
+      }
+    } catch (_) {
+      setError("Could not delete order. Please try again.");
+    }
   };
 
   return (
@@ -240,6 +433,10 @@ export const Orders = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button className="rounded-lg bg-blue-600 hover:bg-blue-700" onClick={openCreateOrder}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Order
+          </Button>
           <Button variant="outline" className="rounded-lg" data-testid="export-orders-btn">
             <Download className="w-4 h-4 mr-2" />
             Export
@@ -318,6 +515,7 @@ export const Orders = () => {
           ) : !storeId ? (
             <div className="p-6 text-sm text-amber-600 dark:text-amber-400">Store is not selected. Set `REACT_APP_STORE_ID` or login with a store role.</div>
           ) : null}
+          {error ? <div className="px-6 py-3 text-sm text-red-600 dark:text-red-400">{error}</div> : null}
           <Table>
             <TableHeader>
               <TableRow>
@@ -385,14 +583,14 @@ export const Orders = () => {
                           <Printer className="w-4 h-4 mr-2" />
                           Print Invoice
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer">
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => openUpdateOrder(order)}>
                           <Truck className="w-4 h-4 mr-2" />
                           Update Status
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="cursor-pointer text-red-600 dark:text-red-400">
+                        <DropdownMenuItem className="cursor-pointer text-red-600 dark:text-red-400" onClick={() => handleDelete(order.id)}>
                           <X className="w-4 h-4 mr-2" />
-                          Cancel Order
+                          Delete Order
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -427,6 +625,15 @@ export const Orders = () => {
         order={selectedOrder}
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
+        onUpdate={openUpdateOrder}
+      />
+      <OrderFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        mode={formMode}
+        initialValues={editingOrder}
+        onSubmit={handleSave}
+        loading={saving}
       />
     </div>
   );

@@ -1,14 +1,14 @@
 Sitesellr Requirement Status
 Updated: 2026-02-17 (local)
 
-Developed (latest working tree)
+Developed (latest pushed)
 - Backend: .NET 8 API + PostgreSQL with tenancy resolver and RBAC policies.
 - Core domain endpoints: merchants, stores, products, customers, orders.
 - Security baseline: opaque tokens, lockout/rate-limit, Turnstile verify on auth, CSRF middleware, security headers.
 - Frontend wired to backend data without UI/theme redesign for Dashboard, Products, Customers, Orders, Settings.
 - Turnstile widget integrated on Login/Register and enforced via backend verification.
 
-New in this update
+Latest delivered update
 - Added backend update/delete APIs with policy and store-scope checks:
   - PUT/DELETE /api/products/{id}
   - PUT/DELETE /api/customers/{id}
@@ -32,5 +32,5 @@ DB/Migrations
 - Ensure target DB has latest migrations: dotnet ef database update
 
 Git state
-- Last pushed commit: 9f3fbc4
-- Current CRUD wiring changes are local and not pushed yet.
+- Last pushed commit: 74645e0
+- Branch: main (origin/main synced)

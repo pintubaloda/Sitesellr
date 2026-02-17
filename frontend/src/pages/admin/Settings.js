@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import useApiList from "../../hooks/useApiList";
 import useActiveStore from "../../hooks/useActiveStore";
+import api from "../../lib/api";
 
 const SettingSection = ({ title, description, children }) => (
   <div className="space-y-4">
@@ -65,6 +66,8 @@ export const Settings = () => {
     currency: "INR",
     timezone: "Asia/Kolkata",
   });
+  const [savingGeneral, setSavingGeneral] = useState(false);
+  const [generalMessage, setGeneralMessage] = useState("");
 
   useEffect(() => {
     if (!selectedStore) return;
@@ -75,6 +78,28 @@ export const Settings = () => {
       timezone: selectedStore.timezone || prev.timezone,
     }));
   }, [selectedStore]);
+
+  const handleSaveGeneral = async () => {
+    if (!selectedStore?.id) {
+      setGeneralMessage("Select a store first.");
+      return;
+    }
+    setSavingGeneral(true);
+    setGeneralMessage("");
+    try {
+      await api.put(`/stores/${selectedStore.id}`, {
+        ...selectedStore,
+        name: storeSettings.storeName,
+        currency: storeSettings.currency,
+        timezone: storeSettings.timezone,
+      });
+      setGeneralMessage("Store settings saved.");
+    } catch (_) {
+      setGeneralMessage("Could not save store settings.");
+    } finally {
+      setSavingGeneral(false);
+    }
+  };
 
   return (
     <div className="space-y-6" data-testid="settings-page">
@@ -196,11 +221,19 @@ export const Settings = () => {
               </div>
 
               <div className="flex justify-end">
-                <Button className="bg-blue-600 hover:bg-blue-700" data-testid="save-general-settings">
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  data-testid="save-general-settings"
+                  onClick={handleSaveGeneral}
+                  disabled={savingGeneral}
+                >
                   <Check className="w-4 h-4 mr-2" />
-                  Save Changes
+                  {savingGeneral ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
+              {generalMessage ? (
+                <p className="text-sm text-slate-600 dark:text-slate-300">{generalMessage}</p>
+              ) : null}
             </CardContent>
           </Card>
 

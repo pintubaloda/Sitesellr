@@ -45,4 +45,27 @@ public class StoresController : BaseApiController
         var store = await _db.Stores.Include(s => s.Merchant).FirstOrDefaultAsync(s => s.Id == id, ct);
         return store == null ? NotFound() : Ok(store);
     }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] Store input, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        if (id != input.Id && input.Id != Guid.Empty) return BadRequest(new { error = "id_mismatch" });
+        if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
+
+        var store = await _db.Stores.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (store == null) return NotFound();
+
+        store.Name = input.Name;
+        store.Subdomain = input.Subdomain;
+        store.Currency = input.Currency;
+        store.Timezone = input.Timezone;
+        store.Status = input.Status;
+        store.IsWholesaleEnabled = input.IsWholesaleEnabled;
+        store.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(store);
+    }
 }

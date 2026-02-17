@@ -7,17 +7,17 @@ Developed (latest working tree)
 - Security baseline: opaque tokens, lockout/rate-limit, Turnstile verify on auth, CSRF middleware, security headers.
 - Frontend wired to backend data without UI/theme redesign for Dashboard, Products, Customers, Orders, Settings.
 - Turnstile widget integrated on Login/Register and enforced via backend verification.
-- CRUD update: product/customer/order create+update+delete API wiring done end-to-end.
+- Product/Customer/Order create+update+delete API wiring done end-to-end.
 
 New in this update
-- Fixed GitHub Actions CI failure (`MSB1003`) caused by invalid desktop workflow template.
-- Replaced workflow with backend .NET CI:
-  - `.github/workflows/dotnet-ci.yml`
-  - Runs restore/build/test in `backend-dotnet` project explicitly.
-- Verified locally: `dotnet test backend-dotnet/backend-dotnet.csproj` exits successfully.
+- Added backend store update endpoint: `PUT /api/stores/{id}` with owner/admin policy + tenancy checks.
+- Wired Settings General tab save button to backend store update API.
+- Added save status feedback on Settings page.
+- Backend build verified successful (`dotnet build`) with warnings only.
 
 Pending / Partial
-- Some advanced form fields are minimal for now (e.g., rich item editing in orders, full address management).
+- Store email/phone/address fields are currently UI-only placeholders (not persisted in current store model).
+- Some advanced form fields are minimal for now (e.g., rich order item editing, full address management UI).
 - Billing plan enforcement, real payment providers, WebAuthn UI flows, and production CSP/CORS/rate tuning remain pending.
 - Full Shopify-level modules (theme marketplace, logistics integrations, plugin ecosystem, SaaS metering, etc.) remain pending.
 
@@ -29,5 +29,5 @@ DB/Migrations
 - Ensure target DB has latest migrations: dotnet ef database update
 
 Git state
-- Last pushed commit: 6fe7606
-- Current CI workflow fix is local and not pushed yet.
+- Last pushed commit: 131e423
+- Current store settings API wiring is local and not pushed yet.

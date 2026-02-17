@@ -1,7 +1,6 @@
 Suggested commit message:
-feat: add tenancy policies, CRUD APIs, billing models, payment plugin scaffold
+chore: add backend Dockerfile and update status docs
 
 Notes:
-- Added authorization policies/handler; guarded store CRUD endpoints.
-- Added billing plans/subscriptions, payment plugin factory, CSP/CORS/WebAuthn config.
-- New migration: 20260217200000_BillingAndRbac (apply when DB reachable).
+- Dockerfile (multi-stage) for backend-dotnet, exposes 5000.
+- Docs refreshed; reminder to apply migration 20260217192823_BillingAndRbac.

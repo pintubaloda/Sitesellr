@@ -1,6 +1,6 @@
-Repo status: working tree dirty (migrations, code, docs).
-Doc generated: 2026-02-17T19:30:25.523768 UTC
+Repo status: clean except new migration pending DB apply.
+Doc generated: 2026-02-17T19:34:34.002027 UTC
 
-Implemented: tenancy middleware + policies, CRUD endpoints with pagination & tenancy checks, billing models, payment plugin stub, CSP/CORS/WebAuthn config.
-Pending: payment plugins, SaaS billing enforcement, host-based domain mapping for prod, advanced commerce features.
-DB update: new migration 20260217200000_BillingAndRbac pending because Postgres refused connection; run dotnet ef database update once DB is up.
+Implemented: Dockerfile for backend; tenancy policies; CRUD APIs with pagination; billing scaffold; payment plugin stub; CSP/CORS/WebAuthn config.
+Pending DB apply: 20260217192823_BillingAndRbac (Postgres must be reachable).
+Next: real gateways, billing enforcement, DTOs/validation, prod tenancy mapping.

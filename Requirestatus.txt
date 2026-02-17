@@ -8,12 +8,12 @@ Developed (latest working tree)
 - Frontend wired to backend data without UI/theme redesign for Dashboard, Products, Customers, Orders, Settings.
 - Turnstile widget integrated on Login/Register and enforced via backend verification.
 - Product/Customer/Order create+update+delete API wiring done end-to-end.
+- Settings General save now updates store via backend API.
 
-New in this update
-- Added backend store update endpoint: `PUT /api/stores/{id}` with owner/admin policy + tenancy checks.
-- Wired Settings General tab save button to backend store update API.
-- Added save status feedback on Settings page.
-- Backend build verified successful (`dotnet build`) with warnings only.
+Document structure update
+- Kept `masterrequirement.docx` for requirement/status matrix.
+- Renamed duplicate `mainrequirementstatus.docx` to `release_checklist.docx`.
+- `release_checklist.docx` now contains strict Owner/ETA/Risk/Priority release checklist.
 
 Pending / Partial
 - Store email/phone/address fields are currently UI-only placeholders (not persisted in current store model).
@@ -21,13 +21,6 @@ Pending / Partial
 - Billing plan enforcement, real payment providers, WebAuthn UI flows, and production CSP/CORS/rate tuning remain pending.
 - Full Shopify-level modules (theme marketplace, logistics integrations, plugin ecosystem, SaaS metering, etc.) remain pending.
 
-Config
-- Frontend Turnstile: REACT_APP_TURNSTILE_SITE_KEY
-- Backend Turnstile: Turnstile__SecretKey
-
-DB/Migrations
-- Ensure target DB has latest migrations: dotnet ef database update
-
 Git state
-- Last pushed commit: 131e423
-- Current store settings API wiring is local and not pushed yet.
+- Last pushed commit: 1adb53a
+- Current document rename/update is local and not pushed yet.

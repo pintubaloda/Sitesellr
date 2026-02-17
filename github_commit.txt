@@ -1,6 +1,6 @@
 Suggested commit message:
-chore: add backend Dockerfile and update status docs
+chore: wire frontend API proxy and refresh status docs
 
 Notes:
-- Dockerfile (multi-stage) for backend-dotnet, exposes 5000.
-- Docs refreshed; reminder to apply migration 20260217192823_BillingAndRbac.
+- Added frontend proxy to backend and shared axios client (src/lib/api.js); no UI changes.
+- Docs updated; reminder to apply migration 20260217192823_BillingAndRbac when DB reachable.

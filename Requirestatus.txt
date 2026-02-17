@@ -1,6 +1,5 @@
-Repo status: clean except new migration pending DB apply.
-Doc generated: 2026-02-17T19:34:34.002027 UTC
+Repo status: pending DB update for migration 20260217192823_BillingAndRbac if DB offline.
+Doc generated: 2026-02-17T19:40:12.317626 UTC
 
-Implemented: Dockerfile for backend; tenancy policies; CRUD APIs with pagination; billing scaffold; payment plugin stub; CSP/CORS/WebAuthn config.
-Pending DB apply: 20260217192823_BillingAndRbac (Postgres must be reachable).
-Next: real gateways, billing enforcement, DTOs/validation, prod tenancy mapping.
+Implemented: tenancy policies, CRUD APIs with pagination, billing scaffold, payment plugin stub, backend Dockerfile, frontend API wiring (proxy + axios client).
+Pending: apply migration; real gateways; billing enforcement; DTOs/validation; prod tenancy mapping; storefront/logistics/marketing/etc.

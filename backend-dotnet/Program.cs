@@ -6,6 +6,7 @@ using backend_dotnet.Services;
 using Fido2NetLib;
 using Fido2NetLib.Objects;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 using Serilog;
 using Serilog.Events;
 using System.Security.Claims;
@@ -46,6 +47,9 @@ builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>()
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddHttpClient<ITurnstileService, TurnstileService>();
 builder.Services.AddScoped<IWebAuthnService, WebAuthnService>();
+builder.Services.AddScoped<ITenancyResolver, TenancyResolver>();
+builder.Services.AddSingleton<IPaymentPlugin, DummyPaymentPlugin>();
+builder.Services.AddSingleton<IPaymentPluginFactory, PaymentPluginFactory>();
 builder.Services.AddSingleton<IFido2>(sp =>
 {
     var cfg = sp.GetRequiredService<IConfiguration>();
@@ -70,6 +74,14 @@ builder.Services.AddAntiforgery(options =>
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(Policies.StoreOwnerOrAdmin, policy =>
+        policy.Requirements.Add(new TenancyRoleRequirement(requireOwnerOrAdmin: true)));
+    options.AddPolicy(Policies.StoreStaff, policy =>
+        policy.Requirements.Add(new TenancyRoleRequirement(requireOwnerOrAdmin: false)));
+});
+builder.Services.AddSingleton<IAuthorizationHandler, TenancyRoleHandler>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ApiCorsPolicy", policy =>
@@ -109,6 +121,7 @@ app.UseCors("ApiCorsPolicy");
 app.UseIpRateLimiting();
 app.UseTightSecurityHeaders();
 app.UseCsrfProtection();
+app.UseTenancy();
 
 var api = app.MapGroup("/api");
 

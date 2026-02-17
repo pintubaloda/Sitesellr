@@ -26,6 +26,8 @@ public class AppDbContext : DbContext
     public DbSet<ProductMedia> ProductMedia => Set<ProductMedia>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<BillingPlan> BillingPlans => Set<BillingPlan>();
+    public DbSet<MerchantSubscription> MerchantSubscriptions => Set<MerchantSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -201,6 +203,28 @@ public class AppDbContext : DbContext
             b.Property(oi => oi.Price).HasColumnType("numeric(18,2)");
             b.Property(oi => oi.Total).HasColumnType("numeric(18,2)");
             b.HasOne(oi => oi.Order).WithMany(o => o.Items).HasForeignKey(oi => oi.OrderId);
+        });
+
+        modelBuilder.Entity<BillingPlan>(b =>
+        {
+            b.ToTable("billing_plans");
+            b.HasKey(p => p.Id);
+            b.Property(p => p.Name).IsRequired().HasMaxLength(120);
+            b.Property(p => p.Code).IsRequired().HasMaxLength(50);
+            b.Property(p => p.PricePerMonth).HasColumnType("numeric(18,2)");
+            b.Property(p => p.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(p => p.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<MerchantSubscription>(b =>
+        {
+            b.ToTable("merchant_subscriptions");
+            b.HasKey(s => s.Id);
+            b.Property(s => s.StartedAt).HasColumnType("timestamp with time zone");
+            b.Property(s => s.TrialEndsAt).HasColumnType("timestamp with time zone");
+            b.Property(s => s.ExpiresAt).HasColumnType("timestamp with time zone");
+            b.HasOne(s => s.Merchant).WithMany().HasForeignKey(s => s.MerchantId);
+            b.HasOne(s => s.Plan).WithMany().HasForeignKey(s => s.PlanId);
         });
 
         modelBuilder.Entity<AccessToken>(b =>

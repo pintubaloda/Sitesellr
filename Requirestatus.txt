@@ -1,8 +1,6 @@
-Repo commit base: b86ebad (local changes pending).
-Doc generated: 2026-02-17T19:04:32.183897 UTC
+Repo status: working tree dirty (migrations, code, docs).
+Doc generated: 2026-02-17T19:30:25.523768 UTC
 
-Implemented (local): auth hardening + WebAuthn/TOTP/Turnstile, rate limiting, CSRF, RBAC scaffolding entities, commerce entities (merchant/store/product/customer/order) and migration applied.
-Pending: feature implementation across storefront, payments, logistics, marketing, analytics, SaaS billing, tenant enforcement.
-Migrations present: 20260217120000_InitialCreate; 20260217121000_SecurityHardening; 20260217190000_WebAuthn; 20260217190118_TenancyCoreFinal.
-
-Next actions: tenancy middleware + policies; CRUD APIs; payment/plugin and billing models; tighten CSP/CORS & WebAuthn RP settings.
+Implemented: tenancy middleware + policies, CRUD endpoints with pagination & tenancy checks, billing models, payment plugin stub, CSP/CORS/WebAuthn config.
+Pending: payment plugins, SaaS billing enforcement, host-based domain mapping for prod, advanced commerce features.
+DB update: new migration 20260217200000_BillingAndRbac pending because Postgres refused connection; run dotnet ef database update once DB is up.

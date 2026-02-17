@@ -1,0 +1,48 @@
+using backend_dotnet.Data;
+using backend_dotnet.Models;
+using backend_dotnet.Services;
+using backend_dotnet.Security;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+
+namespace backend_dotnet.Controllers;
+
+public class MerchantsController : BaseApiController
+{
+    private readonly AppDbContext _db;
+
+    public MerchantsController(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    [HttpGet]
+    [HttpGet]
+    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    public async Task<IActionResult> List(CancellationToken ct)
+    {
+        var merchants = await _db.Merchants.AsNoTracking().ToListAsync(ct);
+        return Ok(merchants);
+    }
+
+    [HttpPost]
+    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    public async Task<IActionResult> Create([FromBody] Merchant input, CancellationToken ct)
+    {
+        input.Id = Guid.NewGuid();
+        input.CreatedAt = DateTimeOffset.UtcNow;
+        input.UpdatedAt = DateTimeOffset.UtcNow;
+        _db.Merchants.Add(input);
+        await _db.SaveChangesAsync(ct);
+        return CreatedAtAction(nameof(Get), new { id = input.Id }, input);
+    }
+
+    [HttpGet("{id:guid}")]
+    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    public async Task<IActionResult> Get(Guid id, CancellationToken ct)
+    {
+        var merchant = await _db.Merchants.FindAsync(new object[] { id }, ct);
+        return merchant == null ? NotFound() : Ok(merchant);
+    }
+}

@@ -1,8 +1,7 @@
 Suggested commit message:
-feat: add tenancy/catalog/customer/order models and clean migrations
+feat: add tenancy policies, CRUD APIs, billing models, payment plugin scaffold
 
 Notes:
-- Added merchant/store/role/customer/category/product/order schemas and updated AppDbContext.
-- Regenerated migrations; TenancyCoreFinal now applies cleanly after WebAuthn.
-- Database recreated successfully with all migrations.
-- Docs refreshed (masterrequirement.docx, Requirestatus.txt).
+- Added authorization policies/handler; guarded store CRUD endpoints.
+- Added billing plans/subscriptions, payment plugin factory, CSP/CORS/WebAuthn config.
+- New migration: 20260217200000_BillingAndRbac (apply when DB reachable).

@@ -39,6 +39,10 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: build
     pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: REACT_APP_API_BASE
         value: https://sitesellr-api.onrender.com/api

@@ -1,11 +1,15 @@
 Sitesellr Requirement Status
 Updated: 2026-02-18 (local)
 
-Module	Status	What's Done	What's Pending / Partial
-Render/Container Runtime Warnings	Developed	Added forwarded headers support and made HTTPS redirection conditional (development or `FORCE_HTTPS_REDIRECT=true`) to prevent "Failed to determine https port" behind proxy/container ingress.	Set env vars correctly on Render (`ASPNETCORE_URLS=http://+:10000` or platform default).
-Data Protection Config	Developed	Added optional `DATA_PROTECTION_KEYS_PATH` support so keys can be persisted to a mounted/shared path instead of container home profile path.	If no persistent disk/path is configured, key persistence warning can still appear after restarts.
-Platform/Admin Modules	Developed	Platform RBAC UI + Merchants UI remain wired with unauthorized message handling.	Role seeding still required for access.
+Issue	Status	What's Done	What You Must Do on Render
+SPA refresh shows Not Found	Fixed in config	Added static route rewrite in `render.yaml` for `sitesellr-web`: `/* -> /index.html` so React Router URLs work on refresh/direct hit.	Redeploy the Blueprint/static service so new `routes` config is applied.
+
+Notes
+- If service was created manually (not blueprint-managed), add this in Render Static Site settings:
+  - Source: `/*`
+  - Destination: `/index.html`
+  - Action: `Rewrite`
 
 Git state
-- Last pushed commit: b6a6d1b
-- Current runtime warning hardening update is local and pending push.
+- Last pushed commit: 3a4b4be
+- Current SPA rewrite fix is local and pending push.

@@ -12,10 +12,9 @@ RUN dotnet publish backend-dotnet.csproj -c Release -o /app/publish /p:UseAppHos
 # runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
-ENV ASPNETCORE_URLS=http://+:5000
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 
 COPY --from=build /app/publish .
 
 EXPOSE 5000
-ENTRYPOINT ["dotnet", "backend-dotnet.dll"]
+ENTRYPOINT ["sh", "-c", "ASPNETCORE_URLS=http://+:${PORT:-5000} dotnet backend-dotnet.dll"]

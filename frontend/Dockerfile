@@ -1,0 +1,16 @@
+FROM node:20-alpine AS build
+WORKDIR /app
+
+COPY frontend/package.json ./
+RUN npm install
+
+COPY frontend/. ./
+RUN npm run build
+
+FROM node:20-alpine AS runtime
+WORKDIR /app
+RUN npm install -g serve
+COPY --from=build /app/build ./build
+
+EXPOSE 3000
+ENTRYPOINT ["sh", "-c", "serve -s build -l ${PORT:-3000}"]

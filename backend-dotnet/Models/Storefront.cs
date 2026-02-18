@@ -113,6 +113,20 @@ public class StorefrontLayoutVersion
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public class StorefrontEditSession
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    public Guid UserId { get; set; }
+    [MaxLength(120)]
+    public string EditorName { get; set; } = string.Empty;
+    [MaxLength(40)]
+    public string Status { get; set; } = "active";
+    public DateTimeOffset LastSeenAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public class StoreNavigationMenu
 {
     public Guid Id { get; set; } = Guid.NewGuid();

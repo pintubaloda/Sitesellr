@@ -42,6 +42,7 @@ public class AppDbContext : DbContext
     public DbSet<StoreThemeConfig> StoreThemeConfigs => Set<StoreThemeConfig>();
     public DbSet<StoreHomepageLayout> StoreHomepageLayouts => Set<StoreHomepageLayout>();
     public DbSet<StorefrontLayoutVersion> StorefrontLayoutVersions => Set<StorefrontLayoutVersion>();
+    public DbSet<StorefrontEditSession> StorefrontEditSessions => Set<StorefrontEditSession>();
     public DbSet<StoreNavigationMenu> StoreNavigationMenus => Set<StoreNavigationMenu>();
     public DbSet<StoreStaticPage> StoreStaticPages => Set<StoreStaticPage>();
     public DbSet<StoreMediaAsset> StoreMediaAssets => Set<StoreMediaAsset>();
@@ -413,6 +414,18 @@ public class AppDbContext : DbContext
             b.Property(x => x.VersionType).HasMaxLength(20);
             b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(x => new { x.StoreId, x.VersionNumber }).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StorefrontEditSession>(b =>
+        {
+            b.ToTable("storefront_edit_sessions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.EditorName).HasMaxLength(120);
+            b.Property(x => x.Status).HasMaxLength(40);
+            b.Property(x => x.LastSeenAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.Status });
             b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
         });
 

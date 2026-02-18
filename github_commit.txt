@@ -196,3 +196,27 @@ Update Entry: 2026-02-18 (Canvas UX: before/after zones + grid/absolute + timeli
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Update Entry: 2026-02-18 (Collaboration session + diff foundation)
+- Added `StorefrontEditSession` model and DB mapping for collaborative editor heartbeat
+- Added migration: `backend-dotnet/Migrations/20260218194000_StorefrontCollaborationSessions.cs`
+- Added Storefront collaboration endpoints:
+  - `GET /collaboration/sessions`
+  - `POST /collaboration/sessions`
+  - `DELETE /collaboration/sessions/me`
+- Added Storefront version diff endpoint:
+  - `GET /homepage-layout/diff?fromVersionId=&toVersionId=`
+- Store Builder frontend now includes:
+  - collaboration panel with editor heartbeat/presence list
+  - diff request action and summary
+- Files updated:
+  - backend-dotnet/Models/Storefront.cs
+  - backend-dotnet/Data/AppDbContext.cs
+  - backend-dotnet/Controllers/StorefrontController.cs
+  - backend-dotnet/Migrations/20260218194000_StorefrontCollaborationSessions.cs
+  - backend-dotnet/Program.cs
+  - frontend/src/pages/admin/StoreBuilder.js
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

@@ -348,6 +348,17 @@ CREATE TABLE IF NOT EXISTS storefront_layout_versions (
 );");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_storefront_layout_versions_StoreId_VersionNumber ON storefront_layout_versions (""StoreId"", ""VersionNumber"");");
     await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS storefront_edit_sessions (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""UserId"" uuid NOT NULL,
+  ""EditorName"" character varying(120),
+  ""Status"" character varying(40) NOT NULL,
+  ""LastSeenAt"" timestamp with time zone NOT NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_storefront_edit_sessions_StoreId_Status ON storefront_edit_sessions (""StoreId"", ""Status"");");
+    await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS store_media_assets (
   ""Id"" uuid PRIMARY KEY,
   ""StoreId"" uuid NOT NULL,

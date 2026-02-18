@@ -182,6 +182,9 @@ export const StoreBuilder = () => {
   const [canvasMode, setCanvasMode] = useState("flow");
   const [gridSnap, setGridSnap] = useState(true);
   const [playbackIndex, setPlaybackIndex] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [editorName, setEditorName] = useState("Store Editor");
+  const [diffResult, setDiffResult] = useState(null);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -234,6 +237,26 @@ export const StoreBuilder = () => {
   useEffect(() => {
     loadData();
   }, [storeId]);
+
+  useEffect(() => {
+    if (!storeId) return undefined;
+    let timer = null;
+    const heartbeat = async () => {
+      try {
+        await api.post(`/stores/${storeId}/storefront/collaboration/sessions`, { editorName });
+        const res = await api.get(`/stores/${storeId}/storefront/collaboration/sessions`);
+        setSessions(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        // keep silent for collaboration polling
+      }
+    };
+    heartbeat();
+    timer = setInterval(heartbeat, 15000);
+    return () => {
+      clearInterval(timer);
+      api.delete(`/stores/${storeId}/storefront/collaboration/sessions/me`).catch(() => {});
+    };
+  }, [storeId, editorName]);
 
   const recordSectionsHistory = () => {
     setPastSections((p) => [...p, cloneDeep(sections)]);
@@ -431,6 +454,16 @@ export const StoreBuilder = () => {
       setStatus("Rollback complete.");
     } catch (err) {
       setStatus(err?.response?.data?.error || "Could not rollback.");
+    }
+  };
+
+  const loadDiff = async (fromVersionId, toVersionId) => {
+    if (!storeId || !fromVersionId || !toVersionId) return;
+    try {
+      const res = await api.get(`/stores/${storeId}/storefront/homepage-layout/diff`, { params: { fromVersionId, toVersionId } });
+      setDiffResult(res.data);
+    } catch (err) {
+      setStatus(err?.response?.data?.error || "Could not load version diff.");
     }
   };
 
@@ -761,10 +794,27 @@ export const StoreBuilder = () => {
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => publishVersion(v.id)}>Publish</Button>
                         <Button size="sm" variant="ghost" onClick={() => rollbackVersion(v.id)}>Rollback</Button>
+                        <Button size="sm" variant="ghost" onClick={() => loadDiff(v.id, layoutVersions[0]?.id)}>Diff</Button>
                       </div>
                     </div>
                   ))}
                 </div>
+                <div className="space-y-2">
+                  <Label>Collaboration</Label>
+                  <Input value={editorName} onChange={(e) => setEditorName(e.target.value)} placeholder="Editor display name" />
+                  {(sessions || []).slice(0, 5).map((s) => (
+                    <div key={s.id} className="text-xs p-2 border rounded flex items-center justify-between">
+                      <span>{s.editorName || "Editor"}</span>
+                      <span className="text-slate-500">{new Date(s.lastSeenAt).toLocaleTimeString()}</span>
+                    </div>
+                  ))}
+                </div>
+                {diffResult ? (
+                  <div className="space-y-2 p-2 border rounded">
+                    <Label>Version Diff</Label>
+                    <p className="text-xs">Added: {(diffResult.added || []).length} | Removed: {(diffResult.removed || []).length} | Renamed: {(diffResult.renamed || []).length}</p>
+                  </div>
+                ) : null}
                 <div className="space-y-2">
                   <Label>Timeline Playback</Label>
                   {historyFrames.slice(-8).map((frame, idx) => {

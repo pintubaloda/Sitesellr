@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using backend_dotnet.Data;
 using backend_dotnet.Models;
 using backend_dotnet.Security;
@@ -319,6 +320,91 @@ public class StorefrontController : ControllerBase
         return await PublishHomepageLayout(storeId, req, ct);
     }
 
+    [HttpGet("homepage-layout/diff")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> DiffHomepageLayout(Guid storeId, [FromQuery] Guid fromVersionId, [FromQuery] Guid toVersionId, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var versions = await _db.StorefrontLayoutVersions.AsNoTracking()
+            .Where(x => x.StoreId == storeId && (x.Id == fromVersionId || x.Id == toVersionId))
+            .ToListAsync(ct);
+        var from = versions.FirstOrDefault(x => x.Id == fromVersionId);
+        var to = versions.FirstOrDefault(x => x.Id == toVersionId);
+        if (from == null || to == null) return NotFound(new { error = "version_not_found" });
+
+        var fromMap = FlattenNodes(from.SectionsJson);
+        var toMap = FlattenNodes(to.SectionsJson);
+        var added = toMap.Keys.Except(fromMap.Keys).Select(id => new { id, title = toMap[id] }).ToList();
+        var removed = fromMap.Keys.Except(toMap.Keys).Select(id => new { id, title = fromMap[id] }).ToList();
+        var renamed = toMap.Keys.Intersect(fromMap.Keys)
+            .Where(id => !string.Equals(toMap[id], fromMap[id], StringComparison.Ordinal))
+            .Select(id => new { id, from = fromMap[id], to = toMap[id] })
+            .ToList();
+        return Ok(new
+        {
+            fromVersionId,
+            toVersionId,
+            added,
+            removed,
+            renamed
+        });
+    }
+
+    [HttpGet("collaboration/sessions")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> ListSessions(Guid storeId, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var cutoff = DateTimeOffset.UtcNow.AddMinutes(-5);
+        var rows = await _db.StorefrontEditSessions.AsNoTracking()
+            .Where(x => x.StoreId == storeId && x.Status == "active" && x.LastSeenAt >= cutoff)
+            .OrderByDescending(x => x.LastSeenAt)
+            .ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    [HttpPost("collaboration/sessions")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> UpsertSession(Guid storeId, [FromBody] EditSessionRequest req, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        if (Tenancy?.UserId == null) return Unauthorized();
+        var userId = Tenancy.UserId.Value;
+        var session = await _db.StorefrontEditSessions.FirstOrDefaultAsync(x => x.StoreId == storeId && x.UserId == userId && x.Status == "active", ct);
+        if (session == null)
+        {
+            session = new StorefrontEditSession
+            {
+                StoreId = storeId,
+                UserId = userId,
+                EditorName = string.IsNullOrWhiteSpace(req.EditorName) ? $"User-{userId.ToString()[..8]}" : req.EditorName.Trim(),
+                Status = "active",
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+            _db.StorefrontEditSessions.Add(session);
+        }
+        session.LastSeenAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(session);
+    }
+
+    [HttpDelete("collaboration/sessions/me")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> EndSession(Guid storeId, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        if (Tenancy?.UserId == null) return Unauthorized();
+        var userId = Tenancy.UserId.Value;
+        var rows = await _db.StorefrontEditSessions.Where(x => x.StoreId == storeId && x.UserId == userId && x.Status == "active").ToListAsync(ct);
+        foreach (var row in rows)
+        {
+            row.Status = "ended";
+            row.LastSeenAt = DateTimeOffset.UtcNow;
+        }
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     [HttpGet("navigation")]
     [Authorize(Policy = Policies.StoreSettingsRead)]
     public async Task<IActionResult> GetNavigation(Guid storeId, CancellationToken ct)
@@ -484,6 +570,39 @@ public class StorefrontController : ControllerBase
         }
         return true;
     }
+
+    private static Dictionary<string, string> FlattenNodes(string sectionsJson)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var arr = JsonNode.Parse(sectionsJson)?.AsArray();
+            if (arr == null) return result;
+            foreach (var node in arr)
+            {
+                Traverse(node, result);
+            }
+        }
+        catch
+        {
+            // ignore invalid json for diff output
+        }
+        return result;
+    }
+
+    private static void Traverse(JsonNode? node, IDictionary<string, string> map)
+    {
+        if (node is not JsonObject obj) return;
+        var id = obj["id"]?.ToString();
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            map[id] = obj["title"]?.ToString() ?? obj["type"]?.ToString() ?? "node";
+        }
+        if (obj["children"] is JsonArray children)
+        {
+            foreach (var child in children) Traverse(child, map);
+        }
+    }
 }
 
 [ApiController]
@@ -603,4 +722,10 @@ public class PublishLayoutRequest
 {
     [Required]
     public Guid VersionId { get; set; }
+}
+
+public class EditSessionRequest
+{
+    [StringLength(120)]
+    public string? EditorName { get; set; }
 }

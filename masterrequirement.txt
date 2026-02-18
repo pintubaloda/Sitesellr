@@ -110,3 +110,10 @@ Updated: 2026-02-18
 
 Module Name	Developed	Partial Developed	Need To Develop
 Visual Drag-Drop Canvas	Added before/after drop zones, deep nested drag-as-child and sibling positioning, absolute/freeform mode toggle, grid snapping controls, inspector position sizing (x/y/w), timeline playback panel with step jump and node diff counters	Absolute mode currently manual-position via inspector values (not direct pointer drag), playback is local editor history (single-user)	Direct pointer-based absolute drag handles, multi-user collaborative timeline, semantic diff merge workflow
+
+---
+Collaboration Timeline & Diff Foundation Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Collaboration Timeline / Diff Playback	Added backend version-diff API (added/removed/renamed node deltas), editor collaboration session APIs (heartbeat/list/end), and frontend collaboration panel with active editors + diff summary viewer	Single-store polling model only; no real-time websocket sync or conflict merge	CRDT/OT real-time merge, live cursor presence, conflict resolution UI and permissions workflow

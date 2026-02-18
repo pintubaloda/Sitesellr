@@ -117,3 +117,12 @@ Updated: 2026-02-18
 
 Module Name	Developed	Partial Developed	Need To Develop
 Collaboration Timeline / Diff Playback	Added backend version-diff API (added/removed/renamed node deltas), editor collaboration session APIs (heartbeat/list/end), and frontend collaboration panel with active editors + diff summary viewer	Single-store polling model only; no real-time websocket sync or conflict merge	CRDT/OT real-time merge, live cursor presence, conflict resolution UI and permissions workflow
+
+---
+Realtime Sync / OT-like Merge / Live Cursor Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Realtime Sync (WebSocket)	Added websocket collaboration endpoint `/ws/storefront/{storeId}` with snapshot/presence/op messaging and client heartbeat integration in Store Builder	In-memory room state only; no distributed backplane yet	Redis/backplane fanout for multi-instance horizontal scale
+OT/CRDT Conflict Handling	Implemented revision-based operation acceptance + conflict response (`conflict` returns server snapshot) for safe convergence	This is OT-like revision gating, not full CRDT/OT transform algorithm	True CRDT/OT transform engine with operation-level semantic merge
+Live Cursor Co-editing	Added live cursor broadcasts (`cursor` events) and remote cursor presence indicators in builder UI	Cursor coordinates currently minimal (node-focused, not pixel cursor map)	Full live cursor coordinates, colored user avatars, viewport-aware cursor rendering

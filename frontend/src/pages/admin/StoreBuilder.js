@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -185,8 +185,12 @@ export const StoreBuilder = () => {
   const [sessions, setSessions] = useState([]);
   const [editorName, setEditorName] = useState("Store Editor");
   const [diffResult, setDiffResult] = useState(null);
+  const [remoteCursors, setRemoteCursors] = useState([]);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const wsRef = useRef(null);
+  const suppressRealtimeRef = useRef(false);
+  const revisionRef = useRef(0);
 
   const activeTheme = useMemo(() => themes.find((x) => x.id === activeThemeId) || null, [themes, activeThemeId]);
   const selectedNode = useMemo(() => findNodeByIdInTree(sections, selectedNodeId), [sections, selectedNodeId]);
@@ -224,6 +228,7 @@ export const StoreBuilder = () => {
       const normalized = normalizeNodes(parseJsonArray(layoutRes.data?.sectionsJson, FALLBACK_SECTIONS));
       setSections(normalized);
       setSelectedNodeId(normalized[0]?.id || "");
+      revisionRef.current = 0;
       setMenuItems(parseJsonArray(navRes.data?.itemsJson, FALLBACK_MENU));
       setPages(Array.isArray(pagesRes.data) ? pagesRes.data : []);
       setLayoutVersions(Array.isArray(versionsRes.data) ? versionsRes.data : []);
@@ -237,6 +242,58 @@ export const StoreBuilder = () => {
   useEffect(() => {
     loadData();
   }, [storeId]);
+
+  useEffect(() => {
+    if (!storeId) return undefined;
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const clientId = `client_${Math.random().toString(36).slice(2, 10)}`;
+    const ws = new WebSocket(`${protocol}://${window.location.host}/ws/storefront/${storeId}?clientId=${clientId}`);
+    wsRef.current = ws;
+
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.type === "snapshot" || msg.type === "op_applied") {
+          revisionRef.current = Number(msg.revision || 0);
+          if (msg.clientId && msg.clientId === clientId) return;
+          suppressRealtimeRef.current = true;
+          const normalized = normalizeNodes(parseJsonArray(msg.sectionsJson, FALLBACK_SECTIONS));
+          setSections(normalized);
+          setTimeout(() => {
+            suppressRealtimeRef.current = false;
+          }, 150);
+        } else if (msg.type === "conflict") {
+          revisionRef.current = Number(msg.revision || 0);
+          suppressRealtimeRef.current = true;
+          const normalized = normalizeNodes(parseJsonArray(msg.sectionsJson, FALLBACK_SECTIONS));
+          setSections(normalized);
+          setStatus("Realtime conflict resolved with latest server state.");
+          setTimeout(() => {
+            suppressRealtimeRef.current = false;
+          }, 150);
+        } else if (msg.type === "cursor") {
+          setRemoteCursors((prev) => {
+            const filtered = prev.filter((c) => c.clientId !== msg.clientId);
+            return [...filtered, { clientId: msg.clientId, nodeId: msg.nodeId, x: msg.x, y: msg.y }];
+          });
+        }
+      } catch {
+        // no-op
+      }
+    };
+
+    return () => {
+      ws.close();
+      wsRef.current = null;
+      setRemoteCursors([]);
+    };
+  }, [storeId]);
+
+  useEffect(() => {
+    if (!selectedNodeId) return;
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    wsRef.current.send(JSON.stringify({ type: "cursor", nodeId: selectedNodeId, x: 0, y: 0 }));
+  }, [selectedNodeId]);
 
   useEffect(() => {
     if (!storeId) return undefined;
@@ -416,6 +473,22 @@ export const StoreBuilder = () => {
     setSections(cloneDeep(frame));
     setSelectedNodeId(findNodeByIdInTree(frame, selectedNodeId)?.id || frame[0]?.id || "");
   };
+
+  useEffect(() => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return undefined;
+    if (suppressRealtimeRef.current) return undefined;
+    const timer = setTimeout(() => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+      wsRef.current.send(
+        JSON.stringify({
+          type: "op",
+          baseRevision: revisionRef.current,
+          sectionsJson: JSON.stringify(sections),
+        })
+      );
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [sections]);
 
   const saveLayout = async () => {
     if (!storeId) return;
@@ -806,6 +879,11 @@ export const StoreBuilder = () => {
                     <div key={s.id} className="text-xs p-2 border rounded flex items-center justify-between">
                       <span>{s.editorName || "Editor"}</span>
                       <span className="text-slate-500">{new Date(s.lastSeenAt).toLocaleTimeString()}</span>
+                    </div>
+                  ))}
+                  {(remoteCursors || []).slice(0, 5).map((c) => (
+                    <div key={`cursor-${c.clientId}`} className="text-xs p-2 rounded border bg-slate-50 dark:bg-slate-900">
+                      Remote cursor: {c.clientId.slice(0, 6)} on {c.nodeId || "canvas"}
                     </div>
                   ))}
                 </div>

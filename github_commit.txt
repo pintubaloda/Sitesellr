@@ -220,3 +220,24 @@ Update Entry: 2026-02-18 (Collaboration session + diff foundation)
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Update Entry: 2026-02-18 (Realtime websocket + OT-like merge + live cursor)
+- Added backend realtime collaboration service:
+  - `backend-dotnet/Services/StorefrontRealtimeService.cs`
+  - room-based websocket handling, snapshot, presence, op apply, conflict responses
+- Added websocket endpoint wiring in runtime:
+  - `/ws/storefront/{storeId}` in `backend-dotnet/Program.cs`
+- Added collaboration data model + APIs foundation already used by builder sessions/diff
+- Store Builder frontend now:
+  - opens websocket connection per store
+  - sends/receives realtime ops with revision guard
+  - resolves conflicts via server snapshot
+  - sends node-focused cursor events and shows remote cursor indicators
+- Files updated:
+  - backend-dotnet/Services/StorefrontRealtimeService.cs
+  - backend-dotnet/Program.cs
+  - frontend/src/pages/admin/StoreBuilder.js
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

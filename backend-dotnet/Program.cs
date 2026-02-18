@@ -88,6 +88,7 @@ builder.Services.AddHttpClient<ITurnstileService, TurnstileService>();
 builder.Services.AddScoped<IWebAuthnService, WebAuthnService>();
 builder.Services.AddScoped<ITenancyResolver, TenancyResolver>();
 builder.Services.AddHttpClient<ICloudflareDnsService, CloudflareDnsService>();
+builder.Services.AddSingleton<StorefrontRealtimeService>();
 builder.Services.AddSingleton<ISslProvider, LetsEncryptShellProvider>();
 builder.Services.AddSingleton<ISslProviderFactory, SslProviderFactory>();
 builder.Services.AddSingleton<IPaymentPlugin, DummyPaymentPlugin>();
@@ -476,6 +477,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseForwardedHeaders();
 app.UseStaticFiles();
+app.UseWebSockets();
 if (app.Environment.IsDevelopment() || builder.Configuration.GetValue("FORCE_HTTPS_REDIRECT", false))
 {
     app.UseHttpsRedirection();
@@ -489,6 +491,23 @@ app.UseAuthorization();
 
 var api = app.MapGroup("/api");
 app.MapControllers();
+app.Map("/ws/storefront/{storeId:guid}", async (HttpContext context, Guid storeId, StorefrontRealtimeService realtime, CancellationToken ct) =>
+{
+    if (!context.WebSockets.IsWebSocketRequest)
+    {
+        context.Response.StatusCode = 400;
+        await context.Response.WriteAsync("WebSocket required", ct);
+        return;
+    }
+
+    using var socket = await context.WebSockets.AcceptWebSocketAsync();
+    var clientId = context.Request.Query["clientId"].ToString();
+    if (string.IsNullOrWhiteSpace(clientId))
+    {
+        clientId = Guid.NewGuid().ToString("N");
+    }
+    await realtime.HandleClientAsync(storeId, clientId, socket, ct);
+});
 
 api.MapGet("/", () => Results.Ok(new { message = "Hello World" }))
    .WithName("Root");

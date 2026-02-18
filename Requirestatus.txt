@@ -1,13 +1,12 @@
 Sitesellr Requirement Status
 Updated: 2026-02-18 (local)
 
-Backend-Frontend Wiring Check	Status	What's Done	What's Pending / Partial
-Auth + Onboarding	Wired	`/auth/register` wizard fully wired to real onboarding APIs (start/verify/plan/payment/setup/complete) and redirects to admin after activation.	None.
-Core CRUD Modules	Wired	Products, Customers, Orders, and Store Settings pages are wired to real backend APIs (list/create/update/delete + store scoping).	Merchants/Platform RBAC admin UI pages are not built yet.
-Dashboard	Partially wired -> improved	Dashboard now reads real Orders/Customers/Products APIs for stats, revenue series, category chart, and activity feed (removed mock dependency for these).	Advanced analytics pages still use mock data (Analytics/Marketing/StoreBuilder modules pending backend APIs).
-API Base Binding	Improved	Frontend API client now defaults to runtime origin `/api` when `REACT_APP_API_BASE` is not set, and still supports explicit real API base via env.	Set `REACT_APP_API_BASE` in production when frontend/backend are on different domains.
-Route Unification	Wired	Single recommended URL flow enforced: `/onboarding` redirects to `/auth/register`.	None.
+Module	Status	What's Done	What's Pending / Partial
+Platform RBAC Admin UI	Developed	Added admin page wired to real APIs for platform role management and store-user permission management (`GET/PUT /platform/rbac/...`).	Requires platform owner token/role assignment to use in production.
+Merchants Management UI	Developed	Added admin page wired to real API (`GET /merchants`, `POST /merchants`) with create/list handling.	Edit/update/suspend UI actions can be added next (backend endpoints currently minimal).
+Admin Navigation Wiring	Developed	Added sidebar and routes for `Merchants` and `Platform RBAC` modules under `/admin`.	None.
+Single Register Entry	Developed	`/onboarding` continues to redirect to `/auth/register`.	None.
 
 Git state
-- Last pushed commit: 1d921a5
-- Current wiring verification + real API binding improvements are local and pending push.
+- Last pushed commit: 3b14c70
+- Current Platform RBAC + Merchants frontend wiring is local and pending push.

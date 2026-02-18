@@ -18,6 +18,8 @@ import StoreBuilder from "./pages/admin/StoreBuilder";
 import Marketing from "./pages/admin/Marketing";
 import Analytics from "./pages/admin/Analytics";
 import Settings from "./pages/admin/Settings";
+import Merchants from "./pages/admin/Merchants";
+import PlatformRbac from "./pages/admin/PlatformRbac";
 import { getStoredAccessToken } from "./lib/session";
 
 const ProtectedRoute = ({ children }) => {
@@ -58,6 +60,8 @@ function App() {
             <Route path="marketing" element={<Marketing />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="merchants" element={<Merchants />} />
+            <Route path="platform-rbac" element={<PlatformRbac />} />
           </Route>
 
           {/* Catch all - redirect to home */}

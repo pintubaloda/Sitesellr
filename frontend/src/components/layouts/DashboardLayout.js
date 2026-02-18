@@ -35,6 +35,8 @@ import {
   Percent,
   BarChart3,
   Settings,
+  Building2,
+  ShieldCheck,
   ChevronLeft,
   Menu,
   Moon,
@@ -90,6 +92,16 @@ const sidebarItems = [
     title: "Settings",
     icon: Settings,
     path: "/admin/settings",
+  },
+  {
+    title: "Merchants",
+    icon: Building2,
+    path: "/admin/merchants",
+  },
+  {
+    title: "Platform RBAC",
+    icon: ShieldCheck,
+    path: "/admin/platform-rbac",
   },
 ];
 

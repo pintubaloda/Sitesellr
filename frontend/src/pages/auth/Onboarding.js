@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, Store } from "lucide-react";
+import { ArrowRight, Store, Sparkles } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -184,7 +184,10 @@ export const Onboarding = ({ showHeaderMenu = false }) => {
         <div className="flex-1 flex items-center justify-center px-6 py-4">
           <div className="w-full max-w-xl">
             <div className="mb-5">
-              <h2 className="text-[34px] leading-[1.2] font-semibold tracking-[-0.01em] text-slate-900">Create your account</h2>
+              <h2 className="inline-flex items-center gap-2 text-[34px] leading-[1.2] font-semibold tracking-[-0.01em] text-slate-900">
+                <Sparkles className="h-7 w-7 text-blue-600" />
+                Lets Get Started !
+              </h2>
               <p className="mt-1 text-[15px] text-slate-500">Enter your details to get started</p>
             </div>
 

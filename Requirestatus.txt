@@ -2,8 +2,8 @@ Sitesellr Requirement Status
 Updated: 2026-02-18 (local)
 
 Module	Status	What's Done	What's Pending / Partial
-Register Right Panel Heading	Developed	Refined main heading style for better visual quality: reduced size/weight and improved line-height/tracking for cleaner look.	Can still tweak copy text if you want alternative wording.
+Register Heading Content	Developed	Changed right-panel heading to `Lets Get Started !` with icon (Sparkles) for stronger visual entry.	Can adjust punctuation/case if you want exact brand wording.
 
 Git state
-- Last pushed commit: 8743d65
-- Current heading polish is local and pending push.
+- Last pushed commit: 150e51f
+- Current heading text+icon update is local and pending push.

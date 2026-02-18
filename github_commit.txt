@@ -2,10 +2,10 @@ Sitesellr Requirement Status
 Updated: 2026-02-18 (local)
 
 Module	Status	What's Done	What's Pending / Partial
-Onboarding Wizard UI	Developed	Reworked `/onboarding` layout to match requested left-step wizard structure (top nav, left progress rail, right form panel) while preserving Sitesellr theme/colors/logo usage.	Need final visual QA in deployed environment for exact spacing/typography parity on all screen sizes.
-Onboarding Flow Logic	Developed	Existing register -> OTP verify -> plan -> payment(stub) -> setup store -> activate flow remains fully wired to backend APIs.	Payment step still stub (no real gateway capture yet).
-RBAC + Tenancy	Developed	Two-layer RBAC (platform + store permission policies) and tenant guards are in place from previous update.	Need audit logs + step-up auth for high-risk operations.
+Onboarding Wizard UI	Developed	Adjusted onboarding page to closely match the new attached split-screen reference: full-height blue gradient left panel, branded hero/testimonial style block, right auth-form style canvas, refined spacing and font scale, and 5-step wizard rail with exact requested step labels/flow.	Final browser-level pixel QA still needed against your exact screen size and font rendering.
+Onboarding Flow Logic	Developed	Flow remains: Register -> Verify Email+Mobile OTP -> Choose Plan -> Payment (only if paid plan) -> Setup Store -> Activate + redirect admin.	Payment integration is still stubbed (no real gateway processing yet).
+RBAC + Tenancy	Developed	Two-layer RBAC and tenant policy guards remain active from previous update.	Need audit logs and step-up auth for high-risk operations.
 
 Git state
-- Last pushed commit: 8c6401e
-- Current onboarding wizard layout update is local and pending push.
+- Last pushed commit: 484c966
+- Current pixel-match onboarding update is local and pending push.

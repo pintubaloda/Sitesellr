@@ -169,3 +169,10 @@ Updated: 2026-02-18
 
 Module Name	Developed	Partial Developed	Need To Develop
 Authentication Flow Stability	CSRF middleware now exempts auth bootstrap endpoints (login/register/refresh/logout/onboarding/team invite accept) to prevent first-login `csrf_invalid` failures	-	-
+
+---
+Role-Based UI Visibility Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET /api/auth/access`) and dynamic sidebar visibility by platform/store scope so platform owner/staff and store users no longer see identical menu options	Page-level button/action guards still partly API-enforced (403 fallback) and not fully hidden in all screens	Complete route/action-level guard matrix and per-component permission gating for every admin view

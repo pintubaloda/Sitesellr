@@ -299,3 +299,17 @@ Update Entry: 2026-02-18 (default seeded password update)
 Fix Entry: 2026-02-18 (csrf_invalid on login/register)
 - Updated `backend-dotnet/Security/CsrfMiddleware.cs`
 - Added CSRF-exempt path list for authentication bootstrap endpoints to avoid blocking first unauthenticated token exchange
+
+Update Entry: 2026-02-18 (role-based UI visibility split)
+- Added backend endpoint: `GET /api/auth/access` (`AuthAccessController`) to expose effective platform/store access context
+- Updated dashboard sidebar rendering to be role-aware via dynamic scope filtering
+  - platform-owner only menus
+  - platform-staff menus
+  - store-scoped menus
+- Files updated:
+  - backend-dotnet/Controllers/AuthAccessController.cs
+  - frontend/src/components/layouts/DashboardLayout.js
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

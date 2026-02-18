@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -61,75 +61,89 @@ const sidebarItems = [
     title: "Dashboard",
     icon: LayoutDashboard,
     path: "/admin",
+    scope: "store",
   },
   {
     title: "Products",
     icon: Package,
     path: "/admin/products",
+    scope: "store",
   },
   {
     title: "Orders",
     icon: ShoppingCart,
     path: "/admin/orders",
+    scope: "store",
   },
   {
     title: "Customers",
     icon: Users,
     path: "/admin/customers",
+    scope: "store",
   },
   {
     title: "Store Builder",
     icon: Palette,
     path: "/admin/store-builder",
+    scope: "store",
   },
   {
     title: "Marketing",
     icon: Percent,
     path: "/admin/marketing",
+    scope: "store",
   },
   {
     title: "Analytics",
     icon: BarChart3,
     path: "/admin/analytics",
+    scope: "store",
   },
   {
     title: "Settings",
     icon: Settings,
     path: "/admin/settings",
+    scope: "store",
   },
   {
     title: "Merchants",
     icon: Building2,
     path: "/admin/merchants",
+    scope: "platform-staff",
   },
   {
     title: "Platform RBAC",
     icon: ShieldCheck,
     path: "/admin/platform-rbac",
+    scope: "platform-owner",
   },
   {
     title: "Audit Logs",
     icon: ClipboardList,
     path: "/admin/audit-logs",
+    scope: "platform-staff-or-store",
   },
   {
     title: "Merchant Ops",
     icon: Network,
     path: "/admin/merchant-ops",
+    scope: "platform-staff",
   },
   {
     title: "Platform Themes",
     icon: Brush,
     path: "/admin/platform-themes",
+    scope: "platform-owner",
   },
   {
     title: "Domains & SSL",
     icon: Shield,
     path: "/admin/domains-ssl",
+    scope: "store",
   },
 ];
 
-const SidebarContent = ({ collapsed, setCollapsed, onItemClick }) => {
+const SidebarContent = ({ collapsed, setCollapsed, onItemClick, visibleItems }) => {
   const location = useLocation();
 
   return (
@@ -163,7 +177,7 @@ const SidebarContent = ({ collapsed, setCollapsed, onItemClick }) => {
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-1">
-          {sidebarItems.map((item) => {
+          {visibleItems.map((item) => {
             const isActive = location.pathname === item.path || 
               (item.path !== "/admin" && location.pathname.startsWith(item.path));
             
@@ -236,7 +250,47 @@ export const DashboardLayout = () => {
   const { stores, storeId, setStoreId } = useActiveStore();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [access, setAccess] = useState({
+    isPlatformOwner: false,
+    isPlatformStaff: false,
+    isStoreUser: false,
+  });
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    const loadAccess = async () => {
+      try
+      {
+        const res = await api.get("/auth/access");
+        setAccess({
+          isPlatformOwner: !!res.data?.isPlatformOwner,
+          isPlatformStaff: !!res.data?.isPlatformStaff,
+          isStoreUser: !!res.data?.storeRole || (res.data?.storePermissions || []).length > 0,
+        });
+      }
+      catch
+      {
+        setAccess({ isPlatformOwner: false, isPlatformStaff: false, isStoreUser: false });
+      }
+    };
+    loadAccess();
+  }, [storeId]);
+
+  const visibleSidebarItems = useMemo(() => {
+    return sidebarItems.filter((item) => {
+      switch (item.scope) {
+        case "platform-owner":
+          return access.isPlatformOwner;
+        case "platform-staff":
+          return access.isPlatformStaff;
+        case "platform-staff-or-store":
+          return access.isPlatformStaff || access.isStoreUser;
+        case "store":
+        default:
+          return access.isStoreUser || access.isPlatformOwner;
+      }
+    });
+  }, [access]);
 
   const handleLogout = async () => {
     try {
@@ -262,13 +316,13 @@ export const DashboardLayout = () => {
           collapsed ? "w-[72px]" : "w-64"
         )}
       >
-        <SidebarContent collapsed={collapsed} setCollapsed={setCollapsed} />
+            <SidebarContent collapsed={collapsed} setCollapsed={setCollapsed} visibleItems={visibleSidebarItems} />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="p-0 w-64">
-          <SidebarContent collapsed={false} onItemClick={() => setMobileOpen(false)} />
+            <SidebarContent collapsed={false} onItemClick={() => setMobileOpen(false)} visibleItems={visibleSidebarItems} />
         </SheetContent>
       </Sheet>
 

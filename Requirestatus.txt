@@ -58,3 +58,10 @@ Updated: 2026-02-18
 Module Name	Developed	Partial Developed	Need To Develop
 Custom Domain + SSL	Store domain management API + UI (add/list/verify/issue SSL), free SSL provider abstraction added (`ISslProvider`), Let's Encrypt shell provider integrated via `SSL_ISSUER_COMMAND`, domain SSL status tracking (pending/issuing/active/failed), expiry/error persisted	DNS verification currently manual confirm endpoint (designed for Cloudflare DNS workflows), certificate provisioning depends on system-level ACME command configuration	Automated Cloudflare DNS-01 verification API integration, auto-renew scheduler/worker, paid SSL marketplace providers, cert deployment automation to edge/proxy infrastructure
 Store Builder / Storefront Security	Public storefront runtime + B2B visibility flags retained and integrated with current settings	Strict custom JS sandbox not implemented yet	Isolated custom JS runtime with allowlist, CSP nonce enforcement, permission-scoped app scripts
+
+---
+Build Fix Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Migration Build Stability	Fixed storefront CMS migration compile syntax for CI	-	-

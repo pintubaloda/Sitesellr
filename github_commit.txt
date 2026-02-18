@@ -113,3 +113,7 @@ Update Entry: 2026-02-18 (Custom Domain + Free SSL utility)
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Fix Entry: 2026-02-18 (CI compile fix for commit a11d081)
+- Fixed invalid escape usage in migration `backend-dotnet/Migrations/20260218162000_StorefrontCmsThemeEngine.cs`
+- Replaced `\"` with doubled quotes `""` inside verbatim SQL strings to resolve C# compile errors (newline in constant / unexpected '\\')

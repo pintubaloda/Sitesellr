@@ -162,3 +162,10 @@ Updated: 2026-02-18
 
 Module Name	Developed	Partial Developed	Need To Develop
 Test Role Login Setup	Default seed password updated to `9414064554` when `TEST_USER_PASSWORD` is not provided	-	-
+
+---
+Auth CSRF Fix Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Authentication Flow Stability	CSRF middleware now exempts auth bootstrap endpoints (login/register/refresh/logout/onboarding/team invite accept) to prevent first-login `csrf_invalid` failures	-	-

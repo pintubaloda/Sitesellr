@@ -7,6 +7,15 @@ public class CsrfMiddleware
     private readonly RequestDelegate _next;
     private readonly IAntiforgery _antiforgery;
     private static readonly string[] UnsafeMethods = { "POST", "PUT", "PATCH", "DELETE" };
+    private static readonly string[] CsrfExemptPaths =
+    {
+        "/api/auth/login",
+        "/api/auth/register",
+        "/api/auth/refresh",
+        "/api/auth/logout",
+        "/api/auth/onboarding",
+        "/api/team-invites/accept"
+    };
 
     public CsrfMiddleware(RequestDelegate next, IAntiforgery antiforgery)
     {
@@ -16,7 +25,10 @@ public class CsrfMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (UnsafeMethods.Contains(context.Request.Method.ToUpperInvariant()))
+        var requestPath = context.Request.Path.Value ?? string.Empty;
+        var isExempt = CsrfExemptPaths.Any(p => requestPath.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+
+        if (!isExempt && UnsafeMethods.Contains(context.Request.Method.ToUpperInvariant()))
         {
             try
             {

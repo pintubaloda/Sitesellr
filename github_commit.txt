@@ -295,3 +295,7 @@ Fix Entry: 2026-02-18 (seeded login credentials reliability)
 Update Entry: 2026-02-18 (default seeded password update)
 - Updated fallback test seed password in `Program.cs` to `9414064554`
 - Effective when `SEED_TEST_USERS=true` and `TEST_USER_PASSWORD` env is not set
+
+Fix Entry: 2026-02-18 (csrf_invalid on login/register)
+- Updated `backend-dotnet/Security/CsrfMiddleware.cs`
+- Added CSRF-exempt path list for authentication bootstrap endpoints to avoid blocking first unauthenticated token exchange

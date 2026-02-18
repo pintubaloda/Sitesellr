@@ -18,6 +18,8 @@ public class AppDbContext : DbContext
     public DbSet<Merchant> Merchants => Set<Merchant>();
     public DbSet<Store> Stores => Set<Store>();
     public DbSet<StoreUserRole> StoreUserRoles => Set<StoreUserRole>();
+    public DbSet<StoreUserPermission> StoreUserPermissions => Set<StoreUserPermission>();
+    public DbSet<PlatformUserRole> PlatformUserRoles => Set<PlatformUserRole>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();
     public DbSet<Category> Categories => Set<Category>();
@@ -96,6 +98,27 @@ public class AppDbContext : DbContext
             b.HasIndex(su => new { su.StoreId, su.UserId }).IsUnique();
             b.HasOne(su => su.Store).WithMany(s => s.StoreUsers).HasForeignKey(su => su.StoreId);
             b.HasOne(su => su.User).WithMany().HasForeignKey(su => su.UserId);
+        });
+
+        modelBuilder.Entity<StoreUserPermission>(b =>
+        {
+            b.ToTable("store_user_permissions");
+            b.HasKey(p => p.Id);
+            b.Property(p => p.Permission).IsRequired().HasMaxLength(120);
+            b.Property(p => p.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(p => new { p.StoreId, p.UserId, p.Permission }).IsUnique();
+            b.HasOne(p => p.Store).WithMany().HasForeignKey(p => p.StoreId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(p => p.User).WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PlatformUserRole>(b =>
+        {
+            b.ToTable("platform_user_roles");
+            b.HasKey(p => p.Id);
+            b.Property(p => p.Role).HasConversion<int>();
+            b.Property(p => p.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(p => new { p.UserId, p.Role }).IsUnique();
+            b.HasOne(p => p.User).WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Category>(b =>

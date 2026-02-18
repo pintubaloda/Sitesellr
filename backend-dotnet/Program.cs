@@ -109,14 +109,31 @@ builder.Services.AddAntiforgery(options =>
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddControllers();
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy(Policies.StoreOwnerOrAdmin, policy =>
-        policy.Requirements.Add(new TenancyRoleRequirement(requireOwnerOrAdmin: true)));
-    options.AddPolicy(Policies.StoreStaff, policy =>
-        policy.Requirements.Add(new TenancyRoleRequirement(requireOwnerOrAdmin: false)));
+    options.AddPolicy(Policies.PlatformOwner, policy =>
+        policy.Requirements.Add(new AccessRequirement(platformRole: PlatformRole.Owner)));
+    options.AddPolicy(Policies.PlatformStaffRead, policy =>
+        policy.Requirements.Add(new AccessRequirement(platformRole: PlatformRole.Staff)));
+    options.AddPolicy(Policies.OrdersRead, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.OrdersRead)));
+    options.AddPolicy(Policies.OrdersWrite, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.OrdersWrite)));
+    options.AddPolicy(Policies.CustomersRead, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.CustomersRead)));
+    options.AddPolicy(Policies.CustomersWrite, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.CustomersWrite)));
+    options.AddPolicy(Policies.ProductsRead, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.ProductsRead)));
+    options.AddPolicy(Policies.ProductsWrite, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.ProductsWrite)));
+    options.AddPolicy(Policies.StoreSettingsRead, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.StoreSettingsRead)));
+    options.AddPolicy(Policies.StoreSettingsWrite, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.StoreSettingsWrite)));
 });
-builder.Services.AddSingleton<IAuthorizationHandler, TenancyRoleHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, AccessRequirementHandler>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ApiCorsPolicy", policy =>
@@ -157,8 +174,10 @@ app.UseIpRateLimiting();
 app.UseTightSecurityHeaders();
 app.UseCsrfProtection();
 app.UseTenancy();
+app.UseAuthorization();
 
 var api = app.MapGroup("/api");
+app.MapControllers();
 
 api.MapGet("/", () => Results.Ok(new { message = "Hello World" }))
    .WithName("Root");

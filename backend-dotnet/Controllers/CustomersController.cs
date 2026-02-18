@@ -17,9 +17,10 @@ public class CustomersController : BaseApiController
     }
 
     [HttpGet]
-    [Authorize(Policy = Policies.StoreStaff)]
+    [Authorize(Policy = Policies.CustomersRead)]
     public async Task<IActionResult> List([FromQuery] Guid storeId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken ct = default)
     {
+        if (storeId == Guid.Empty) return BadRequest(new { error = "store_required" });
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -33,7 +34,7 @@ public class CustomersController : BaseApiController
     }
 
     [HttpPost]
-    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    [Authorize(Policy = Policies.CustomersWrite)]
     public async Task<IActionResult> Create([FromBody] Customer input, CancellationToken ct)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
@@ -48,9 +49,10 @@ public class CustomersController : BaseApiController
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = Policies.StoreStaff)]
+    [Authorize(Policy = Policies.CustomersRead)]
     public async Task<IActionResult> Get(Guid id, [FromQuery] Guid storeId, CancellationToken ct)
     {
+        if (storeId == Guid.Empty) return BadRequest(new { error = "store_required" });
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         var customer = await _db.Customers.Include(c => c.Addresses)
             .FirstOrDefaultAsync(c => c.Id == id && c.StoreId == storeId, ct);
@@ -58,7 +60,7 @@ public class CustomersController : BaseApiController
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    [Authorize(Policy = Policies.CustomersWrite)]
     public async Task<IActionResult> Update(Guid id, [FromBody] Customer input, CancellationToken ct)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
@@ -103,7 +105,7 @@ public class CustomersController : BaseApiController
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    [Authorize(Policy = Policies.CustomersWrite)]
     public async Task<IActionResult> Delete(Guid id, [FromQuery] Guid storeId, CancellationToken ct)
     {
         if (storeId == Guid.Empty) return BadRequest(new { error = "store_required" });

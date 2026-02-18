@@ -1,5 +1,6 @@
 using backend_dotnet.Data;
 using backend_dotnet.Models;
+using backend_dotnet.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_dotnet.Services;
@@ -15,8 +16,12 @@ public class TenancyContext
     public Store? Store { get; set; }
     public Guid? UserId { get; set; }
     public StoreRole? Role { get; set; }
+    public HashSet<string> StorePermissions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public HashSet<PlatformRole> PlatformRoles { get; set; } = new();
     public bool IsAuthenticated => UserId.HasValue;
     public bool IsOwnerOrAdmin => Role is StoreRole.Owner or StoreRole.Admin;
+    public bool IsPlatformOwner => PlatformRoles.Contains(PlatformRole.Owner);
+    public bool IsPlatformStaff => PlatformRoles.Contains(PlatformRole.Staff) || IsPlatformOwner;
 }
 
 public class TenancyResolver : ITenancyResolver
@@ -76,6 +81,8 @@ public class TenancyResolver : ITenancyResolver
 
         Guid? userId = null;
         StoreRole? role = null;
+        var permissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var platformRoles = new HashSet<PlatformRole>();
 
         var bearer = httpContext.Request.Headers.Authorization.FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(bearer) && bearer.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
@@ -90,6 +97,28 @@ public class TenancyResolver : ITenancyResolver
                 {
                     var sur = await _db.StoreUserRoles.FirstOrDefaultAsync(r => r.StoreId == store.Id && r.UserId == access.UserId, ct);
                     role = sur?.Role;
+                    foreach (var permission in PermissionCatalog.GetTemplatePermissions(role))
+                    {
+                        permissions.Add(permission);
+                    }
+
+                    var explicitPermissions = await _db.StoreUserPermissions.AsNoTracking()
+                        .Where(p => p.StoreId == store.Id && p.UserId == access.UserId)
+                        .Select(p => p.Permission)
+                        .ToListAsync(ct);
+                    foreach (var permission in explicitPermissions)
+                    {
+                        permissions.Add(permission);
+                    }
+                }
+
+                var platformRoleValues = await _db.PlatformUserRoles.AsNoTracking()
+                    .Where(r => r.UserId == access.UserId)
+                    .Select(r => r.Role)
+                    .ToListAsync(ct);
+                foreach (var pr in platformRoleValues)
+                {
+                    platformRoles.Add(pr);
                 }
             }
         }
@@ -99,7 +128,9 @@ public class TenancyResolver : ITenancyResolver
             Merchant = merchant,
             Store = store,
             UserId = userId,
-            Role = role
+            Role = role,
+            StorePermissions = permissions,
+            PlatformRoles = platformRoles
         };
     }
 }

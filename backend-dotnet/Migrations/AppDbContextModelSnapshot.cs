@@ -436,6 +436,29 @@ namespace backend_dotnet.Migrations
                     b.ToTable("order_items", (string)null);
                 });
 
+            modelBuilder.Entity("backend_dotnet.Models.PlatformUserRole", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Role")
+                        .IsUnique();
+
+                    b.ToTable("platform_user_roles", (string)null);
+                });
+
             modelBuilder.Entity("backend_dotnet.Models.Product", b =>
                 {
                     b.Property<Guid>("Id")
@@ -696,6 +719,36 @@ namespace backend_dotnet.Migrations
                     b.ToTable("store_user_roles", (string)null);
                 });
 
+            modelBuilder.Entity("backend_dotnet.Models.StoreUserPermission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Permission")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid>("StoreId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StoreId", "UserId", "Permission")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("store_user_permissions", (string)null);
+                });
+
             modelBuilder.Entity("backend_dotnet.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -900,6 +953,17 @@ namespace backend_dotnet.Migrations
                     b.Navigation("Store");
                 });
 
+            modelBuilder.Entity("backend_dotnet.Models.PlatformUserRole", b =>
+                {
+                    b.HasOne("backend_dotnet.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("backend_dotnet.Models.ProductMedia", b =>
                 {
                     b.HasOne("backend_dotnet.Models.Product", "Product")
@@ -948,6 +1012,25 @@ namespace backend_dotnet.Migrations
                 {
                     b.HasOne("backend_dotnet.Models.Store", "Store")
                         .WithMany("StoreUsers")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend_dotnet.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend_dotnet.Models.StoreUserPermission", b =>
+                {
+                    b.HasOne("backend_dotnet.Models.Store", "Store")
+                        .WithMany()
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

@@ -18,8 +18,7 @@ public class MerchantsController : BaseApiController
     }
 
     [HttpGet]
-    [HttpGet]
-    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    [Authorize(Policy = Policies.PlatformStaffRead)]
     public async Task<IActionResult> List(CancellationToken ct)
     {
         var merchants = await _db.Merchants.AsNoTracking().ToListAsync(ct);
@@ -27,7 +26,7 @@ public class MerchantsController : BaseApiController
     }
 
     [HttpPost]
-    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    [Authorize(Policy = Policies.PlatformOwner)]
     public async Task<IActionResult> Create([FromBody] Merchant input, CancellationToken ct)
     {
         input.Id = Guid.NewGuid();
@@ -39,7 +38,7 @@ public class MerchantsController : BaseApiController
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    [Authorize(Policy = Policies.PlatformStaffRead)]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
     {
         var merchant = await _db.Merchants.FindAsync(new object[] { id }, ct);

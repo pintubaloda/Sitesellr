@@ -1,36 +1,14 @@
 Sitesellr Requirement Status
 Updated: 2026-02-18 (local)
 
-Developed (latest working tree)
-- Backend: .NET 8 API + PostgreSQL with tenancy resolver and RBAC policies.
-- Core domain endpoints: merchants, stores, products, customers, orders (+ CRUD wiring in admin).
-- Security baseline: opaque tokens, lockout/rate-limit, Turnstile verify on auth, CSRF middleware, security headers.
-- Frontend wired to backend data without UI/theme redesign for Dashboard, Products, Customers, Orders, Settings.
-- Turnstile widget integrated on Login/Register and enforced via backend verification.
-- Landing page Emergent branding removed from public entry.
-
-New in this update (Onboarding flow v1)
-- Added end-to-end onboarding APIs:
-  - `POST /api/onboarding/start`
-  - `POST /api/onboarding/verify-email`
-  - `POST /api/onboarding/verify-mobile`
-  - `GET /api/onboarding/plans`
-  - `POST /api/onboarding/choose-plan`
-  - `POST /api/onboarding/confirm-payment` (stub)
-  - `POST /api/onboarding/setup-store`
-  - `POST /api/onboarding/complete`
-- Added frontend onboarding wizard page at `/onboarding` and linked Get Started CTA buttons to it.
-- On completion, flow creates User + Merchant + Store + Owner role and signs user in with opaque tokens.
-- Onboarding session storage uses in-memory concurrent dictionary (dev-safe, non-persistent).
-
-Pending / Partial
-- Email/SMS OTP providers are not integrated yet (currently on-screen OTP for dev only).
-- Payment confirmation is stubbed; no real gateway capture in onboarding yet.
-- Store setup wizard is minimal (no advanced business fields / Cloudflare provisioning automation yet).
-- Billing plan enforcement, WebAuthn UI flows, and production CSP/CORS/rate tuning remain pending.
-- Full Shopify-level modules (themes marketplace, logistics integrations, plugin ecosystem, SaaS metering, etc.) remain pending.
+Module	Status	What's Done	What's Pending / Partial
+RBAC Foundation	Developed	Introduced two-layer RBAC: Platform roles (Owner/Staff) + Store permissions (claims-style keys like products.read/orders.write).	Need UI for permission management and full permission catalog coverage for all future modules.
+Policy Enforcement	Developed	Replaced role-only checks with policy-based access requirements; added permission policies and platform policies.	Need step-up auth (re-auth/MFA) on high-risk actions (refund/payout/subscription override).
+Tenant Isolation	Developed	Store APIs now require tenant context + store scoping checks and deny cross-store access.	Need global query-filter strategy for deeper hard guarantees across future repositories/services.
+RBAC Admin APIs	Developed	Added platform RBAC admin endpoints to assign platform roles and per-store explicit permissions.	Need audit log persistence and approval workflow for sensitive role/permission changes.
+Data Model + Migration	Developed	Added `platform_user_roles` and `store_user_permissions` models with migration + snapshot updates.	Need migration run in target environments (`dotnet ef database update`) and seed scripts.
+Onboarding + Existing Modules	Partial	Onboarding flow remains active; core CRUD endpoints now guarded by permission policies.	Need broader module wiring (billing, refunds, payouts, logistics, marketplace apps) under same permission matrix.
 
 Git state
-- Last pushed commit: cc46cf5
-- Latest local commit (pending push): d80bdb1
-- Onboarding flow update is committed locally and pending push.
+- Last pushed commit: 5292c47
+- Current RBAC architecture update is local and pending push.

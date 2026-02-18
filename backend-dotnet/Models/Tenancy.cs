@@ -58,6 +58,12 @@ public enum StoreRole
     Custom = 3
 }
 
+public enum PlatformRole
+{
+    Owner = 0,
+    Staff = 1
+}
+
 public class StoreUserRole
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -69,5 +75,25 @@ public class StoreUserRole
 
     public StoreRole Role { get; set; } = StoreRole.Staff;
     public string? CustomRoleName { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class PlatformUserRole
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid UserId { get; set; }
+    public User User { get; set; } = default!;
+    public PlatformRole Role { get; set; } = PlatformRole.Staff;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class StoreUserPermission
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    public Guid UserId { get; set; }
+    public User User { get; set; } = default!;
+    public string Permission { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

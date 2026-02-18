@@ -17,9 +17,10 @@ public class OrdersController : BaseApiController
     }
 
     [HttpGet]
-    [Authorize(Policy = Policies.StoreStaff)]
+    [Authorize(Policy = Policies.OrdersRead)]
     public async Task<IActionResult> List([FromQuery] Guid storeId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken ct = default)
     {
+        if (storeId == Guid.Empty) return BadRequest(new { error = "store_required" });
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -34,7 +35,7 @@ public class OrdersController : BaseApiController
     }
 
     [HttpPost]
-    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    [Authorize(Policy = Policies.OrdersWrite)]
     public async Task<IActionResult> Create([FromBody] Order input, CancellationToken ct)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
@@ -49,9 +50,10 @@ public class OrdersController : BaseApiController
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = Policies.StoreStaff)]
+    [Authorize(Policy = Policies.OrdersRead)]
     public async Task<IActionResult> Get(Guid id, [FromQuery] Guid storeId, CancellationToken ct)
     {
+        if (storeId == Guid.Empty) return BadRequest(new { error = "store_required" });
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         var order = await _db.Orders
             .Include(o => o.Items)
@@ -61,7 +63,7 @@ public class OrdersController : BaseApiController
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    [Authorize(Policy = Policies.OrdersWrite)]
     public async Task<IActionResult> Update(Guid id, [FromBody] Order input, CancellationToken ct)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
@@ -108,7 +110,7 @@ public class OrdersController : BaseApiController
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = Policies.StoreOwnerOrAdmin)]
+    [Authorize(Policy = Policies.OrdersWrite)]
     public async Task<IActionResult> Delete(Guid id, [FromQuery] Guid storeId, CancellationToken ct)
     {
         if (storeId == Guid.Empty) return BadRequest(new { error = "store_required" });

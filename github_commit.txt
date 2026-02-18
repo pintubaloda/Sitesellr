@@ -2,11 +2,9 @@ Sitesellr Requirement Status
 Updated: 2026-02-18 (local)
 
 Module	Status	What's Done	What's Pending / Partial
-Platform RBAC Admin UI	Developed	Added admin page wired to real APIs for platform role management and store-user permission management (`GET/PUT /platform/rbac/...`).	Requires platform owner token/role assignment to use in production.
-Merchants Management UI	Developed	Added admin page wired to real API (`GET /merchants`, `POST /merchants`) with create/list handling.	Edit/update/suspend UI actions can be added next (backend endpoints currently minimal).
-Admin Navigation Wiring	Developed	Added sidebar and routes for `Merchants` and `Platform RBAC` modules under `/admin`.	None.
-Single Register Entry	Developed	`/onboarding` continues to redirect to `/auth/register`.	None.
+RBAC/Merchants Unauthorized UX	Developed	Added explicit unauthorized handling for 401/403 in Platform RBAC and Merchants admin pages; UI now shows: "You are not authorized." instead of generic API errors.	None.
+Platform RBAC + Merchants UI	Developed	Pages remain wired to real APIs and admin routes.	Role seeding still required for access.
 
 Git state
-- Last pushed commit: 3b14c70
-- Current Platform RBAC + Merchants frontend wiring is local and pending push.
+- Last pushed commit: 61bee7a
+- Current unauthorized-message UX update is local and pending push.

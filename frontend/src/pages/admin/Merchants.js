@@ -31,7 +31,11 @@ export const Merchants = () => {
       const res = await api.get("/merchants");
       setRows(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      setError(err?.response?.data?.error || "Could not load merchants.");
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        setError("You are not authorized.");
+      } else {
+        setError(err?.response?.data?.error || "Could not load merchants.");
+      }
     } finally {
       setLoading(false);
     }
@@ -56,7 +60,11 @@ export const Merchants = () => {
       setMessage("Merchant created.");
       await load();
     } catch (err) {
-      setError(err?.response?.data?.error || "Could not create merchant.");
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        setError("You are not authorized.");
+      } else {
+        setError(err?.response?.data?.error || "Could not create merchant.");
+      }
     } finally {
       setSaving(false);
     }

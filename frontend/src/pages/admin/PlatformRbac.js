@@ -28,7 +28,11 @@ export const PlatformRbac = () => {
     try {
       await fn();
     } catch (err) {
-      setError(err?.response?.data?.error || "RBAC action failed.");
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        setError("You are not authorized.");
+      } else {
+        setError(err?.response?.data?.error || "RBAC action failed.");
+      }
     } finally {
       setLoading(false);
     }

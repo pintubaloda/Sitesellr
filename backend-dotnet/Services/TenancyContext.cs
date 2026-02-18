@@ -41,7 +41,6 @@ public class TenancyResolver : ITenancyResolver
         var host = httpContext.Request.Host.Host;
         var rootDomain = _config["Tenancy:RootDomain"]; // e.g., sitesellr.local or app.sitesellr.com
 
-        string? storeIdStr = null;
         Guid? storeIdFromHeader = null;
 
         if (Guid.TryParse(httpContext.Request.Headers["X-Store-Id"].FirstOrDefault(), out var guidHeader))

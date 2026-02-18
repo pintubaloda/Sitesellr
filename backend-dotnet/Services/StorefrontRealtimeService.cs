@@ -105,7 +105,7 @@ public class StorefrontRealtimeService
         {
             if (exceptClientId != null && kv.Key == exceptClientId) continue;
             if (kv.Value.State != WebSocketState.Open) continue;
-            tasks.Add(kv.Value.SendAsync(bytes, WebSocketMessageType.Text, true, ct).AsTask());
+            tasks.Add(kv.Value.SendAsync(bytes, WebSocketMessageType.Text, true, ct));
         }
         await Task.WhenAll(tasks);
     }
@@ -114,6 +114,6 @@ public class StorefrontRealtimeService
     {
         var json = JsonSerializer.Serialize(payload);
         var bytes = Encoding.UTF8.GetBytes(json);
-        return socket.SendAsync(bytes, WebSocketMessageType.Text, true, ct).AsTask();
+        return socket.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
     }
 }

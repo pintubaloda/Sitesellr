@@ -241,3 +241,7 @@ Update Entry: 2026-02-18 (Realtime websocket + OT-like merge + live cursor)
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Fix Entry: 2026-02-18 (CI fix for commit 114c23e)
+- Fixed websocket send compile issue in `backend-dotnet/Services/StorefrontRealtimeService.cs` by removing invalid `.AsTask()` calls where `SendAsync` already returns `Task`
+- Fixed warning in `backend-dotnet/Services/TenancyContext.cs` by removing unused variable `storeIdStr`

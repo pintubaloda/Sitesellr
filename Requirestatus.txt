@@ -2,9 +2,11 @@ Sitesellr Requirement Status
 Updated: 2026-02-18 (local)
 
 Module	Status	What's Done	What's Pending / Partial
-Register Wizard Typography	Developed	Reduced oversized typography across `/auth/register` wizard (left hero, step rail, main title/subtitle, labels, and CTA button) for a more balanced professional scale.	If needed, we can reduce one more step after reviewing latest live screenshot.
-Onboarding Flow Logic	Developed	No logic change; full 5-step flow remains intact.	Real payment gateway integration still pending.
+Register vs Onboarding URL	Developed	Set single recommended page model: `/onboarding` now redirects to `/auth/register` so users always land on register wizard.	None.
+Header/Menu	Developed	Default wizard header menu disabled (no Features/Modules/Pricing/Resources links) to keep focused auth experience.	None.
+Right Panel Typography	Developed	Reduced right-panel heading/subheading to a cleaner professional scale (`46px`/`18px`) with tighter spacing.	Can still do tiny 5-10px final polish after latest live screenshot.
+Onboarding Flow Logic	Developed	5-step flow and redirect behavior unchanged.	Real payment gateway integration pending.
 
 Git state
-- Last pushed commit: 11c9568
-- Current font-size reduction pass is local and pending push.
+- Last pushed commit: 2372551
+- Current single-page routing + heading refinement is local and pending push.

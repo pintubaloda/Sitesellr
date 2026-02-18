@@ -10,7 +10,7 @@ import { setStoredStoreId, setStoredTokens } from "../../lib/session";
 
 const STEPS = ["register", "verify", "plan", "payment", "store"];
 
-export const Onboarding = ({ showHeaderMenu = true }) => {
+export const Onboarding = ({ showHeaderMenu = false }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState("register");
@@ -183,9 +183,9 @@ export const Onboarding = ({ showHeaderMenu = true }) => {
 
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-xl">
-            <div className="mb-7">
-              <h2 className="text-[56px] leading-[1.05] font-bold text-slate-900 mb-2">Create your account</h2>
-              <p className="text-[22px] text-slate-500">Enter your details to get started</p>
+            <div className="mb-6">
+              <h2 className="text-[46px] leading-[1.08] font-bold text-slate-900 mb-1.5">Create your account</h2>
+              <p className="text-[18px] text-slate-500">Enter your details to get started</p>
             </div>
 
             <form

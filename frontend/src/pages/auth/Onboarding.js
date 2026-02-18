@@ -10,7 +10,7 @@ import { setStoredStoreId, setStoredTokens } from "../../lib/session";
 
 const STEPS = ["register", "verify", "plan", "payment", "store"];
 
-export const Onboarding = () => {
+export const Onboarding = ({ showHeaderMenu = true }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState("register");
@@ -165,13 +165,15 @@ export const Onboarding = () => {
             </div>
             <span className="text-xl font-bold text-slate-900">Sitesellr</span>
           </Link>
-          <nav className="hidden xl:flex items-center gap-8 text-[15px] text-slate-600">
-            <Link to="/" className="hover:text-slate-900">Features</Link>
-            <Link to="/" className="hover:text-slate-900">Modules</Link>
-            <Link to="/" className="hover:text-slate-900">Pricing</Link>
-            <Link to="/" className="hover:text-slate-900">Resources</Link>
-          </nav>
-          <div className="flex items-center gap-4 ml-auto xl:ml-8">
+          {showHeaderMenu ? (
+            <nav className="hidden xl:flex items-center gap-8 text-[15px] text-slate-600">
+              <Link to="/" className="hover:text-slate-900">Features</Link>
+              <Link to="/" className="hover:text-slate-900">Modules</Link>
+              <Link to="/" className="hover:text-slate-900">Pricing</Link>
+              <Link to="/" className="hover:text-slate-900">Resources</Link>
+            </nav>
+          ) : null}
+          <div className={`flex items-center gap-4 ${showHeaderMenu ? "ml-auto xl:ml-8" : "ml-auto"}`}>
             <span className="text-sm text-slate-500">Already have an account?</span>
             <Link to="/auth/login">
               <Button variant="outline" size="sm" className="rounded-full">Log in</Button>

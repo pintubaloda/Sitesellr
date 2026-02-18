@@ -2,6 +2,7 @@ using backend_dotnet.Data;
 using backend_dotnet.Models;
 using backend_dotnet.Security;
 using backend_dotnet.Services;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,8 @@ namespace backend_dotnet.Controllers;
 [Route("api/stores/{storeId:guid}/team")]
 public class StoreTeamController : ControllerBase
 {
+    private static readonly HashSet<string> AllowedRoles = new(StringComparer.OrdinalIgnoreCase) { "Owner", "Admin", "Staff", "Custom" };
+
     private readonly AppDbContext _db;
     private readonly ITokenService _tokenService;
     private readonly IEmailService _emailService;
@@ -78,11 +81,21 @@ public class StoreTeamController : ControllerBase
         var exists = await _db.StoreUserRoles.AnyAsync(x => x.StoreId == storeId && x.UserId == user.Id, ct);
         if (exists) return Conflict(new { error = "member_exists" });
 
+        StoreRole parsedRole;
+        try
+        {
+            parsedRole = ParseRole(req.Role);
+        }
+        catch (ArgumentException)
+        {
+            return BadRequest(new { error = "invalid_role" });
+        }
+
         _db.StoreUserRoles.Add(new StoreUserRole
         {
             StoreId = storeId,
             UserId = user.Id,
-            Role = ParseRole(req.Role),
+            Role = parsedRole,
             CustomRoleName = req.CustomRoleName?.Trim(),
             CreatedAt = DateTimeOffset.UtcNow
         });
@@ -112,7 +125,15 @@ public class StoreTeamController : ControllerBase
         var token = Convert.ToHexString(Guid.NewGuid().ToByteArray()) + Convert.ToHexString(Guid.NewGuid().ToByteArray());
         var tokenHash = _tokenService.HashToken(token);
         var normalizedEmail = req.Email.Trim().ToLowerInvariant();
-        var role = ParseRole(req.Role);
+        StoreRole role;
+        try
+        {
+            role = ParseRole(req.Role);
+        }
+        catch (ArgumentException)
+        {
+            return BadRequest(new { error = "invalid_role" });
+        }
 
         _db.TeamInviteTokens.Add(new TeamInviteToken
         {
@@ -152,7 +173,14 @@ public class StoreTeamController : ControllerBase
         var row = await _db.StoreUserRoles.FirstOrDefaultAsync(x => x.StoreId == storeId && x.UserId == userId, ct);
         if (row == null) return NotFound();
 
-        row.Role = ParseRole(req.Role);
+        try
+        {
+            row.Role = ParseRole(req.Role);
+        }
+        catch (ArgumentException)
+        {
+            return BadRequest(new { error = "invalid_role" });
+        }
         row.CustomRoleName = req.CustomRoleName?.Trim();
         _db.AuditLogs.Add(new AuditLog
         {
@@ -199,6 +227,10 @@ public class StoreTeamController : ControllerBase
 
     private static StoreRole ParseRole(string? raw)
     {
+        if (!string.IsNullOrWhiteSpace(raw) && !AllowedRoles.Contains(raw.Trim()))
+        {
+            throw new ArgumentException("invalid_role");
+        }
         if (Enum.TryParse<StoreRole>(raw, true, out var parsed))
         {
             return parsed;
@@ -207,5 +239,20 @@ public class StoreTeamController : ControllerBase
     }
 }
 
-public record AddTeamMemberRequest(string Email, string? Role, string? CustomRoleName);
-public record UpdateTeamMemberRequest(string? Role, string? CustomRoleName);
+public class AddTeamMemberRequest
+{
+    [Required, EmailAddress, StringLength(320)]
+    public string Email { get; set; } = string.Empty;
+    [RegularExpression("^(Owner|Admin|Staff|Custom)$", ErrorMessage = "Invalid role.")]
+    public string? Role { get; set; }
+    [StringLength(120)]
+    public string? CustomRoleName { get; set; }
+}
+
+public class UpdateTeamMemberRequest
+{
+    [RegularExpression("^(Owner|Admin|Staff|Custom)$", ErrorMessage = "Invalid role.")]
+    public string? Role { get; set; }
+    [StringLength(120)]
+    public string? CustomRoleName { get; set; }
+}

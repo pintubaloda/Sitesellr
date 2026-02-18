@@ -2,19 +2,22 @@ Sitesellr Cumulative Development Ledger (Latest)
 Updated: 2026-02-18
 
 New local package (pending push)
-- Merchant Ops module (lifecycle actions + onboarding pipeline + approvals queue)
-- Governance data models: onboarding profile, role templates, sensitive approvals, franchise units, franchise-store mapping, backoffice assignments
-- Role templates backend + Settings Team UI builder/apply
-- Franchise/back-office backend + Merchant Ops UI actions
-- Sensitive action approval APIs + approval execution flow
+- Server-side validation hardening for governance/admin APIs
+- DTO tightening with annotation-based validation for merchant lifecycle/onboarding, team management, invite acceptance, role templates, and backoffice/franchise inputs
+- Idempotent governance migration file added: `backend-dotnet/Migrations/20260218142000_GovernanceTables.cs`
+- New smoke verification checklist: `SMOKE_TEST_CHECKLIST_ADMIN.md`
 
-Primary files
-- backend-dotnet/Models/Governance.cs
-- backend-dotnet/Data/AppDbContext.cs
+Primary files changed
 - backend-dotnet/Controllers/MerchantOpsController.cs
 - backend-dotnet/Controllers/RoleTemplatesController.cs
-- backend-dotnet/Program.cs
-- frontend/src/pages/admin/MerchantOps.js
-- frontend/src/pages/admin/Settings.js
-- frontend/src/App.js
-- frontend/src/components/layouts/DashboardLayout.js
+- backend-dotnet/Controllers/StoreTeamController.cs
+- backend-dotnet/Controllers/TeamInvitesController.cs
+- backend-dotnet/Models/Audit.cs
+- backend-dotnet/Migrations/20260218142000_GovernanceTables.cs
+- SMOKE_TEST_CHECKLIST_ADMIN.md
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.docx (regenerated cumulative status)
+
+Recent pushed baseline
+- 0f4b927: governance + merchant ops + role templates + UI wiring

@@ -2,6 +2,7 @@ using backend_dotnet.Data;
 using backend_dotnet.Models;
 using backend_dotnet.Security;
 using backend_dotnet.Services;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -35,11 +36,19 @@ public class RoleTemplatesController : ControllerBase
     public async Task<IActionResult> Create(Guid storeId, [FromBody] RoleTemplateCreateRequest req, CancellationToken ct)
     {
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var permissions = req.PermissionsCsv
+            .Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (permissions.Length == 0) return BadRequest(new { error = "permissions_required" });
+        if (permissions.Any(p => p.Length > 120 || p.Contains(' ')))
+            return BadRequest(new { error = "invalid_permission_format" });
+
         var row = new StoreRoleTemplate
         {
             StoreId = storeId,
             Name = req.Name.Trim(),
-            PermissionsCsv = req.PermissionsCsv.Trim(),
+            PermissionsCsv = string.Join(",", permissions),
             IsSensitive = req.IsSensitive,
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -116,4 +125,11 @@ public class RoleTemplatesController : ControllerBase
     }
 }
 
-public record RoleTemplateCreateRequest(string Name, string PermissionsCsv, bool IsSensitive);
+public class RoleTemplateCreateRequest
+{
+    [Required, StringLength(80, MinimumLength = 2)]
+    public string Name { get; set; } = string.Empty;
+    [Required, StringLength(2000)]
+    public string PermissionsCsv { get; set; } = string.Empty;
+    public bool IsSensitive { get; set; }
+}

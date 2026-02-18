@@ -2,13 +2,12 @@ Sitesellr Cumulative Requirement Status
 Updated: 2026-02-18
 
 Requested Scope	Status	Developed Now	Remaining
-Full merchant lifecycle management UI/actions	Developed (core)	Implemented Merchant Ops UI + API lifecycle actions: trial/activate/suspend/expire/reactivate with optional approval routing for sensitive actions.	Bulk lifecycle operations and reason taxonomy dashboards.
-Merchant onboarding completion pipeline	Developed (operational core)	Added onboarding pipeline profile (email/mobile/KYC/ops/risk flags + pipeline status) with Merchant Ops UI + API update/load.	External verification providers and automated operational checks.
-Team management module (invite/role/revoke/audit)	Developed (expanded)	Already wired team APIs expanded with invite/accept and audit; now role templates and template apply flow added via Settings Team UI and backend role-template APIs.	Email template branding/retry queue and revoke/resend flow hardening.
-Franchise/back-office hierarchy + scoped access	Developed (core)	Added franchise unit and back-office assignment models + Merchant Ops UI/API create/list workflows.	Deeper hierarchy visuals and policy matrix per department.
-Role template/custom role builder + sensitive approvals	Developed (core)	Added store role templates CRUD/apply APIs and UI builder (permissions CSV + sensitive flag); sensitive actions generate approval requests; Merchant Ops includes approval queue + approve action.	Rich permission picker UI (instead of CSV), multi-step approval chain.
-Full audit logs for merchant/user admin changes	Developed (core)	Audit logs already capture merchant lifecycle/team changes; audit logs viewer UI with filters/export exists from prior update.	Broader event coverage and immutable retention controls.
+Server-side validation + DTO tightening	Developed (this pass)	Tightened DTO validation with DataAnnotations and server checks for Merchant Ops, Team, Invites, and Role Templates APIs (invalid action/role/scope/department/status blocked, duplicate assignment checks, normalized permission CSV).	Apply same strict DTO validation pattern across older legacy endpoints not yet covered.
+Migration files for governance tables	Developed (this pass)	Added idempotent EF migration `20260218142000_GovernanceTables` for merchant onboarding, role templates, sensitive approvals, franchise units/stores, and backoffice assignments.	Generate designer/snapshot via `dotnet ef` once .NET SDK is available in CI/dev environment.
+Smoke-test checklist for new admin pages/APIs	Developed (this pass)	Added `SMOKE_TEST_CHECKLIST_ADMIN.md` covering Platform RBAC, Merchants, Merchant Ops, Team, Invite Acceptance, Role Templates, Audit Logs, and API negative validation checks.	Automate this checklist in integration/e2e pipeline.
+
+Previous in-progress governance modules	Developed (core)	Lifecycle ops, onboarding profile, team invite/accept, role templates, approvals queue, franchise/backoffice workflows, and audit logging remain implemented and wired.	Production hardening: SMTP reliability, approval chains, immutable audit retention, enterprise permission builder UX.
 
 Git state
-- Last pushed commit: 7a4a904
-- Current lifecycle/onboarding/role-template/franchise/backoffice/approval expansion is local and pending push.
+- Last pushed commit: 0f4b927
+- Current validation + migration + smoke-checklist changes are local and pending commit/push.

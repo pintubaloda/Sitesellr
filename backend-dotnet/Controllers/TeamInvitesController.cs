@@ -22,9 +22,6 @@ public class TeamInvitesController : ControllerBase
     [HttpPost("accept")]
     public async Task<IActionResult> Accept([FromBody] AcceptInviteRequest req, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 8)
-            return BadRequest(new { error = "invalid_input" });
-
         var tokenHash = _tokenService.HashToken(req.Token.Trim());
         var invite = await _db.TeamInviteTokens.FirstOrDefaultAsync(x => x.TokenHash == tokenHash, ct);
         if (invite == null || invite.AcceptedAt != null || invite.ExpiresAt < DateTimeOffset.UtcNow)

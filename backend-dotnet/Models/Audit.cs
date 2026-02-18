@@ -37,5 +37,20 @@ public class AuditLog
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-public record CreateInviteRequest(string Email, string? Role, string? CustomRoleName);
-public record AcceptInviteRequest(string Token, string Password);
+public class CreateInviteRequest
+{
+    [Required, EmailAddress, MaxLength(320)]
+    public string Email { get; set; } = string.Empty;
+    [RegularExpression("^(Owner|Admin|Staff|Custom)$", ErrorMessage = "Invalid role.")]
+    public string? Role { get; set; }
+    [MaxLength(120)]
+    public string? CustomRoleName { get; set; }
+}
+
+public class AcceptInviteRequest
+{
+    [Required, StringLength(128, MinimumLength = 16)]
+    public string Token { get; set; } = string.Empty;
+    [Required, StringLength(128, MinimumLength = 8)]
+    public string Password { get; set; } = string.Empty;
+}

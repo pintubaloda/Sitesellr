@@ -186,6 +186,11 @@ export const StoreBuilder = () => {
   const [editorName, setEditorName] = useState("Store Editor");
   const [diffResult, setDiffResult] = useState(null);
   const [remoteCursors, setRemoteCursors] = useState([]);
+  const [customerGroups, setCustomerGroups] = useState([]);
+  const [visibilityRules, setVisibilityRules] = useState([]);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [ruleForm, setRuleForm] = useState({ customerGroupId: "", targetType: "product", targetKey: "", effect: "deny" });
+  const [previewGroupId, setPreviewGroupId] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const wsRef = useRef(null);
@@ -201,13 +206,15 @@ export const StoreBuilder = () => {
     setLoading(true);
     setStatus("");
     try {
-      const [themesRes, settingsRes, layoutRes, navRes, pagesRes, versionsRes] = await Promise.all([
+      const [themesRes, settingsRes, layoutRes, navRes, pagesRes, versionsRes, groupsRes, rulesRes] = await Promise.all([
         api.get(`/stores/${storeId}/storefront/themes`),
         api.get(`/stores/${storeId}/storefront/settings`),
         api.get(`/stores/${storeId}/storefront/homepage-layout`),
         api.get(`/stores/${storeId}/storefront/navigation`),
         api.get(`/stores/${storeId}/storefront/pages`),
         api.get(`/stores/${storeId}/storefront/homepage-layout/versions`),
+        api.get(`/stores/${storeId}/b2b/groups`),
+        api.get(`/stores/${storeId}/b2b/rules`),
       ]);
 
       const themeRows = Array.isArray(themesRes.data) ? themesRes.data : [];
@@ -232,6 +239,8 @@ export const StoreBuilder = () => {
       setMenuItems(parseJsonArray(navRes.data?.itemsJson, FALLBACK_MENU));
       setPages(Array.isArray(pagesRes.data) ? pagesRes.data : []);
       setLayoutVersions(Array.isArray(versionsRes.data) ? versionsRes.data : []);
+      setCustomerGroups(Array.isArray(groupsRes.data) ? groupsRes.data : []);
+      setVisibilityRules(Array.isArray(rulesRes.data) ? rulesRes.data : []);
     } catch (err) {
       setStatus(err?.response?.status === 403 ? "You are not authorized." : "Could not load storefront settings.");
     } finally {
@@ -540,6 +549,37 @@ export const StoreBuilder = () => {
     }
   };
 
+  const createGroup = async () => {
+    if (!storeId || !newGroupName.trim()) return;
+    try {
+      await api.post(`/stores/${storeId}/b2b/groups`, { name: newGroupName.trim() });
+      setNewGroupName("");
+      const res = await api.get(`/stores/${storeId}/b2b/groups`);
+      setCustomerGroups(Array.isArray(res.data) ? res.data : []);
+      setStatus("Customer group created.");
+    } catch (err) {
+      setStatus(err?.response?.data?.error || "Could not create group.");
+    }
+  };
+
+  const createRule = async () => {
+    if (!storeId || !ruleForm.targetKey.trim()) return;
+    try {
+      await api.post(`/stores/${storeId}/b2b/rules`, {
+        customerGroupId: ruleForm.customerGroupId || null,
+        targetType: ruleForm.targetType,
+        targetKey: ruleForm.targetKey.trim(),
+        effect: ruleForm.effect,
+      });
+      setRuleForm((r) => ({ ...r, targetKey: "" }));
+      const res = await api.get(`/stores/${storeId}/b2b/rules`);
+      setVisibilityRules(Array.isArray(res.data) ? res.data : []);
+      setStatus("Visibility rule saved.");
+    } catch (err) {
+      setStatus(err?.response?.data?.error || "Could not save rule.");
+    }
+  };
+
   const addMenuItem = () => {
     setMenuItems((prev) => [...prev, { label: "New", path: "/new" }]);
   };
@@ -768,6 +808,63 @@ export const StoreBuilder = () => {
                 <Label htmlFor="loginToViewPrice">Login required to view price</Label>
               </div>
               {activeTheme ? <p className="text-xs text-slate-500 md:col-span-2">Active theme: {activeTheme.name}</p> : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>B2B Customer Group Visibility</CardTitle>
+              <CardDescription>Create groups, define visibility rules, and preview storefront as a group.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-3 gap-2">
+                <Input value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} placeholder="New group name" />
+                <Button variant="outline" onClick={createGroup}>Add Group</Button>
+                <div className="flex gap-2">
+                  <Input value={previewGroupId} onChange={(e) => setPreviewGroupId(e.target.value)} placeholder="Preview Group ID" />
+                  <Button
+                    variant="outline"
+                    onClick={() => window.open(`/s/${(window.location.host || "").split(".")[0]}?customerGroupId=${encodeURIComponent(previewGroupId)}`, "_blank")}
+                  >
+                    Preview
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-4 gap-2">
+                <select
+                  className="h-10 rounded-md border px-2 bg-transparent"
+                  value={ruleForm.customerGroupId}
+                  onChange={(e) => setRuleForm((r) => ({ ...r, customerGroupId: e.target.value }))}
+                >
+                  <option value="">All groups</option>
+                  {customerGroups.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+                <select className="h-10 rounded-md border px-2 bg-transparent" value={ruleForm.targetType} onChange={(e) => setRuleForm((r) => ({ ...r, targetType: e.target.value }))}>
+                  <option value="product">product</option>
+                  <option value="category">category</option>
+                  <option value="page">page</option>
+                  <option value="theme_block">theme_block</option>
+                </select>
+                <Input value={ruleForm.targetKey} onChange={(e) => setRuleForm((r) => ({ ...r, targetKey: e.target.value }))} placeholder="Target key (id/slug/block id)" />
+                <div className="flex gap-2">
+                  <select className="h-10 rounded-md border px-2 bg-transparent" value={ruleForm.effect} onChange={(e) => setRuleForm((r) => ({ ...r, effect: e.target.value }))}>
+                    <option value="deny">deny</option>
+                    <option value="allow">allow</option>
+                  </select>
+                  <Button onClick={createRule}>Save Rule</Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {visibilityRules.slice(0, 20).map((r) => (
+                  <div key={r.id} className="text-xs p-2 border rounded">
+                    {r.effect} {r.targetType}:{r.targetKey} group={r.customerGroupId || "all"}
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

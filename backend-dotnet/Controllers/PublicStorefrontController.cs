@@ -1,6 +1,7 @@
 using backend_dotnet.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Nodes;
 
 namespace backend_dotnet.Controllers;
 
@@ -16,7 +17,7 @@ public class PublicStorefrontController : ControllerBase
     }
 
     [HttpGet("{subdomain}")]
-    public async Task<IActionResult> GetBySubdomain(string subdomain, CancellationToken ct)
+    public async Task<IActionResult> GetBySubdomain(string subdomain, [FromQuery] Guid? customerGroupId, CancellationToken ct)
     {
         var normalized = subdomain.Trim().ToLowerInvariant();
         var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalized, ct);
@@ -30,10 +31,19 @@ public class PublicStorefrontController : ControllerBase
             .Where(x => x.StoreId == store.Id && x.IsPrimary)
             .OrderByDescending(x => x.UpdatedAt)
             .FirstOrDefaultAsync(ct);
+        var rules = await _db.VisibilityRules.AsNoTracking()
+            .Where(x => x.StoreId == store.Id && x.IsActive && (x.CustomerGroupId == null || x.CustomerGroupId == customerGroupId))
+            .ToListAsync(ct);
+        var productRules = rules.Where(x => x.TargetType == "product").ToList();
+        var pageRules = rules.Where(x => x.TargetType == "page").ToList();
+        var blockRules = rules.Where(x => x.TargetType == "theme_block").ToList();
+
         var pages = await _db.StoreStaticPages.AsNoTracking()
             .Where(x => x.StoreId == store.Id && x.IsPublished)
             .Select(x => new { x.Title, x.Slug, x.SeoTitle, x.SeoDescription })
             .ToListAsync(ct);
+        pages = ApplyVisibility(pages, x => x.Slug.ToLowerInvariant(), pageRules).ToList();
+
         var products = await _db.Products.AsNoTracking()
             .Where(x => x.StoreId == store.Id)
             .OrderByDescending(x => x.CreatedAt)
@@ -47,6 +57,9 @@ public class PublicStorefrontController : ControllerBase
                 x.Currency
             })
             .ToListAsync(ct);
+        products = ApplyVisibility(products, x => x.Id.ToString().ToLowerInvariant(), productRules).ToList();
+
+        var filteredSectionsJson = FilterThemeBlocks(homepage?.SectionsJson ?? "[]", blockRules);
 
         return Ok(new
         {
@@ -66,7 +79,7 @@ public class PublicStorefrontController : ControllerBase
                 theme.CatalogMode,
                 theme.CatalogVisibilityJson
             },
-            homepage = new { SectionsJson = homepage?.SectionsJson ?? "[]" },
+            homepage = new { SectionsJson = filteredSectionsJson },
             navigation = new { ItemsJson = nav?.ItemsJson ?? "[]" },
             pages,
             products
@@ -86,5 +99,48 @@ public class PublicStorefrontController : ControllerBase
         if (page == null) return NotFound(new { error = "page_not_found" });
 
         return Ok(page);
+    }
+
+    private static IEnumerable<T> ApplyVisibility<T>(IEnumerable<T> source, Func<T, string> key, IReadOnlyCollection<Models.VisibilityRule> rules)
+    {
+        var allow = rules.Where(x => x.Effect == "allow").Select(x => x.TargetKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var deny = rules.Where(x => x.Effect == "deny").Select(x => x.TargetKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var hasAllow = allow.Count > 0;
+        foreach (var item in source)
+        {
+            var k = key(item);
+            if (deny.Contains(k)) continue;
+            if (hasAllow && !allow.Contains(k)) continue;
+            yield return item;
+        }
+    }
+
+    private static string FilterThemeBlocks(string json, IReadOnlyCollection<Models.VisibilityRule> rules)
+    {
+        var allow = rules.Where(x => x.Effect == "allow").Select(x => x.TargetKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var deny = rules.Where(x => x.Effect == "deny").Select(x => x.TargetKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var hasAllow = allow.Count > 0;
+        try
+        {
+            var arr = JsonNode.Parse(json)?.AsArray();
+            if (arr == null) return "[]";
+            var output = new JsonArray();
+            foreach (var n in arr)
+            {
+                if (n is not JsonObject obj) continue;
+                var blockId = obj["id"]?.ToString()?.ToLowerInvariant();
+                if (!string.IsNullOrWhiteSpace(blockId))
+                {
+                    if (deny.Contains(blockId)) continue;
+                    if (hasAllow && !allow.Contains(blockId)) continue;
+                }
+                output.Add(n);
+            }
+            return output.ToJsonString();
+        }
+        catch
+        {
+            return json;
+        }
     }
 }

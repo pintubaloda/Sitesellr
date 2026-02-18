@@ -133,3 +133,10 @@ Updated: 2026-02-18
 
 Module Name	Developed	Partial Developed	Need To Develop
 Realtime Collaboration Build Stability	Fixed compile/runtime compatibility for websocket send calls and tenancy warning cleanup	-	-
+
+---
+B2B Customer-Group Visibility Engine Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+B2B Customer-Group Visibility Engine	Added DB models/tables for customer groups, group members, and visibility rules; added admin APIs for group/rule management; public storefront enforcement now filters products/pages/theme blocks by allow/deny rules and preview group id	Category-level enforcement model exists but not yet applied in product query path; preview-as-group UI is basic (ID-driven), rule builder is form-based (not visual)	Rich rule-builder UX with entity pickers, customer-group assignment UI at scale, full category cascade enforcement, policy simulation/audit and conflict resolution workflow

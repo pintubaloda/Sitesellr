@@ -387,6 +387,36 @@ CREATE TABLE IF NOT EXISTS store_domains (
 );");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_domains_Hostname ON store_domains (""Hostname"");");
     await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_store_domains_StoreId_IsVerified ON store_domains (""StoreId"", ""IsVerified"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS customer_groups (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""Name"" character varying(120) NOT NULL,
+  ""Description"" character varying(400),
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_customer_groups_StoreId_Name ON customer_groups (""StoreId"", ""Name"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS customer_group_members (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""CustomerGroupId"" uuid NOT NULL,
+  ""CustomerId"" uuid NOT NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_customer_group_members_StoreId_Group_Customer ON customer_group_members (""StoreId"", ""CustomerGroupId"", ""CustomerId"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS visibility_rules (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""CustomerGroupId"" uuid NULL,
+  ""TargetType"" character varying(30) NOT NULL,
+  ""TargetKey"" character varying(120) NOT NULL,
+  ""Effect"" character varying(10) NOT NULL,
+  ""IsActive"" boolean NOT NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_visibility_rules_lookup ON visibility_rules (""StoreId"", ""TargetType"", ""TargetKey"", ""CustomerGroupId"", ""Effect"");");
 }
 
 var platformOwnerEmail = builder.Configuration["PLATFORM_OWNER_EMAIL"];

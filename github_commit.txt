@@ -245,3 +245,30 @@ Update Entry: 2026-02-18 (Realtime websocket + OT-like merge + live cursor)
 Fix Entry: 2026-02-18 (CI fix for commit 114c23e)
 - Fixed websocket send compile issue in `backend-dotnet/Services/StorefrontRealtimeService.cs` by removing invalid `.AsTask()` calls where `SendAsync` already returns `Task`
 - Fixed warning in `backend-dotnet/Services/TenancyContext.cs` by removing unused variable `storeIdStr`
+
+Update Entry: 2026-02-18 (B2B customer-group visibility engine)
+- Added new models:
+  - `CustomerGroup`, `CustomerGroupMember`, `VisibilityRule`
+- Added B2B admin APIs:
+  - `GET/POST /api/stores/{storeId}/b2b/groups`
+  - `POST /api/stores/{storeId}/b2b/groups/{groupId}/members/{customerId}`
+  - `GET/POST/DELETE /api/stores/{storeId}/b2b/rules*`
+- Added public storefront enforcement by visibility rules:
+  - products/pages/theme blocks filtered by group/all-group allow/deny rules
+  - `customerGroupId` query parameter for preview-as-group behavior
+- Added migration:
+  - `backend-dotnet/Migrations/20260218202000_B2bCustomerGroupVisibility.cs`
+- Added startup SQL safety for new B2B tables/indexes in Program.cs
+- Wired Store Builder UI for B2B groups/rules and basic preview-as-group controls
+- Files updated:
+  - backend-dotnet/Models/B2bVisibility.cs
+  - backend-dotnet/Data/AppDbContext.cs
+  - backend-dotnet/Controllers/B2bVisibilityController.cs
+  - backend-dotnet/Controllers/PublicStorefrontController.cs
+  - backend-dotnet/Migrations/20260218202000_B2bCustomerGroupVisibility.cs
+  - backend-dotnet/Program.cs
+  - frontend/src/pages/admin/StoreBuilder.js
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

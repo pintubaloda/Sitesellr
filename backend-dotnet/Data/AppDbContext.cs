@@ -47,6 +47,9 @@ public class AppDbContext : DbContext
     public DbSet<StoreStaticPage> StoreStaticPages => Set<StoreStaticPage>();
     public DbSet<StoreMediaAsset> StoreMediaAssets => Set<StoreMediaAsset>();
     public DbSet<StoreDomain> StoreDomains => Set<StoreDomain>();
+    public DbSet<CustomerGroup> CustomerGroups => Set<CustomerGroup>();
+    public DbSet<CustomerGroupMember> CustomerGroupMembers => Set<CustomerGroupMember>();
+    public DbSet<VisibilityRule> VisibilityRules => Set<VisibilityRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -482,6 +485,41 @@ public class AppDbContext : DbContext
             b.HasIndex(x => x.Hostname).IsUnique();
             b.HasIndex(x => new { x.StoreId, x.IsVerified });
             b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CustomerGroup>(b =>
+        {
+            b.ToTable("customer_groups");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(120);
+            b.Property(x => x.Description).HasMaxLength(400);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.Name }).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CustomerGroupMember>(b =>
+        {
+            b.ToTable("customer_group_members");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.CustomerGroupId, x.CustomerId }).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.CustomerGroup).WithMany().HasForeignKey(x => x.CustomerGroupId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<VisibilityRule>(b =>
+        {
+            b.ToTable("visibility_rules");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TargetType).IsRequired().HasMaxLength(30);
+            b.Property(x => x.TargetKey).IsRequired().HasMaxLength(120);
+            b.Property(x => x.Effect).IsRequired().HasMaxLength(10);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.TargetType, x.TargetKey, x.CustomerGroupId, x.Effect });
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.CustomerGroup).WithMany().HasForeignKey(x => x.CustomerGroupId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<AccessToken>(b =>

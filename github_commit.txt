@@ -1,12 +1,13 @@
 Sitesellr Requirement Status
 Updated: 2026-02-18 (local)
 
-Module	Status	What's Done	What's Pending / Partial
-Register vs Onboarding URL	Developed	Set single recommended page model: `/onboarding` now redirects to `/auth/register` so users always land on register wizard.	None.
-Header/Menu	Developed	Default wizard header menu disabled (no Features/Modules/Pricing/Resources links) to keep focused auth experience.	None.
-Right Panel Typography	Developed	Reduced right-panel heading/subheading to a cleaner professional scale (`46px`/`18px`) with tighter spacing.	Can still do tiny 5-10px final polish after latest live screenshot.
-Onboarding Flow Logic	Developed	5-step flow and redirect behavior unchanged.	Real payment gateway integration pending.
+Backend-Frontend Wiring Check	Status	What's Done	What's Pending / Partial
+Auth + Onboarding	Wired	`/auth/register` wizard fully wired to real onboarding APIs (start/verify/plan/payment/setup/complete) and redirects to admin after activation.	None.
+Core CRUD Modules	Wired	Products, Customers, Orders, and Store Settings pages are wired to real backend APIs (list/create/update/delete + store scoping).	Merchants/Platform RBAC admin UI pages are not built yet.
+Dashboard	Partially wired -> improved	Dashboard now reads real Orders/Customers/Products APIs for stats, revenue series, category chart, and activity feed (removed mock dependency for these).	Advanced analytics pages still use mock data (Analytics/Marketing/StoreBuilder modules pending backend APIs).
+API Base Binding	Improved	Frontend API client now defaults to runtime origin `/api` when `REACT_APP_API_BASE` is not set, and still supports explicit real API base via env.	Set `REACT_APP_API_BASE` in production when frontend/backend are on different domains.
+Route Unification	Wired	Single recommended URL flow enforced: `/onboarding` redirects to `/auth/register`.	None.
 
 Git state
-- Last pushed commit: 2372551
-- Current single-page routing + heading refinement is local and pending push.
+- Last pushed commit: 1d921a5
+- Current wiring verification + real API binding improvements are local and pending push.

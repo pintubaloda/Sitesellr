@@ -1,7 +1,12 @@
 import axios from "axios";
 import { getStoredAccessToken, getStoredStoreId } from "./session";
 
-const baseURL = process.env.REACT_APP_API_BASE || "http://localhost:5000/api";
+const runtimeDefaultBase =
+  typeof window !== "undefined"
+    ? `${window.location.origin}/api`
+    : "http://localhost:5000/api";
+
+const baseURL = process.env.REACT_APP_API_BASE || runtimeDefaultBase;
 
 export const api = axios.create({
   baseURL,

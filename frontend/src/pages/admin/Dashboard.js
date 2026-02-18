@@ -30,14 +30,10 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import {
-  salesByCategory,
-  activityLogs,
-} from "../../lib/mock-data";
-import { formatCurrency, formatNumber, formatDateTime, getInitials } from "../../lib/utils";
+import { formatCurrency, formatNumber, getInitials } from "../../lib/utils";
 import useApiList from "../../hooks/useApiList";
 import useActiveStore from "../../hooks/useActiveStore";
-import { buildRevenueSeries, mapCustomerFromApi, mapOrderFromApi } from "../../lib/mappers";
+import { buildRevenueSeries, mapCustomerFromApi, mapOrderFromApi, mapProductFromApi } from "../../lib/mappers";
 import {
   TrendingUp,
   TrendingDown,
@@ -113,10 +109,54 @@ export const Dashboard = () => {
   const { storeId } = useActiveStore();
   const { data: apiOrders } = useApiList("/orders", { storeId, enabled: !!storeId, params: { pageSize: 100 } });
   const { data: apiCustomers } = useApiList("/customers", { storeId, enabled: !!storeId, params: { pageSize: 100 } });
+  const { data: apiProducts } = useApiList("/products", { storeId, enabled: !!storeId, params: { pageSize: 100 } });
 
   const orders = useMemo(() => (apiOrders ?? []).map(mapOrderFromApi), [apiOrders]);
   const customers = useMemo(() => (apiCustomers ?? []).map(mapCustomerFromApi), [apiCustomers]);
+  const products = useMemo(() => (apiProducts ?? []).map(mapProductFromApi), [apiProducts]);
   const revenueData = useMemo(() => buildRevenueSeries(orders), [orders]);
+
+  const salesByCategory = useMemo(() => {
+    const palette = ["#2563EB", "#16A34A", "#F59E0B", "#7C3AED", "#DB2777", "#0D9488"];
+    const counts = new Map();
+    products.forEach((p) => {
+      const key = p.category || "General";
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    const total = products.length || 1;
+    return Array.from(counts.entries()).slice(0, 6).map(([name, count], i) => ({
+      name,
+      value: Math.max(1, Math.round((count / total) * 100)),
+      color: palette[i % palette.length],
+    }));
+  }, [products]);
+
+  const activityLogs = useMemo(() => {
+    const rows = [
+      ...orders.slice(0, 3).map((o) => ({
+        id: `order-${o.id}`,
+        type: "order",
+        action: `Order ${o.status}`,
+        details: `${o.customer.name} • ${formatCurrency(o.total)}`,
+        time: new Date(o.date).toLocaleString(),
+      })),
+      ...customers.slice(0, 2).map((c) => ({
+        id: `customer-${c.id}`,
+        type: "customer",
+        action: "Customer updated",
+        details: `${c.name} • ${c.customerType}`,
+        time: new Date(c.joinDate).toLocaleString(),
+      })),
+      ...products.slice(0, 2).map((p) => ({
+        id: `product-${p.id}`,
+        type: "product",
+        action: "Product synced",
+        details: `${p.name} • ${p.category}`,
+        time: new Date().toLocaleString(),
+      })),
+    ];
+    return rows;
+  }, [orders, customers, products]);
 
   const dashboardStats = useMemo(() => {
     const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);

@@ -39,6 +39,7 @@ import {
   ShieldCheck,
   ClipboardList,
   Network,
+  Brush,
   ChevronLeft,
   Menu,
   Moon,
@@ -114,6 +115,11 @@ const sidebarItems = [
     title: "Merchant Ops",
     icon: Network,
     path: "/admin/merchant-ops",
+  },
+  {
+    title: "Platform Themes",
+    icon: Brush,
+    path: "/admin/platform-themes",
   },
 ];
 

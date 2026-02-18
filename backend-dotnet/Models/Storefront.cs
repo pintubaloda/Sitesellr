@@ -42,7 +42,30 @@ public class StoreThemeConfig
     public string? BannerJson { get; set; }
     [MaxLength(4000)]
     public string? DesignTokensJson { get; set; }
+    public bool ShowPricing { get; set; } = true;
+    public bool LoginToViewPrice { get; set; }
+    [MaxLength(20)]
+    public string CatalogMode { get; set; } = "retail";
+    [MaxLength(4000)]
+    public string? CatalogVisibilityJson { get; set; }
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class StoreMediaAsset
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    [Required, MaxLength(260)]
+    public string FileName { get; set; } = string.Empty;
+    [Required, MaxLength(120)]
+    public string ContentType { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
+    [Required, MaxLength(1000)]
+    public string Url { get; set; } = string.Empty;
+    [MaxLength(80)]
+    public string Kind { get; set; } = "generic";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 public class StoreHomepageLayout

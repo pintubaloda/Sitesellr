@@ -114,6 +114,10 @@ export const StoreBuilder = () => {
     footerJson: "{}",
     bannerJson: "{}",
     designTokensJson: "{}",
+    showPricing: true,
+    loginToViewPrice: false,
+    catalogMode: "retail",
+    catalogVisibilityJson: "[]",
   });
   const [sections, setSections] = useState(FALLBACK_SECTIONS);
   const [menuItems, setMenuItems] = useState(FALLBACK_MENU);
@@ -121,6 +125,7 @@ export const StoreBuilder = () => {
   const [pageForm, setPageForm] = useState({ title: "", slug: "", content: "", seoTitle: "", seoDescription: "", isPublished: false });
   const [editingPageId, setEditingPageId] = useState("");
   const [previewDevice, setPreviewDevice] = useState("desktop");
+  const [selectedSectionIndex, setSelectedSectionIndex] = useState(0);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -149,6 +154,10 @@ export const StoreBuilder = () => {
         footerJson: settingsRes.data?.footerJson || "{}",
         bannerJson: settingsRes.data?.bannerJson || "{}",
         designTokensJson: settingsRes.data?.designTokensJson || "{}",
+        showPricing: settingsRes.data?.showPricing ?? true,
+        loginToViewPrice: settingsRes.data?.loginToViewPrice ?? false,
+        catalogMode: settingsRes.data?.catalogMode || "retail",
+        catalogVisibilityJson: settingsRes.data?.catalogVisibilityJson || "[]",
       });
       setSections(parseJsonArray(layoutRes.data?.sectionsJson, FALLBACK_SECTIONS));
       setMenuItems(parseJsonArray(navRes.data?.itemsJson, FALLBACK_MENU));
@@ -189,10 +198,27 @@ export const StoreBuilder = () => {
 
   const addSection = () => {
     setSections((prev) => [...prev, { type: "custom", title: `Section ${prev.length + 1}` }]);
+    setSelectedSectionIndex(sections.length);
   };
 
   const removeSection = (idx) => {
     setSections((prev) => prev.filter((_, i) => i !== idx));
+    setSelectedSectionIndex(0);
+  };
+
+  const moveSection = (idx, direction) => {
+    const target = idx + direction;
+    if (target < 0 || target >= sections.length) return;
+    const next = [...sections];
+    const temp = next[idx];
+    next[idx] = next[target];
+    next[target] = temp;
+    setSections(next);
+    setSelectedSectionIndex(target);
+  };
+
+  const patchSection = (idx, patch) => {
+    setSections((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
   };
 
   const saveLayout = async () => {
@@ -222,6 +248,27 @@ export const StoreBuilder = () => {
       setStatus("Navigation saved.");
     } catch (err) {
       setStatus(err?.response?.data?.error || "Could not save navigation.");
+    }
+  };
+
+  const uploadMedia = async (e, kind = "generic") => {
+    if (!storeId) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("kind", kind);
+    setStatus("");
+    try {
+      const res = await api.post(`/stores/${storeId}/storefront/media/upload`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const url = res.data?.url || "";
+      if (kind === "logo") setThemeSettings((s) => ({ ...s, logoUrl: url }));
+      if (kind === "favicon") setThemeSettings((s) => ({ ...s, faviconUrl: url }));
+      setStatus("Media uploaded.");
+    } catch (err) {
+      setStatus(err?.response?.data?.error || "Could not upload media.");
     }
   };
 
@@ -320,10 +367,12 @@ export const StoreBuilder = () => {
               <div className="space-y-2">
                 <Label>Logo URL</Label>
                 <Input value={themeSettings.logoUrl} onChange={(e) => setThemeSettings((s) => ({ ...s, logoUrl: e.target.value }))} />
+                <Input type="file" accept="image/*" onChange={(e) => uploadMedia(e, "logo")} />
               </div>
               <div className="space-y-2">
                 <Label>Favicon URL</Label>
                 <Input value={themeSettings.faviconUrl} onChange={(e) => setThemeSettings((s) => ({ ...s, faviconUrl: e.target.value }))} />
+                <Input type="file" accept="image/*" onChange={(e) => uploadMedia(e, "favicon")} />
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Header JSON</Label>
@@ -341,6 +390,22 @@ export const StoreBuilder = () => {
                 <Label>Design Tokens JSON</Label>
                 <Textarea rows={3} value={themeSettings.designTokensJson} onChange={(e) => setThemeSettings((s) => ({ ...s, designTokensJson: e.target.value }))} />
               </div>
+              <div className="space-y-2">
+                <Label>Catalog Mode</Label>
+                <Input value={themeSettings.catalogMode} onChange={(e) => setThemeSettings((s) => ({ ...s, catalogMode: e.target.value }))} placeholder="retail|wholesale|hybrid" />
+              </div>
+              <div className="space-y-2">
+                <Label>Catalog Visibility JSON</Label>
+                <Textarea rows={2} value={themeSettings.catalogVisibilityJson} onChange={(e) => setThemeSettings((s) => ({ ...s, catalogVisibilityJson: e.target.value }))} />
+              </div>
+              <div className="flex items-center gap-2">
+                <input id="showPricing" type="checkbox" checked={themeSettings.showPricing} onChange={(e) => setThemeSettings((s) => ({ ...s, showPricing: e.target.checked }))} />
+                <Label htmlFor="showPricing">Show pricing in storefront</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input id="loginToViewPrice" type="checkbox" checked={themeSettings.loginToViewPrice} onChange={(e) => setThemeSettings((s) => ({ ...s, loginToViewPrice: e.target.checked }))} />
+                <Label htmlFor="loginToViewPrice">Login required to view price</Label>
+              </div>
               {activeTheme ? <p className="text-xs text-slate-500 md:col-span-2">Active theme: {activeTheme.name}</p> : null}
             </CardContent>
           </Card>
@@ -355,16 +420,34 @@ export const StoreBuilder = () => {
               </CardHeader>
               <CardContent className="space-y-2">
                 {sections.map((section, idx) => (
-                  <div key={`${section.type}-${idx}`} className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-700 rounded-lg">
+                  <div key={`${section.type}-${idx}`} className={`flex items-center gap-3 p-3 border rounded-lg ${idx === selectedSectionIndex ? "border-blue-500" : "border-slate-200 dark:border-slate-700"}`} onClick={() => setSelectedSectionIndex(idx)}>
                     <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                       {section.type === "hero" ? <Image className="w-4 h-4 text-slate-500" /> : section.type === "products" ? <Layers className="w-4 h-4 text-slate-500" /> : <Type className="w-4 h-4 text-slate-500" />}
                     </div>
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{section.title || section.type}</span>
                     <Move className="w-4 h-4 text-slate-400 ml-auto" />
+                    <Button size="icon" variant="ghost" onClick={() => moveSection(idx, -1)}>↑</Button>
+                    <Button size="icon" variant="ghost" onClick={() => moveSection(idx, 1)}>↓</Button>
                     <Button size="icon" variant="ghost" onClick={() => removeSection(idx)}><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 ))}
                 <Button variant="outline" className="w-full rounded-xl" onClick={addSection}><Plus className="w-4 h-4 mr-2" />Add Section</Button>
+                {sections[selectedSectionIndex] ? (
+                  <div className="space-y-2 p-3 border rounded-lg">
+                    <Label>Selected Section Title</Label>
+                    <Input value={sections[selectedSectionIndex]?.title || ""} onChange={(e) => patchSection(selectedSectionIndex, { title: e.target.value })} />
+                    <Label>Section Type</Label>
+                    <Input value={sections[selectedSectionIndex]?.type || ""} onChange={(e) => patchSection(selectedSectionIndex, { type: e.target.value })} />
+                    <Label>Widget Settings JSON</Label>
+                    <Textarea rows={3} value={JSON.stringify(sections[selectedSectionIndex]?.settings || {}, null, 2)} onChange={(e) => {
+                      try {
+                        patchSection(selectedSectionIndex, { settings: JSON.parse(e.target.value || "{}") });
+                      } catch {
+                        // keep editor responsive while JSON is invalid
+                      }
+                    }} />
+                  </div>
+                ) : null}
                 <Button className="w-full rounded-xl" onClick={saveLayout}>Save Homepage Layout</Button>
               </CardContent>
             </Card>

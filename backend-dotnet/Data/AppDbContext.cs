@@ -43,6 +43,7 @@ public class AppDbContext : DbContext
     public DbSet<StoreHomepageLayout> StoreHomepageLayouts => Set<StoreHomepageLayout>();
     public DbSet<StoreNavigationMenu> StoreNavigationMenus => Set<StoreNavigationMenu>();
     public DbSet<StoreStaticPage> StoreStaticPages => Set<StoreStaticPage>();
+    public DbSet<StoreMediaAsset> StoreMediaAssets => Set<StoreMediaAsset>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -384,6 +385,8 @@ public class AppDbContext : DbContext
             b.Property(x => x.FooterJson).HasMaxLength(4000);
             b.Property(x => x.BannerJson).HasMaxLength(4000);
             b.Property(x => x.DesignTokensJson).HasMaxLength(4000);
+            b.Property(x => x.CatalogMode).HasMaxLength(20);
+            b.Property(x => x.CatalogVisibilityJson).HasMaxLength(4000);
             b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(x => x.StoreId).IsUnique();
             b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
@@ -422,6 +425,19 @@ public class AppDbContext : DbContext
             b.Property(x => x.SeoDescription).HasMaxLength(400);
             b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(x => new { x.StoreId, x.Slug }).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StoreMediaAsset>(b =>
+        {
+            b.ToTable("store_media_assets");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.FileName).IsRequired().HasMaxLength(260);
+            b.Property(x => x.ContentType).IsRequired().HasMaxLength(120);
+            b.Property(x => x.Url).IsRequired().HasMaxLength(1000);
+            b.Property(x => x.Kind).HasMaxLength(80);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.Kind });
             b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Text.Json;
 using backend_dotnet.Data;
 using backend_dotnet.Models;
@@ -145,10 +146,75 @@ public class StorefrontController : ControllerBase
         config.FooterJson = req.FooterJson?.Trim();
         config.BannerJson = req.BannerJson?.Trim();
         config.DesignTokensJson = req.DesignTokensJson?.Trim();
+        config.ShowPricing = req.ShowPricing;
+        config.LoginToViewPrice = req.LoginToViewPrice;
+        config.CatalogMode = string.IsNullOrWhiteSpace(req.CatalogMode) ? "retail" : req.CatalogMode.Trim().ToLowerInvariant();
+        config.CatalogVisibilityJson = req.CatalogVisibilityJson?.Trim();
         config.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
         return Ok(config);
+    }
+
+    [HttpPost("media/upload")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    [RequestSizeLimit(10_000_000)]
+    public async Task<IActionResult> UploadMedia(Guid storeId, [FromForm] IFormFile file, [FromForm] string? kind, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        if (file == null || file.Length == 0) return BadRequest(new { error = "file_required" });
+        if (file.Length > 10_000_000) return BadRequest(new { error = "file_too_large" });
+
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"
+        };
+        if (!allowed.Contains(file.ContentType)) return BadRequest(new { error = "unsupported_content_type" });
+
+        var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var uploadDir = Path.Combine(webRoot, "uploads", storeId.ToString("N"));
+        Directory.CreateDirectory(uploadDir);
+
+        var safeName = $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{Guid.NewGuid():N}{Path.GetExtension(file.FileName)}";
+        var savePath = Path.Combine(uploadDir, safeName);
+        await using (var stream = System.IO.File.Create(savePath))
+        {
+            await file.CopyToAsync(stream, ct);
+        }
+
+        var relativeUrl = $"/uploads/{storeId:N}/{safeName}";
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var cdnBase = Environment.GetEnvironmentVariable("ASSET_BASE_URL");
+        var assetUrl = string.IsNullOrWhiteSpace(cdnBase) ? $"{baseUrl}{relativeUrl}" : $"{cdnBase.TrimEnd('/')}{relativeUrl}";
+
+        var row = new StoreMediaAsset
+        {
+            StoreId = storeId,
+            FileName = file.FileName,
+            ContentType = file.ContentType,
+            SizeBytes = file.Length,
+            Url = assetUrl,
+            Kind = string.IsNullOrWhiteSpace(kind) ? "generic" : kind.Trim().ToLowerInvariant(),
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        _db.StoreMediaAssets.Add(row);
+        await _db.SaveChangesAsync(ct);
+        return Ok(row);
+    }
+
+    [HttpGet("media")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> ListMedia(Guid storeId, [FromQuery] string? kind, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var q = _db.StoreMediaAssets.AsNoTracking().Where(x => x.StoreId == storeId);
+        if (!string.IsNullOrWhiteSpace(kind))
+        {
+            var normalized = kind.Trim().ToLowerInvariant();
+            q = q.Where(x => x.Kind == normalized);
+        }
+        var rows = await q.OrderByDescending(x => x.CreatedAt).Take(200).ToListAsync(ct);
+        return Ok(rows);
     }
 
     [HttpGet("homepage-layout")]
@@ -361,6 +427,12 @@ public class StoreThemeSettingsRequest
     public string? BannerJson { get; set; }
     [StringLength(4000)]
     public string? DesignTokensJson { get; set; }
+    public bool ShowPricing { get; set; } = true;
+    public bool LoginToViewPrice { get; set; }
+    [RegularExpression("^(retail|wholesale|hybrid)$", ErrorMessage = "Invalid catalog mode.")]
+    public string CatalogMode { get; set; } = "retail";
+    [StringLength(4000)]
+    public string? CatalogVisibilityJson { get; set; }
 }
 
 public class HomepageLayoutRequest

@@ -297,6 +297,10 @@ CREATE TABLE IF NOT EXISTS store_theme_configs (
   ""DesignTokensJson"" character varying(4000),
   ""UpdatedAt"" timestamp with time zone NOT NULL
 );");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""ShowPricing"" boolean NOT NULL DEFAULT true;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""LoginToViewPrice"" boolean NOT NULL DEFAULT false;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""CatalogMode"" character varying(20) NOT NULL DEFAULT 'retail';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""CatalogVisibilityJson"" character varying(4000) NULL;");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_theme_configs_StoreId ON store_theme_configs (""StoreId"");");
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS store_homepage_layouts (
@@ -329,6 +333,18 @@ CREATE TABLE IF NOT EXISTS store_static_pages (
   ""UpdatedAt"" timestamp with time zone NOT NULL
 );");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_static_pages_StoreId_Slug ON store_static_pages (""StoreId"", ""Slug"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS store_media_assets (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""FileName"" character varying(260) NOT NULL,
+  ""ContentType"" character varying(120) NOT NULL,
+  ""SizeBytes"" bigint NOT NULL,
+  ""Url"" character varying(1000) NOT NULL,
+  ""Kind"" character varying(80) NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_store_media_assets_StoreId_Kind ON store_media_assets (""StoreId"", ""Kind"");");
 }
 
 var platformOwnerEmail = builder.Configuration["PLATFORM_OWNER_EMAIL"];
@@ -418,6 +434,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseForwardedHeaders();
+app.UseStaticFiles();
 if (app.Environment.IsDevelopment() || builder.Configuration.GetValue("FORCE_HTTPS_REDIRECT", false))
 {
     app.UseHttpsRedirection();

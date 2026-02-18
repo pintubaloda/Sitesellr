@@ -54,3 +54,32 @@ Update Entry: 2026-02-18 (Storefront CMS + Theme Engine)
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Update Entry: 2026-02-18 (Store Builder & Customization Expansion)
+- Added public storefront runtime API/controller: `backend-dotnet/Controllers/PublicStorefrontController.cs`
+- Added media upload + media asset listing APIs in storefront module (`/storefront/media/upload`, `/storefront/media`)
+- Added B2B visibility settings on storefront config (`ShowPricing`, `LoginToViewPrice`, `CatalogMode`, `CatalogVisibilityJson`)
+- Added media asset entity + DB mapping (`StoreMediaAsset`) and migration `20260218170000_StorefrontPublicB2BMedia.cs`
+- Enabled static file serving for uploaded assets in backend runtime
+- Added platform theme management UI page `/admin/platform-themes`
+- Added public storefront frontend runtime page `/s/:subdomain/*`
+- Upgraded Store Builder UI with:
+  - section reorder + widget settings editor
+  - B2B visibility controls
+  - logo/favicon file upload wiring
+- Files updated:
+  - backend-dotnet/Controllers/PublicStorefrontController.cs
+  - backend-dotnet/Controllers/StorefrontController.cs
+  - backend-dotnet/Models/Storefront.cs
+  - backend-dotnet/Data/AppDbContext.cs
+  - backend-dotnet/Migrations/20260218170000_StorefrontPublicB2BMedia.cs
+  - backend-dotnet/Program.cs
+  - frontend/src/pages/storefront/StorefrontPublic.js
+  - frontend/src/pages/admin/PlatformThemes.js
+  - frontend/src/pages/admin/StoreBuilder.js
+  - frontend/src/App.js
+  - frontend/src/components/layouts/DashboardLayout.js
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

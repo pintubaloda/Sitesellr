@@ -23,6 +23,8 @@ import Merchants from "./pages/admin/Merchants";
 import PlatformRbac from "./pages/admin/PlatformRbac";
 import AuditLogs from "./pages/admin/AuditLogs";
 import MerchantOps from "./pages/admin/MerchantOps";
+import PlatformThemes from "./pages/admin/PlatformThemes";
+import StorefrontPublic from "./pages/storefront/StorefrontPublic";
 import { getStoredAccessToken } from "./lib/session";
 
 const ProtectedRoute = ({ children }) => {
@@ -46,6 +48,7 @@ function App() {
           <Route path="/auth/register" element={<Register />} />
           <Route path="/auth/accept-invite" element={<AcceptInvite />} />
           <Route path="/onboarding" element={<Navigate to="/auth/register" replace />} />
+          <Route path="/s/:subdomain/*" element={<StorefrontPublic />} />
           
           {/* Admin Dashboard Routes */}
           <Route
@@ -68,6 +71,7 @@ function App() {
             <Route path="platform-rbac" element={<PlatformRbac />} />
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="merchant-ops" element={<MerchantOps />} />
+            <Route path="platform-themes" element={<PlatformThemes />} />
           </Route>
 
           {/* Catch all - redirect to home */}

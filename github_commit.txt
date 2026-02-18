@@ -272,3 +272,18 @@ Update Entry: 2026-02-18 (B2B customer-group visibility engine)
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Update Entry: 2026-02-18 (CORS registration fix + role test user seed)
+- Updated CORS policy behavior in `Program.cs`:
+  - explicit origins now use `AllowCredentials()`
+  - wildcard remains non-credential mode (browser-compatible behavior)
+- Added optional test-user role seeding flow in `Program.cs` (guarded by env):
+  - `SEED_TEST_USERS=true`
+  - `TEST_USER_PASSWORD` configurable
+  - seeds platform owner/staff and store owner/admin/staff users + demo merchant/store and role assignments
+- Files updated:
+  - backend-dotnet/Program.cs
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

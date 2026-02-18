@@ -160,13 +160,15 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("ApiCorsPolicy", policy =>
     {
-        if (corsOrigins.Length == 0 || corsOrigins.Contains("*"))
+        var allowAnyOrigin = corsOrigins.Length == 0 || corsOrigins.Contains("*");
+        if (allowAnyOrigin)
         {
             policy.AllowAnyOrigin();
         }
         else
         {
-            policy.WithOrigins(corsOrigins);
+            policy.WithOrigins(corsOrigins)
+                  .AllowCredentials();
         }
 
         policy.AllowAnyHeader()
@@ -497,6 +499,94 @@ using (var scope = app.Services.CreateScope())
             });
         await db.SaveChangesAsync();
     }
+}
+
+if (builder.Configuration.GetValue("SEED_TEST_USERS", false))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    var merchant = await db.Merchants.FirstOrDefaultAsync(m => m.Name == "Demo Merchant");
+    if (merchant == null)
+    {
+        merchant = new Merchant
+        {
+            Name = "Demo Merchant",
+            Status = MerchantStatus.Active,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.Merchants.Add(merchant);
+        await db.SaveChangesAsync();
+    }
+
+    var store = await db.Stores.FirstOrDefaultAsync(s => s.MerchantId == merchant.Id && s.Subdomain == "demo");
+    if (store == null)
+    {
+        store = new Store
+        {
+            MerchantId = merchant.Id,
+            Name = "Demo Store",
+            Subdomain = "demo",
+            Currency = "INR",
+            Timezone = "Asia/Kolkata",
+            Status = StoreStatus.Active,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.Stores.Add(store);
+        await db.SaveChangesAsync();
+    }
+
+    async Task<User> EnsureUserAsync(string email, string password)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == normalized);
+        if (user == null)
+        {
+            user = new User
+            {
+                Email = normalized,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12),
+                IsLocked = false,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+        }
+        return user;
+    }
+
+    var pwd = builder.Configuration["TEST_USER_PASSWORD"] ?? "ChangeMe123!";
+    var platformOwner = await EnsureUserAsync("platform.owner@sitesellr.local", pwd);
+    var platformStaff = await EnsureUserAsync("platform.staff@sitesellr.local", pwd);
+    var storeOwner = await EnsureUserAsync("store.owner@sitesellr.local", pwd);
+    var storeAdmin = await EnsureUserAsync("store.admin@sitesellr.local", pwd);
+    var storeStaff = await EnsureUserAsync("store.staff@sitesellr.local", pwd);
+    _ = await EnsureUserAsync("customer.retail@sitesellr.local", pwd);
+
+    if (!await db.PlatformUserRoles.AnyAsync(x => x.UserId == platformOwner.Id && x.Role == PlatformRole.Owner))
+        db.PlatformUserRoles.Add(new PlatformUserRole { UserId = platformOwner.Id, Role = PlatformRole.Owner, CreatedAt = DateTimeOffset.UtcNow });
+    if (!await db.PlatformUserRoles.AnyAsync(x => x.UserId == platformStaff.Id && x.Role == PlatformRole.Staff))
+        db.PlatformUserRoles.Add(new PlatformUserRole { UserId = platformStaff.Id, Role = PlatformRole.Staff, CreatedAt = DateTimeOffset.UtcNow });
+
+    async Task EnsureStoreRoleAsync(Guid userId, StoreRole role)
+    {
+        if (await db.StoreUserRoles.AnyAsync(x => x.StoreId == store.Id && x.UserId == userId)) return;
+        db.StoreUserRoles.Add(new StoreUserRole
+        {
+            StoreId = store.Id,
+            UserId = userId,
+            Role = role,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+    }
+
+    await EnsureStoreRoleAsync(storeOwner.Id, StoreRole.Owner);
+    await EnsureStoreRoleAsync(storeAdmin.Id, StoreRole.Admin);
+    await EnsureStoreRoleAsync(storeStaff.Id, StoreRole.Staff);
+    await db.SaveChangesAsync();
 }
 
 if (app.Environment.IsDevelopment())

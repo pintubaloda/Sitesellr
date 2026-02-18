@@ -140,3 +140,11 @@ Updated: 2026-02-18
 
 Module Name	Developed	Partial Developed	Need To Develop
 B2B Customer-Group Visibility Engine	Added DB models/tables for customer groups, group members, and visibility rules; added admin APIs for group/rule management; public storefront enforcement now filters products/pages/theme blocks by allow/deny rules and preview group id	Category-level enforcement model exists but not yet applied in product query path; preview-as-group UI is basic (ID-driven), rule builder is form-based (not visual)	Rich rule-builder UX with entity pickers, customer-group assignment UI at scale, full category cascade enforcement, policy simulation/audit and conflict resolution workflow
+
+---
+Registration CORS + Test Role Credentials Seed Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Registration CORS	Adjusted CORS policy: explicit origins now enable credentials; wildcard stays non-credential mode for safety	If frontend uses `withCredentials=true`, wildcard CORS still fails by browser design	Set concrete `CORS_ORIGINS` in all deploy envs and keep front/back URL alignment
+Test Role Login Setup	Added optional runtime dev seed (`SEED_TEST_USERS=true`) to generate platform/store role users with known password and assign roles/store demo data	Seeding is env-flagged and intended for non-production test only	Separate secure test-fixture bootstrap pipeline for CI/staging with rotated secrets

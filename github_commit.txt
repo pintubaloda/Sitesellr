@@ -331,3 +331,5 @@ Notes:
 - Added reason + optional step-up enforcement for sensitive RBAC and lifecycle actions.
 - Added access introspection payload for platform permissions/high-risk actions.
 - Updated UI to pass reason and step-up headers and to avoid showing store-only menus to platform owner by default.
+[Committed] db9fff8 pushed to origin/main
+[Committed] db9fff8 pushed to origin/main

@@ -99,6 +99,20 @@ public class StoreHomepageLayout
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public class StorefrontLayoutVersion
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    [MaxLength(4000)]
+    public string SectionsJson { get; set; } = "[]";
+    [MaxLength(20)]
+    public string VersionType { get; set; } = "draft";
+    public int VersionNumber { get; set; }
+    public Guid? CreatedByUserId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public class StoreNavigationMenu
 {
     public Guid Id { get; set; } = Guid.NewGuid();

@@ -25,6 +25,8 @@ import {
   Plus,
   Trash2,
   FileText,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import useActiveStore from "../../hooks/useActiveStore";
 import api from "../../lib/api";
@@ -120,6 +122,9 @@ export const StoreBuilder = () => {
     catalogVisibilityJson: "[]",
   });
   const [sections, setSections] = useState(FALLBACK_SECTIONS);
+  const [pastSections, setPastSections] = useState([]);
+  const [futureSections, setFutureSections] = useState([]);
+  const [layoutVersions, setLayoutVersions] = useState([]);
   const [menuItems, setMenuItems] = useState(FALLBACK_MENU);
   const [pages, setPages] = useState([]);
   const [pageForm, setPageForm] = useState({ title: "", slug: "", content: "", seoTitle: "", seoDescription: "", isPublished: false });
@@ -136,12 +141,13 @@ export const StoreBuilder = () => {
     setLoading(true);
     setStatus("");
     try {
-      const [themesRes, settingsRes, layoutRes, navRes, pagesRes] = await Promise.all([
+      const [themesRes, settingsRes, layoutRes, navRes, pagesRes, versionsRes] = await Promise.all([
         api.get(`/stores/${storeId}/storefront/themes`),
         api.get(`/stores/${storeId}/storefront/settings`),
         api.get(`/stores/${storeId}/storefront/homepage-layout`),
         api.get(`/stores/${storeId}/storefront/navigation`),
         api.get(`/stores/${storeId}/storefront/pages`),
+        api.get(`/stores/${storeId}/storefront/homepage-layout/versions`),
       ]);
 
       const themeRows = Array.isArray(themesRes.data) ? themesRes.data : [];
@@ -162,6 +168,7 @@ export const StoreBuilder = () => {
       setSections(parseJsonArray(layoutRes.data?.sectionsJson, FALLBACK_SECTIONS));
       setMenuItems(parseJsonArray(navRes.data?.itemsJson, FALLBACK_MENU));
       setPages(Array.isArray(pagesRes.data) ? pagesRes.data : []);
+      setLayoutVersions(Array.isArray(versionsRes.data) ? versionsRes.data : []);
     } catch (err) {
       setStatus(err?.response?.status === 403 ? "You are not authorized." : "Could not load storefront settings.");
     } finally {
@@ -197,11 +204,15 @@ export const StoreBuilder = () => {
   };
 
   const addSection = () => {
-    setSections((prev) => [...prev, { type: "custom", title: `Section ${prev.length + 1}` }]);
+    setPastSections((p) => [...p, sections]);
+    setFutureSections([]);
+    setSections((prev) => [...prev, { type: "custom", title: `Section ${prev.length + 1}`, children: [] }]);
     setSelectedSectionIndex(sections.length);
   };
 
   const removeSection = (idx) => {
+    setPastSections((p) => [...p, sections]);
+    setFutureSections([]);
     setSections((prev) => prev.filter((_, i) => i !== idx));
     setSelectedSectionIndex(0);
   };
@@ -209,6 +220,8 @@ export const StoreBuilder = () => {
   const moveSection = (idx, direction) => {
     const target = idx + direction;
     if (target < 0 || target >= sections.length) return;
+    setPastSections((p) => [...p, sections]);
+    setFutureSections([]);
     const next = [...sections];
     const temp = next[idx];
     next[idx] = next[target];
@@ -218,17 +231,76 @@ export const StoreBuilder = () => {
   };
 
   const patchSection = (idx, patch) => {
+    setPastSections((p) => [...p, sections]);
+    setFutureSections([]);
     setSections((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
+  };
+
+  const undoSections = () => {
+    if (pastSections.length === 0) return;
+    const prev = pastSections[pastSections.length - 1];
+    setPastSections((p) => p.slice(0, -1));
+    setFutureSections((f) => [sections, ...f]);
+    setSections(prev);
+  };
+
+  const redoSections = () => {
+    if (futureSections.length === 0) return;
+    const next = futureSections[0];
+    setFutureSections((f) => f.slice(1));
+    setPastSections((p) => [...p, sections]);
+    setSections(next);
+  };
+
+  const addChildBlock = (idx) => {
+    setPastSections((p) => [...p, sections]);
+    setFutureSections([]);
+    setSections((prev) =>
+      prev.map((s, i) =>
+        i === idx
+          ? { ...s, children: [...(Array.isArray(s.children) ? s.children : []), { type: "block", title: "Nested Block" }] }
+          : s
+      )
+    );
   };
 
   const saveLayout = async () => {
     if (!storeId) return;
     setStatus("");
     try {
+      const validation = await api.post(`/stores/${storeId}/storefront/homepage-layout/validate`, { sectionsJson: JSON.stringify(sections) });
+      if (!validation.data?.valid) {
+        setStatus(validation.data?.error || "Layout validation failed.");
+        return;
+      }
       await api.put(`/stores/${storeId}/storefront/homepage-layout`, { sectionsJson: JSON.stringify(sections) });
+      const versionsRes = await api.get(`/stores/${storeId}/storefront/homepage-layout/versions`);
+      setLayoutVersions(Array.isArray(versionsRes.data) ? versionsRes.data : []);
       setStatus("Homepage layout saved.");
     } catch (err) {
       setStatus(err?.response?.data?.error || "Could not save homepage layout.");
+    }
+  };
+
+  const publishVersion = async (versionId) => {
+    if (!storeId) return;
+    try {
+      await api.post(`/stores/${storeId}/storefront/homepage-layout/publish`, { versionId });
+      await loadData();
+      setStatus("Version published.");
+    } catch (err) {
+      setStatus(err?.response?.data?.error || "Could not publish version.");
+    }
+  };
+
+  const rollbackVersion = async (versionId) => {
+    if (!storeId) return;
+    try {
+      await api.post(`/stores/${storeId}/storefront/homepage-layout/rollback`, { versionId });
+      await loadData();
+      setStatus("Rollback complete.");
+    } catch (err) {
+      setStatus(err?.response?.data?.error || "Could not rollback.");
     }
   };
 
@@ -419,6 +491,10 @@ export const StoreBuilder = () => {
                 <CardDescription className="text-xs">Drag/drop-ready section list persisted via API.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" onClick={undoSections} disabled={pastSections.length === 0}><Undo2 className="w-4 h-4 mr-2" />Undo</Button>
+                  <Button variant="outline" onClick={redoSections} disabled={futureSections.length === 0}><Redo2 className="w-4 h-4 mr-2" />Redo</Button>
+                </div>
                 {sections.map((section, idx) => (
                   <div key={`${section.type}-${idx}`} className={`flex items-center gap-3 p-3 border rounded-lg ${idx === selectedSectionIndex ? "border-blue-500" : "border-slate-200 dark:border-slate-700"}`} onClick={() => setSelectedSectionIndex(idx)}>
                     <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
@@ -428,6 +504,7 @@ export const StoreBuilder = () => {
                     <Move className="w-4 h-4 text-slate-400 ml-auto" />
                     <Button size="icon" variant="ghost" onClick={() => moveSection(idx, -1)}>↑</Button>
                     <Button size="icon" variant="ghost" onClick={() => moveSection(idx, 1)}>↓</Button>
+                    <Button size="icon" variant="ghost" onClick={() => addChildBlock(idx)}>+</Button>
                     <Button size="icon" variant="ghost" onClick={() => removeSection(idx)}><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 ))}
@@ -438,6 +515,12 @@ export const StoreBuilder = () => {
                     <Input value={sections[selectedSectionIndex]?.title || ""} onChange={(e) => patchSection(selectedSectionIndex, { title: e.target.value })} />
                     <Label>Section Type</Label>
                     <Input value={sections[selectedSectionIndex]?.type || ""} onChange={(e) => patchSection(selectedSectionIndex, { type: e.target.value })} />
+                    <Label>Nested Blocks</Label>
+                    <div className="space-y-1">
+                      {(sections[selectedSectionIndex]?.children || []).map((c, i) => (
+                        <div key={`${c.type}-${i}`} className="text-xs p-2 rounded border bg-slate-50 dark:bg-slate-900">{c.title || c.type}</div>
+                      ))}
+                    </div>
                     <Label>Widget Settings JSON</Label>
                     <Textarea rows={3} value={JSON.stringify(sections[selectedSectionIndex]?.settings || {}, null, 2)} onChange={(e) => {
                       try {
@@ -449,6 +532,18 @@ export const StoreBuilder = () => {
                   </div>
                 ) : null}
                 <Button className="w-full rounded-xl" onClick={saveLayout}>Save Homepage Layout</Button>
+                <div className="space-y-2">
+                  <Label>Layout Versions</Label>
+                  {(layoutVersions || []).slice(0, 8).map((v) => (
+                    <div key={v.id} className="p-2 border rounded flex items-center justify-between gap-2">
+                      <span className="text-xs">v{v.versionNumber} · {v.versionType}</span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => publishVersion(v.id)}>Publish</Button>
+                        <Button size="sm" variant="ghost" onClick={() => rollbackVersion(v.id)}>Rollback</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
@@ -468,8 +563,11 @@ export const StoreBuilder = () => {
                   <div className={`mx-auto bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden transition-all ${previewDevice === "desktop" ? "w-full" : previewDevice === "tablet" ? "w-[768px] max-w-full" : "w-[375px] max-w-full"}`}>
                     <div className="h-96 p-6 space-y-3">
                       {sections.map((section, idx) => (
-                        <div key={`${section.type}-preview-${idx}`} className="h-12 rounded-lg bg-white/70 dark:bg-slate-700/60 flex items-center px-4 text-sm text-slate-600 dark:text-slate-200">
-                          {section.title || section.type}
+                        <div key={`${section.type}-preview-${idx}`} className="rounded-lg bg-white/70 dark:bg-slate-700/60 px-4 py-2 text-sm text-slate-600 dark:text-slate-200">
+                          <div>{section.title || section.type}</div>
+                          {(section.children || []).map((c, i) => (
+                            <div key={`${c.type}-child-${i}`} className="ml-4 mt-1 text-xs text-slate-500">- {c.title || c.type}</div>
+                          ))}
                         </div>
                       ))}
                     </div>

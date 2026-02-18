@@ -41,6 +41,7 @@ public class AppDbContext : DbContext
     public DbSet<ThemeCatalogItem> ThemeCatalogItems => Set<ThemeCatalogItem>();
     public DbSet<StoreThemeConfig> StoreThemeConfigs => Set<StoreThemeConfig>();
     public DbSet<StoreHomepageLayout> StoreHomepageLayouts => Set<StoreHomepageLayout>();
+    public DbSet<StorefrontLayoutVersion> StorefrontLayoutVersions => Set<StorefrontLayoutVersion>();
     public DbSet<StoreNavigationMenu> StoreNavigationMenus => Set<StoreNavigationMenu>();
     public DbSet<StoreStaticPage> StoreStaticPages => Set<StoreStaticPage>();
     public DbSet<StoreMediaAsset> StoreMediaAssets => Set<StoreMediaAsset>();
@@ -401,6 +402,17 @@ public class AppDbContext : DbContext
             b.Property(x => x.SectionsJson).HasMaxLength(4000);
             b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(x => x.StoreId).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StorefrontLayoutVersion>(b =>
+        {
+            b.ToTable("storefront_layout_versions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SectionsJson).HasMaxLength(4000);
+            b.Property(x => x.VersionType).HasMaxLength(20);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.VersionNumber }).IsUnique();
             b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
         });
 

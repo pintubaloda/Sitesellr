@@ -145,3 +145,31 @@ Update Entry: 2026-02-18 (Cloudflare subdomain + automatic custom-domain SSL flo
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Update Entry: 2026-02-18 (Visual canvas foundation: validation + versions + undo/redo)
+- Backend storefront layout versioning and validator:
+  - Added `StorefrontLayoutVersion` model and DB mapping
+  - Added migration: `backend-dotnet/Migrations/20260218190000_StorefrontLayoutVersions.cs`
+  - Added APIs in `StorefrontController`:
+    - `POST /homepage-layout/validate`
+    - `GET /homepage-layout/versions`
+    - `POST /homepage-layout/publish`
+    - `POST /homepage-layout/rollback`
+  - `PUT /homepage-layout` now validates schema and stores draft versions
+- Program startup SQL includes `storefront_layout_versions` table/index safety creation
+- Store Builder UI enhancements:
+  - undo/redo timeline
+  - section tree with nested child blocks
+  - version list with publish/rollback actions
+  - preview rendering includes nested blocks
+- Files updated:
+  - backend-dotnet/Models/Storefront.cs
+  - backend-dotnet/Data/AppDbContext.cs
+  - backend-dotnet/Controllers/StorefrontController.cs
+  - backend-dotnet/Migrations/20260218190000_StorefrontLayoutVersions.cs
+  - backend-dotnet/Program.cs
+  - frontend/src/pages/admin/StoreBuilder.js
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

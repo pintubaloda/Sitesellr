@@ -337,6 +337,17 @@ CREATE TABLE IF NOT EXISTS store_static_pages (
 );");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_static_pages_StoreId_Slug ON store_static_pages (""StoreId"", ""Slug"");");
     await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS storefront_layout_versions (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""SectionsJson"" character varying(4000),
+  ""VersionType"" character varying(20) NOT NULL,
+  ""VersionNumber"" integer NOT NULL,
+  ""CreatedByUserId"" uuid NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_storefront_layout_versions_StoreId_VersionNumber ON storefront_layout_versions (""StoreId"", ""VersionNumber"");");
+    await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS store_media_assets (
   ""Id"" uuid PRIMARY KEY,
   ""StoreId"" uuid NOT NULL,

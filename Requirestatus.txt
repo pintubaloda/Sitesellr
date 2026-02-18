@@ -87,3 +87,11 @@ Updated: 2026-02-18
 Module Name	Developed	Partial Developed	Need To Develop
 Tenant Subdomain (store.sitesellr.com)	Cloudflare DNS integration service added; on store create/update system auto-ensures tenant CNAME via Cloudflare API using configured zone/token/base domain/ingress host	No bulk reconciliation job yet for existing stores	Backfill worker for all existing stores and drift detection dashboard
 Custom Domain + Free SSL	On custom domain add, system now auto-attempts DNS resolve verification and SSL issuance; if auto fails, UI fallback button `Verify Now` + `Issue SSL` is available	Auto verify currently checks DNS resolvability (not full delegated DNS TXT validation automation)	Full Cloudflare DNS-01 TXT automation per custom domain provider integration, scheduled auto-renew queue and retry backoff
+
+---
+Visual Drag-Drop Canvas Foundation Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Visual Drag-Drop Canvas	Added layout schema validation API, version history table/API, publish + rollback APIs, Store Builder undo/redo timeline, nested block (children) editing in section tree, responsive preview now renders nested blocks	WYSIWYG freeform drag surface is still simplified (list/tree interactions), nesting depth tooling basic, no collaborative editing	Full canvas interaction engine with true drag-n-drop between containers, deep nesting UX, advanced inspector panels, multi-user editing controls
+Versioning & Governance	Draft versions auto-created on save, publish/rollback wired to version IDs, version list shown in UI	No release notes per version, no lock/freeze workflow, no scheduled publish	Full version governance (approval gates, scheduled publish, diff viewer, immutable release snapshots)

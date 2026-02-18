@@ -231,7 +231,8 @@ public class StorefrontController : ControllerBase
     public async Task<IActionResult> UpsertHomepageLayout(Guid storeId, [FromBody] HomepageLayoutRequest req, CancellationToken ct)
     {
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
-        if (!IsValidJsonArray(req.SectionsJson)) return BadRequest(new { error = "sections_must_be_json_array" });
+        if (!TryValidateSections(req.SectionsJson, out var validationError))
+            return BadRequest(new { error = validationError ?? "sections_invalid" });
         var layout = await _db.StoreHomepageLayouts.FirstOrDefaultAsync(x => x.StoreId == storeId, ct);
         if (layout == null)
         {
@@ -240,8 +241,82 @@ public class StorefrontController : ControllerBase
         }
         layout.SectionsJson = req.SectionsJson.Trim();
         layout.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var nextVersion = (await _db.StorefrontLayoutVersions.Where(x => x.StoreId == storeId).MaxAsync(x => (int?)x.VersionNumber, ct) ?? 0) + 1;
+        _db.StorefrontLayoutVersions.Add(new StorefrontLayoutVersion
+        {
+            StoreId = storeId,
+            SectionsJson = req.SectionsJson.Trim(),
+            VersionType = "draft",
+            VersionNumber = nextVersion,
+            CreatedByUserId = Tenancy?.UserId,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+
         await _db.SaveChangesAsync(ct);
         return Ok(layout);
+    }
+
+    [HttpPost("homepage-layout/validate")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public IActionResult ValidateHomepageLayout(Guid storeId, [FromBody] HomepageLayoutRequest req)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var isValid = TryValidateSections(req.SectionsJson, out var error);
+        return Ok(new { valid = isValid, error });
+    }
+
+    [HttpGet("homepage-layout/versions")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> ListLayoutVersions(Guid storeId, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var rows = await _db.StorefrontLayoutVersions.AsNoTracking()
+            .Where(x => x.StoreId == storeId)
+            .OrderByDescending(x => x.VersionNumber)
+            .Take(50)
+            .Select(x => new { x.Id, x.VersionNumber, x.VersionType, x.CreatedAt })
+            .ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    [HttpPost("homepage-layout/publish")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> PublishHomepageLayout(Guid storeId, [FromBody] PublishLayoutRequest req, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var version = await _db.StorefrontLayoutVersions.FirstOrDefaultAsync(x => x.Id == req.VersionId && x.StoreId == storeId, ct);
+        if (version == null) return NotFound(new { error = "version_not_found" });
+
+        var layout = await _db.StoreHomepageLayouts.FirstOrDefaultAsync(x => x.StoreId == storeId, ct);
+        if (layout == null)
+        {
+            layout = new StoreHomepageLayout { StoreId = storeId };
+            _db.StoreHomepageLayouts.Add(layout);
+        }
+        layout.SectionsJson = version.SectionsJson;
+        layout.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var nextVersion = (await _db.StorefrontLayoutVersions.Where(x => x.StoreId == storeId).MaxAsync(x => (int?)x.VersionNumber, ct) ?? 0) + 1;
+        _db.StorefrontLayoutVersions.Add(new StorefrontLayoutVersion
+        {
+            StoreId = storeId,
+            SectionsJson = version.SectionsJson,
+            VersionType = "published",
+            VersionNumber = nextVersion,
+            CreatedByUserId = Tenancy?.UserId,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { published = true, versionId = req.VersionId });
+    }
+
+    [HttpPost("homepage-layout/rollback")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> RollbackHomepageLayout(Guid storeId, [FromBody] PublishLayoutRequest req, CancellationToken ct)
+    {
+        return await PublishHomepageLayout(storeId, req, ct);
     }
 
     [HttpGet("navigation")]
@@ -367,6 +442,48 @@ public class StorefrontController : ControllerBase
             return false;
         }
     }
+
+    private static bool TryValidateSections(string json, out string? error)
+    {
+        error = null;
+        if (!IsValidJsonArray(json))
+        {
+            error = "sections_must_be_json_array";
+            return false;
+        }
+
+        using var doc = JsonDocument.Parse(json);
+        foreach (var item in doc.RootElement.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                error = "section_item_must_be_object";
+                return false;
+            }
+            if (!item.TryGetProperty("type", out var typeEl) || typeEl.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(typeEl.GetString()))
+            {
+                error = "section_type_required";
+                return false;
+            }
+            if (item.TryGetProperty("children", out var childrenEl))
+            {
+                if (childrenEl.ValueKind != JsonValueKind.Array)
+                {
+                    error = "section_children_must_be_array";
+                    return false;
+                }
+                foreach (var child in childrenEl.EnumerateArray())
+                {
+                    if (child.ValueKind != JsonValueKind.Object || !child.TryGetProperty("type", out var childType) || childType.ValueKind != JsonValueKind.String)
+                    {
+                        error = "child_type_required";
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
 }
 
 [ApiController]
@@ -480,4 +597,10 @@ public class ThemeCatalogCreateRequest
     [StringLength(500)]
     public string? AllowedPlanCodesCsv { get; set; }
     public bool IsActive { get; set; } = true;
+}
+
+public class PublishLayoutRequest
+{
+    [Required]
+    public Guid VersionId { get; set; }
 }

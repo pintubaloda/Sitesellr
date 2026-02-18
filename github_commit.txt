@@ -32,4 +32,5 @@ Pending / Partial
 
 Git state
 - Last pushed commit: cc46cf5
-- Onboarding flow update is local and pending push.
+- Latest local commit (pending push): d80bdb1
+- Onboarding flow update is committed locally and pending push.

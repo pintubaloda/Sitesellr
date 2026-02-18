@@ -18,6 +18,7 @@ public class TenancyContext
     public StoreRole? Role { get; set; }
     public HashSet<string> StorePermissions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public HashSet<PlatformRole> PlatformRoles { get; set; } = new();
+    public HashSet<string> PlatformPermissions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public bool IsAuthenticated => UserId.HasValue;
     public bool IsOwnerOrAdmin => Role is StoreRole.Owner or StoreRole.Admin;
     public bool IsPlatformOwner => PlatformRoles.Contains(PlatformRole.Owner);
@@ -82,6 +83,7 @@ public class TenancyResolver : ITenancyResolver
         StoreRole? role = null;
         var permissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var platformRoles = new HashSet<PlatformRole>();
+        var platformPermissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var bearer = httpContext.Request.Headers.Authorization.FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(bearer) && bearer.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
@@ -119,6 +121,14 @@ public class TenancyResolver : ITenancyResolver
                 {
                     platformRoles.Add(pr);
                 }
+
+                if (platformRoles.Contains(PlatformRole.Owner))
+                {
+                    foreach (var permission in PermissionCatalog.GetPlatformOwnerTemplatePermissions())
+                    {
+                        platformPermissions.Add(permission);
+                    }
+                }
             }
         }
 
@@ -129,7 +139,8 @@ public class TenancyResolver : ITenancyResolver
             UserId = userId,
             Role = role,
             StorePermissions = permissions,
-            PlatformRoles = platformRoles
+            PlatformRoles = platformRoles,
+            PlatformPermissions = platformPermissions
         };
     }
 }

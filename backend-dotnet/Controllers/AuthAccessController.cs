@@ -24,7 +24,18 @@ public class AuthAccessController : ControllerBase
             isStoreOwnerOrAdmin = tenancy.IsOwnerOrAdmin,
             storeRole = tenancy.Role?.ToString(),
             platformRoles = tenancy.PlatformRoles.Select(x => x.ToString()).ToArray(),
-            storePermissions = tenancy.StorePermissions.OrderBy(x => x).ToArray()
+            platformPermissions = tenancy.PlatformPermissions.OrderBy(x => x).ToArray(),
+            storePermissions = tenancy.StorePermissions.OrderBy(x => x).ToArray(),
+            highRiskActions = new[]
+            {
+                "refunds.override",
+                "payouts.freeze",
+                "payouts.release",
+                "plugins.approve",
+                "api_keys.revoke",
+                "merchants.suspend",
+                "merchants.delete"
+            }
         });
     }
 }

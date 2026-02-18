@@ -16,6 +16,15 @@ public static class Policies
     public const string ProductsWrite = "ProductsWrite";
     public const string StoreSettingsRead = "StoreSettingsRead";
     public const string StoreSettingsWrite = "StoreSettingsWrite";
+    public const string MerchantsSuspend = "MerchantsSuspend";
+    public const string MerchantsDelete = "MerchantsDelete";
+    public const string RefundsOverride = "RefundsOverride";
+    public const string PayoutsFreeze = "PayoutsFreeze";
+    public const string PayoutsRelease = "PayoutsRelease";
+    public const string PlansManage = "PlansManage";
+    public const string SecurityPoliciesManage = "SecurityPoliciesManage";
+    public const string PluginsApprove = "PluginsApprove";
+    public const string ApiKeysRevoke = "ApiKeysRevoke";
 }
 
 public class AccessRequirement : IAuthorizationRequirement

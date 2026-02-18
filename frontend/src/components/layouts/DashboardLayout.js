@@ -287,7 +287,7 @@ export const DashboardLayout = () => {
           return access.isPlatformStaff || access.isStoreUser;
         case "store":
         default:
-          return access.isStoreUser || access.isPlatformOwner;
+          return access.isStoreUser;
       }
     });
   }, [access]);

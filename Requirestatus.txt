@@ -176,3 +176,21 @@ Updated: 2026-02-18
 
 Module Name	Developed	Partial Developed	Need To Develop
 Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET /api/auth/access`) and dynamic sidebar visibility by platform/store scope so platform owner/staff and store users no longer see identical menu options	Page-level button/action guards still partly API-enforced (403 fallback) and not fully hidden in all screens	Complete route/action-level guard matrix and per-component permission gating for every admin view
+
+[2026-02-18 19:16 IST] Platform Owner Governance Hardening (In Progress)
+- Developed:
+  - Expanded platform permission catalog with explicit super-admin scopes (merchant governance, payments oversight, billing governance, platform settings, security, fraud/risk, plugin governance, API governance, API credentials, webhooks/integrations).
+  - Added backend policy keys for high-risk capabilities (merchant suspend/delete, refund override, payout freeze/release, plans manage, security policies manage, plugin approve, API key revoke).
+  - Added auth access payload enrichment: platform permissions + high-risk action map from `/api/auth/access`.
+  - Added sensitive-action enforcement for platform RBAC writes: `reason` required and optional step-up guard via `REQUIRE_STEP_UP_FOR_SENSITIVE=true` with `X-Step-Up-Auth=true`.
+  - Added sensitive action audit entries for RBAC updates and merchant approval flow actions.
+  - Added platform owner permission catalog endpoint: `GET /api/platform/rbac/catalog/platform-owner`.
+  - Updated admin sidebar scope behavior so platform owner no longer auto-sees store-only menus without store role context.
+  - Updated Platform RBAC UI to send reason + optional step-up header for sensitive writes.
+- Partial:
+  - Step-up currently header-gated (`X-Step-Up-Auth`) and config-driven; not yet a full 2FA challenge handshake.
+  - Platform owner permissions are role-derived in tenancy context (template) and not yet persisted as independent platform permission grants.
+- Pending:
+  - Dual approval workflow for high-risk actions.
+  - Dedicated financial intervention endpoints with enforced policy-per-action + re-auth screens.
+  - Immutable audit export/signing pipeline and approval reason taxonomy.

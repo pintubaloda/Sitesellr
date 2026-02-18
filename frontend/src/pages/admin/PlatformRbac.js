@@ -17,6 +17,8 @@ export const PlatformRbac = () => {
   const [storeId, setStoreId] = useState("");
   const [storeUserId, setStoreUserId] = useState("");
   const [permissions, setPermissions] = useState("");
+  const [reason, setReason] = useState("");
+  const [stepUp, setStepUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -58,6 +60,10 @@ export const PlatformRbac = () => {
             <Label>Roles CSV (0=Owner,1=Staff)</Label>
             <Input value={platformRoles} onChange={(e) => setPlatformRoles(e.target.value)} placeholder="0,1" />
           </div>
+          <div className="space-y-2">
+            <Label>Reason (required for sensitive changes)</Label>
+            <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why this change is needed" />
+          </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -73,12 +79,17 @@ export const PlatformRbac = () => {
               Load Roles
             </Button>
             <Button
-              disabled={loading || !userId.trim()}
+              disabled={loading || !userId.trim() || !reason.trim()}
               onClick={() =>
                 wrap(async () => {
-                  await api.put(`/platform/rbac/users/${userId.trim()}/platform-roles`, {
-                    roles: parseCsv(platformRoles).map((x) => Number(x)),
-                  });
+                  await api.put(
+                    `/platform/rbac/users/${userId.trim()}/platform-roles`,
+                    {
+                      roles: parseCsv(platformRoles).map((x) => Number(x)),
+                      reason: reason.trim(),
+                    },
+                    { headers: stepUp ? { "X-Step-Up-Auth": "true" } : {} }
+                  );
                   setMessage("Platform roles saved.");
                 })
               }
@@ -112,6 +123,14 @@ export const PlatformRbac = () => {
               placeholder="orders.read,orders.write,products.read,products.write"
             />
           </div>
+          <div className="space-y-2">
+            <Label>Reason (required for sensitive changes)</Label>
+            <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why this change is needed" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            <input type="checkbox" checked={stepUp} onChange={(e) => setStepUp(e.target.checked)} />
+            Step-up confirmed (adds X-Step-Up-Auth header)
+          </label>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -127,12 +146,17 @@ export const PlatformRbac = () => {
               Load Permissions
             </Button>
             <Button
-              disabled={loading || !storeId.trim() || !storeUserId.trim()}
+              disabled={loading || !storeId.trim() || !storeUserId.trim() || !reason.trim()}
               onClick={() =>
                 wrap(async () => {
-                  await api.put(`/platform/rbac/stores/${storeId.trim()}/users/${storeUserId.trim()}/permissions`, {
-                    permissions: parseCsv(permissions),
-                  });
+                  await api.put(
+                    `/platform/rbac/stores/${storeId.trim()}/users/${storeUserId.trim()}/permissions`,
+                    {
+                      permissions: parseCsv(permissions),
+                      reason: reason.trim(),
+                    },
+                    { headers: stepUp ? { "X-Step-Up-Auth": "true" } : {} }
+                  );
                   setMessage("Store permissions saved.");
                 })
               }

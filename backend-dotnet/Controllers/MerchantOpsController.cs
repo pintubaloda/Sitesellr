@@ -43,6 +43,26 @@ public class MerchantOpsController : ControllerBase
             return BadRequest(new { error = "invalid_action", allowed = LifecycleActions.OrderBy(x => x).ToArray() });
         }
         var sensitive = action is "suspend" or "expire";
+        if (sensitive && string.IsNullOrWhiteSpace(req.Reason))
+        {
+            return BadRequest(new { error = "reason_required" });
+        }
+
+        var requireStepUp = HttpContext.RequestServices.GetRequiredService<IConfiguration>()
+            .GetValue("REQUIRE_STEP_UP_FOR_SENSITIVE", false);
+        if (sensitive && requireStepUp)
+        {
+            var stepUp = HttpContext.Request.Headers["X-Step-Up-Auth"].FirstOrDefault();
+            if (!string.Equals(stepUp, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                return StatusCode(StatusCodes.Status428PreconditionRequired, new
+                {
+                    error = "step_up_required",
+                    message = "Set X-Step-Up-Auth=true after completing 2FA re-auth flow."
+                });
+            }
+        }
+
         if (sensitive && req.RequireApproval)
         {
             _db.SensitiveActionApprovals.Add(new SensitiveActionApproval
@@ -53,6 +73,16 @@ public class MerchantOpsController : ControllerBase
                 RequestedByUserId = Tenancy?.UserId ?? Guid.Empty,
                 PayloadJson = JsonSerializer.Serialize(req),
                 Status = "pending",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            _db.AuditLogs.Add(new AuditLog
+            {
+                MerchantId = merchant.Id,
+                ActorUserId = Tenancy?.UserId,
+                Action = "merchant.lifecycle.approval.requested",
+                EntityType = "merchant",
+                EntityId = merchant.Id.ToString(),
+                Details = $"{action};reason={req.Reason}",
                 CreatedAt = DateTimeOffset.UtcNow
             });
             await _db.SaveChangesAsync(ct);
@@ -160,6 +190,15 @@ public class MerchantOpsController : ControllerBase
         item.Status = "approved";
         item.ApprovedByUserId = Tenancy?.UserId;
         item.ApprovedAt = DateTimeOffset.UtcNow;
+        _db.AuditLogs.Add(new AuditLog
+        {
+            ActorUserId = Tenancy?.UserId,
+            Action = "sensitive.approval.approved",
+            EntityType = item.EntityType ?? "unknown",
+            EntityId = item.EntityId,
+            Details = $"approvalId={item.Id};actionType={item.ActionType}",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
 
         if (item.ActionType.StartsWith("merchant.lifecycle.", StringComparison.OrdinalIgnoreCase) &&
             Guid.TryParse(item.EntityId, out var merchantId))

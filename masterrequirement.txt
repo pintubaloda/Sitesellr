@@ -176,3 +176,9 @@ Updated: 2026-02-18
 
 Module Name	Developed	Partial Developed	Need To Develop
 Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET /api/auth/access`) and dynamic sidebar visibility by platform/store scope so platform owner/staff and store users no longer see identical menu options	Page-level button/action guards still partly API-enforced (403 fallback) and not fully hidden in all screens	Complete route/action-level guard matrix and per-component permission gating for every admin view
+
+Update 2026-02-18 19:16 IST - Platform Owner (Super Admin) governance scope
+Module | Developed | Partial Developed | Need To Develop
+Platform Owner Permission Matrix | Explicit permission catalog added across governance/finance/security/plugin/API/webhook domains | Role-derived template only; no separate per-user platform permission grants yet | Full per-user platform permission assignment UX + storage + conflict resolution
+High-Risk Action Protection | Reason capture enforced on sensitive RBAC/lifecycle writes; optional step-up enforcement via config/header; audit log writes added | Header-based step-up only (no real 2FA challenge chain) | End-to-end 2FA step-up flow, dual control approval, signed/immutable audit ledger
+Platform/Admin UI Scope Isolation | Sidebar now scope-filters so platform owner does not auto-see store-only menus unless store context exists | Existing pages still mixed in some routes depending on user mapping | Dedicated platform console IA split from store console with explicit impersonation mode

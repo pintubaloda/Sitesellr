@@ -154,6 +154,24 @@ builder.Services.AddAuthorization(options =>
         policy.Requirements.Add(new AccessRequirement(Permissions.StoreSettingsRead)));
     options.AddPolicy(Policies.StoreSettingsWrite, policy =>
         policy.Requirements.Add(new AccessRequirement(Permissions.StoreSettingsWrite)));
+    options.AddPolicy(Policies.MerchantsSuspend, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.MerchantsSuspend)));
+    options.AddPolicy(Policies.MerchantsDelete, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.MerchantsDelete)));
+    options.AddPolicy(Policies.RefundsOverride, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.RefundsOverride)));
+    options.AddPolicy(Policies.PayoutsFreeze, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.PayoutsFreeze)));
+    options.AddPolicy(Policies.PayoutsRelease, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.PayoutsRelease)));
+    options.AddPolicy(Policies.PlansManage, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.PlansManage)));
+    options.AddPolicy(Policies.SecurityPoliciesManage, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.SecurityPoliciesManage)));
+    options.AddPolicy(Policies.PluginsApprove, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.PluginsApprove)));
+    options.AddPolicy(Policies.ApiKeysRevoke, policy =>
+        policy.Requirements.Add(new AccessRequirement(Permissions.ApiKeysRevoke)));
 });
 builder.Services.AddSingleton<IAuthorizationHandler, AccessRequirementHandler>();
 builder.Services.AddCors(options =>

@@ -313,3 +313,21 @@ Update Entry: 2026-02-18 (role-based UI visibility split)
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+[Pending Commit] 2026-02-18 19:16 IST
+Title: Platform owner governance hardening + sensitive action controls + role-aware menu refinement
+Files:
+- backend-dotnet/Security/PermissionCatalog.cs
+- backend-dotnet/Security/Rbac.cs
+- backend-dotnet/Program.cs
+- backend-dotnet/Services/TenancyContext.cs
+- backend-dotnet/Controllers/AuthAccessController.cs
+- backend-dotnet/Controllers/PlatformRbacController.cs
+- backend-dotnet/Controllers/MerchantOpsController.cs
+- frontend/src/components/layouts/DashboardLayout.js
+- frontend/src/pages/admin/PlatformRbac.js
+Notes:
+- Added explicit super-admin permission matrix and policy registrations.
+- Added reason + optional step-up enforcement for sensitive RBAC and lifecycle actions.
+- Added access introspection payload for platform permissions/high-risk actions.
+- Updated UI to pass reason and step-up headers and to avoid showing store-only menus to platform owner by default.

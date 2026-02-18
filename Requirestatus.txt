@@ -1,11 +1,18 @@
-Sitesellr Requirement Status
-Updated: 2026-02-18 (local)
+Sitesellr Cumulative Requirement Status
+Updated: 2026-02-18
 
-Module	Status	What's Done	What's Pending / Partial
-User/Merchant Partial Completion	Developed	Implemented partial-completion items for User/Merchant domain: added Store Team management backend APIs and wired Settings->Team UI to real API (list/add/update role/remove). Added merchant status update API and wired Merchants UI status control.	Invitation email/accept flow, team audit logs, and richer merchant lifecycle tooling still pending.
-Store Team Management	Developed	New endpoints: `GET/POST/PUT/DELETE /api/stores/{storeId}/team...` with tenancy + policy checks; UI now operates on real data using existing theme/fonts.	Custom role-name management UX and invitation token flow pending.
-Merchant Lifecycle UI	Partial	Merchant list/create existed; now status update wired via `PUT /api/merchants/{id}` (Trial/Active/Suspended/Expired).	Bulk actions, suspend reason history, lifecycle audit trail pending.
+Module	Status	What was completed now	What remains
+Invitation / Accept Flow	Developed	Implemented store team invite token flow: create invite from Settings Team, generate invite token/link, new accept-invite auth page, backend accept endpoint issues opaque tokens and redirects to admin.	Email delivery provider integration (send invite by email) and invite reminder/revoke flows.
+Audit Logs (team + merchant status)	Developed (core)	Added audit log entries for team invite/create/role-update/remove/accept and merchant status changes.	Audit log explorer UI + export/search filters.
+Merchant Onboarding Automation	Partial improved	Onboarding flow remains functional and connected; invite acceptance now supports team onboarding path with password set and role binding.	Full business workflow automation (checks, notifications, approvals, lifecycle triggers).
+Store Lifecycle Workflows	Partial improved	Store lifecycle selector added in Settings (Draft/Active/Suspended/Closed) and saved to backend; merchant status update flow active in Merchants UI.	Bulk lifecycle operations, suspend reason history, policy workflows.
+Custom Roles UX	Partial improved	Team UI now supports Custom role path with custom role name and permission CSV save (wired to store permission API).	Structured role builder UX (permission picker, templates, validation presets).
+Platform Owner Seeding	Developed	Added production seed path via env `PLATFORM_OWNER_EMAIL` to auto-create/assign platform owner role at startup.	Operational runbook and secure owner bootstrap process.
+
+Important Env Vars
+- PLATFORM_OWNER_EMAIL: first owner bootstrap email
+- APPLY_MIGRATIONS_ON_STARTUP=true (first boot)
 
 Git state
-- Last pushed commit: 21169dd
-- Current user/merchant partial-completion update is local and pending push.
+- Last pushed commit: 82946f9
+- Current partial-completion package is local and pending push.

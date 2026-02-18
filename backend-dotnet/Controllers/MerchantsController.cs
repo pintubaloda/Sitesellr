@@ -52,10 +52,24 @@ public class MerchantsController : BaseApiController
         var merchant = await _db.Merchants.FirstOrDefaultAsync(m => m.Id == id, ct);
         if (merchant == null) return NotFound();
 
+        var previousStatus = merchant.Status;
         merchant.Name = string.IsNullOrWhiteSpace(input.Name) ? merchant.Name : input.Name.Trim();
         merchant.PrimaryDomain = string.IsNullOrWhiteSpace(input.PrimaryDomain) ? null : input.PrimaryDomain.Trim();
         merchant.Status = input.Status;
         merchant.UpdatedAt = DateTimeOffset.UtcNow;
+        if (previousStatus != merchant.Status)
+        {
+            _db.AuditLogs.Add(new AuditLog
+            {
+                MerchantId = merchant.Id,
+                ActorUserId = Tenancy?.UserId,
+                Action = "merchant.status_changed",
+                EntityType = "merchant",
+                EntityId = merchant.Id.ToString(),
+                Details = $"{previousStatus}->{merchant.Status}",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
 
         await _db.SaveChangesAsync(ct);
         return Ok(merchant);

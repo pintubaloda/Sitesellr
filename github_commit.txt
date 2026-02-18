@@ -1,11 +1,25 @@
-Sitesellr Requirement Status
-Updated: 2026-02-18 (local)
+Sitesellr Cumulative Development Ledger (Latest)
+Updated: 2026-02-18
 
-Module	Status	What's Done	What's Pending / Partial
-User/Merchant Partial Completion	Developed	Implemented partial-completion items for User/Merchant domain: added Store Team management backend APIs and wired Settings->Team UI to real API (list/add/update role/remove). Added merchant status update API and wired Merchants UI status control.	Invitation email/accept flow, team audit logs, and richer merchant lifecycle tooling still pending.
-Store Team Management	Developed	New endpoints: `GET/POST/PUT/DELETE /api/stores/{storeId}/team...` with tenancy + policy checks; UI now operates on real data using existing theme/fonts.	Custom role-name management UX and invitation token flow pending.
-Merchant Lifecycle UI	Partial	Merchant list/create existed; now status update wired via `PUT /api/merchants/{id}` (Trial/Active/Suspended/Expired).	Bulk actions, suspend reason history, lifecycle audit trail pending.
+New local package (pending push)
+- Invitation flow: create invite + accept invite endpoints/UI
+- Team management: real API list/add/update/remove + custom role and permissions wiring
+- Merchant lifecycle: status update + audit log event
+- Store lifecycle: settings UI lifecycle control saved to backend
+- Platform owner seeding: startup owner bootstrap via PLATFORM_OWNER_EMAIL
 
-Git state
-- Last pushed commit: 21169dd
-- Current user/merchant partial-completion update is local and pending push.
+Key files changed
+- backend-dotnet/Controllers/StoreTeamController.cs
+- backend-dotnet/Controllers/TeamInvitesController.cs
+- backend-dotnet/Controllers/MerchantsController.cs
+- backend-dotnet/Models/Audit.cs
+- backend-dotnet/Data/AppDbContext.cs
+- backend-dotnet/Program.cs
+- frontend/src/pages/admin/Settings.js
+- frontend/src/pages/admin/Merchants.js
+- frontend/src/pages/auth/AcceptInvite.js
+- frontend/src/App.js
+
+Status
+- User/Merchant Management partials: significantly reduced
+- Remaining high-value gap: email invite delivery + full role-builder UX + audit viewer/reporting

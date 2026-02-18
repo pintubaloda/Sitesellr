@@ -177,6 +177,69 @@ if (builder.Configuration.GetValue("APPLY_MIGRATIONS_ON_STARTUP", false))
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS team_invite_tokens (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""Email"" character varying(320) NOT NULL,
+  ""TokenHash"" character varying(128) NOT NULL,
+  ""Role"" integer NOT NULL,
+  ""CustomRoleName"" character varying(120),
+  ""ExpiresAt"" timestamp with time zone NOT NULL,
+  ""AcceptedAt"" timestamp with time zone NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL,
+  ""CreatedByUserId"" uuid NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_team_invite_tokens_TokenHash ON team_invite_tokens (""TokenHash"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS audit_logs (
+  ""Id"" uuid PRIMARY KEY,
+  ""MerchantId"" uuid NULL,
+  ""StoreId"" uuid NULL,
+  ""ActorUserId"" uuid NULL,
+  ""Action"" character varying(80) NOT NULL,
+  ""EntityType"" character varying(80) NULL,
+  ""EntityId"" character varying(80) NULL,
+  ""Details"" character varying(2000) NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_audit_logs_CreatedAt ON audit_logs (""CreatedAt"");");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_audit_logs_StoreId ON audit_logs (""StoreId"");");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_audit_logs_MerchantId ON audit_logs (""MerchantId"");");
+}
+
+var platformOwnerEmail = builder.Configuration["PLATFORM_OWNER_EMAIL"];
+if (!string.IsNullOrWhiteSpace(platformOwnerEmail))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var normalizedOwnerEmail = platformOwnerEmail.Trim().ToLowerInvariant();
+    var ownerUser = await db.Users.FirstOrDefaultAsync(u => u.Email == normalizedOwnerEmail);
+    if (ownerUser == null)
+    {
+        ownerUser = new User
+        {
+            Email = normalizedOwnerEmail,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N"), workFactor: 12),
+            IsLocked = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        db.Users.Add(ownerUser);
+        await db.SaveChangesAsync();
+    }
+
+    var hasOwnerRole = await db.PlatformUserRoles.AnyAsync(r => r.UserId == ownerUser.Id && r.Role == PlatformRole.Owner);
+    if (!hasOwnerRole)
+    {
+        db.PlatformUserRoles.Add(new PlatformUserRole
+        {
+            UserId = ownerUser.Id,
+            Role = PlatformRole.Owner,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+    }
 }
 
 if (app.Environment.IsDevelopment())

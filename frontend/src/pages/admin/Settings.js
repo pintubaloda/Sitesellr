@@ -65,6 +65,7 @@ export const Settings = () => {
     storeAddress: "123 MG Road, Bangalore, Karnataka 560001",
     currency: "INR",
     timezone: "Asia/Kolkata",
+    status: "1",
   });
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [generalMessage, setGeneralMessage] = useState("");
@@ -74,6 +75,9 @@ export const Settings = () => {
   const [teamError, setTeamError] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Staff");
+  const [inviteLink, setInviteLink] = useState("");
+  const [customRoleNames, setCustomRoleNames] = useState({});
+  const [memberPermissions, setMemberPermissions] = useState({});
 
   useEffect(() => {
     if (!selectedStore) return;
@@ -82,6 +86,7 @@ export const Settings = () => {
       storeName: selectedStore.name || prev.storeName,
       currency: selectedStore.currency || prev.currency,
       timezone: selectedStore.timezone || prev.timezone,
+      status: String(selectedStore.status ?? 1),
     }));
   }, [selectedStore]);
 
@@ -92,6 +97,11 @@ export const Settings = () => {
     try {
       const res = await api.get(`/stores/${storeId}/team`);
       setTeamMembers(Array.isArray(res.data) ? res.data : []);
+      const names = {};
+      (Array.isArray(res.data) ? res.data : []).forEach((m) => {
+        names[m.userId] = m.customRoleName || "";
+      });
+      setCustomRoleNames(names);
     } catch (err) {
       setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not load team members.");
     } finally {
@@ -116,6 +126,7 @@ export const Settings = () => {
         name: storeSettings.storeName,
         currency: storeSettings.currency,
         timezone: storeSettings.timezone,
+        status: Number(storeSettings.status),
       });
       setGeneralMessage("Store settings saved.");
     } catch (_) {
@@ -129,15 +140,17 @@ export const Settings = () => {
     if (!storeId || !inviteEmail.trim()) return;
     setTeamError("");
     setTeamMessage("");
+    setInviteLink("");
     try {
-      await api.post(`/stores/${storeId}/team`, {
+      const res = await api.post(`/stores/${storeId}/team/invite`, {
         email: inviteEmail.trim(),
         role: inviteRole,
       });
       setInviteEmail("");
       setInviteRole("Staff");
-      setTeamMessage("Member added to store.");
-      await loadTeamMembers();
+      const token = res.data?.token || "";
+      setInviteLink(token ? `${window.location.origin}/auth/accept-invite?token=${token}` : "");
+      setTeamMessage("Invite created. Share this invite link.");
     } catch (err) {
       setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not add member.");
     }
@@ -147,10 +160,26 @@ export const Settings = () => {
     if (!storeId) return;
     setTeamError("");
     try {
-      await api.put(`/stores/${storeId}/team/${userId}`, { role });
-      setTeamMembers((prev) => prev.map((m) => (m.userId === userId ? { ...m, role } : m)));
+      const customRoleName = role === "Custom" ? (customRoleNames[userId] || "").trim() || null : null;
+      await api.put(`/stores/${storeId}/team/${userId}`, { role, customRoleName });
+      setTeamMembers((prev) => prev.map((m) => (m.userId === userId ? { ...m, role, customRoleName } : m)));
     } catch (err) {
       setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not update role.");
+    }
+  };
+
+  const saveMemberPermissions = async (userId) => {
+    if (!storeId) return;
+    setTeamError("");
+    try {
+      const permissions = (memberPermissions[userId] || "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      await api.put(`/platform/rbac/stores/${storeId}/users/${userId}/permissions`, { permissions });
+      setTeamMessage("Custom permissions saved.");
+    } catch (err) {
+      setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not save permissions.");
     }
   };
 
@@ -268,6 +297,20 @@ export const Settings = () => {
                       <SelectItem value="INR">Indian Rupee (₹)</SelectItem>
                       <SelectItem value="USD">US Dollar ($)</SelectItem>
                       <SelectItem value="EUR">Euro (€)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="storeStatus">Store Lifecycle</Label>
+                  <Select value={storeSettings.status} onValueChange={(v) => setStoreSettings({ ...storeSettings, status: v })}>
+                    <SelectTrigger data-testid="store-status-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Draft</SelectItem>
+                      <SelectItem value="1">Active</SelectItem>
+                      <SelectItem value="2">Suspended</SelectItem>
+                      <SelectItem value="3">Closed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -573,13 +616,19 @@ export const Settings = () => {
                 </Select>
                 <Button className="bg-blue-600 hover:bg-blue-700" data-testid="invite-member-btn" onClick={inviteMember}>
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Member
+                  Create Invite
                 </Button>
               </div>
 
               {teamLoading ? <p className="text-sm text-slate-500">Loading team...</p> : null}
               {teamError ? <p className="text-sm text-red-600">{teamError}</p> : null}
               {teamMessage ? <p className="text-sm text-green-600">{teamMessage}</p> : null}
+              {inviteLink ? (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <p className="text-xs text-slate-600 mb-1">Invite Link</p>
+                  <p className="text-xs break-all text-blue-700">{inviteLink}</p>
+                </div>
+              ) : null}
 
               {teamMembers.map((member) => (
                 <div key={member.userId} className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
@@ -605,6 +654,25 @@ export const Settings = () => {
                         <SelectItem value="Custom">Custom</SelectItem>
                       </SelectContent>
                     </Select>
+                    {member.role === "Custom" ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          className="h-8 w-40"
+                          placeholder="Custom role name"
+                          value={customRoleNames[member.userId] || ""}
+                          onChange={(e) => setCustomRoleNames((p) => ({ ...p, [member.userId]: e.target.value }))}
+                        />
+                        <Input
+                          className="h-8 w-56"
+                          placeholder="permissions csv"
+                          value={memberPermissions[member.userId] || ""}
+                          onChange={(e) => setMemberPermissions((p) => ({ ...p, [member.userId]: e.target.value }))}
+                        />
+                        <Button className="h-8" variant="outline" onClick={() => saveMemberPermissions(member.userId)}>
+                          Save
+                        </Button>
+                      </div>
+                    ) : null}
                     {member.role !== "Owner" && (
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => removeMember(member.userId)}>
                         <Trash2 className="w-4 h-4" />

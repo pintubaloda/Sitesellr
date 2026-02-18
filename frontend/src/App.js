@@ -7,6 +7,7 @@ import { Toaster } from "./components/ui/sonner";
 import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import AcceptInvite from "./pages/auth/AcceptInvite";
 
 // Admin Pages
 import DashboardLayout from "./components/layouts/DashboardLayout";
@@ -41,6 +42,7 @@ function App() {
           {/* Auth Routes */}
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/register" element={<Register />} />
+          <Route path="/auth/accept-invite" element={<AcceptInvite />} />
           <Route path="/onboarding" element={<Navigate to="/auth/register" replace />} />
           
           {/* Admin Dashboard Routes */}

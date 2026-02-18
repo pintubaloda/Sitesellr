@@ -1,6 +1,7 @@
 using backend_dotnet.Data;
 using backend_dotnet.Models;
 using backend_dotnet.Security;
+using backend_dotnet.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +13,12 @@ namespace backend_dotnet.Controllers;
 public class StoreTeamController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly ITokenService _tokenService;
 
-    public StoreTeamController(AppDbContext db)
+    public StoreTeamController(AppDbContext db, ITokenService tokenService)
     {
         _db = db;
+        _tokenService = tokenService;
     }
 
     private backend_dotnet.Services.TenancyContext? Tenancy => HttpContext.Items["Tenancy"] as backend_dotnet.Services.TenancyContext;
@@ -35,7 +38,7 @@ public class StoreTeamController : ControllerBase
             {
                 x.UserId,
                 x.User.Email,
-                x.Role,
+                Role = x.Role.ToString(),
                 x.CustomRoleName,
                 x.CreatedAt
             })
@@ -82,8 +85,59 @@ public class StoreTeamController : ControllerBase
             CreatedAt = DateTimeOffset.UtcNow
         });
 
+        _db.AuditLogs.Add(new AuditLog
+        {
+            StoreId = storeId,
+            ActorUserId = Tenancy?.UserId,
+            Action = "store.team.member_added",
+            EntityType = "store_user_role",
+            EntityId = user.Id.ToString(),
+            Details = $"email={normalizedEmail};role={req.Role ?? "Staff"}",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+
         await _db.SaveChangesAsync(ct);
         return Ok(new { added = true });
+    }
+
+    [HttpPost("invite")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> Invite(Guid storeId, [FromBody] CreateInviteRequest req, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        if (string.IsNullOrWhiteSpace(req.Email)) return BadRequest(new { error = "email_required" });
+
+        var token = Convert.ToHexString(Guid.NewGuid().ToByteArray()) + Convert.ToHexString(Guid.NewGuid().ToByteArray());
+        var tokenHash = _tokenService.HashToken(token);
+        var normalizedEmail = req.Email.Trim().ToLowerInvariant();
+        var role = ParseRole(req.Role);
+
+        _db.TeamInviteTokens.Add(new TeamInviteToken
+        {
+            StoreId = storeId,
+            Email = normalizedEmail,
+            TokenHash = tokenHash,
+            Role = role,
+            CustomRoleName = req.CustomRoleName?.Trim(),
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(2),
+            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedByUserId = Tenancy?.UserId
+        });
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            StoreId = storeId,
+            ActorUserId = Tenancy?.UserId,
+            Action = "store.team.invite_created",
+            EntityType = "team_invite",
+            EntityId = normalizedEmail,
+            Details = $"role={role}",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+
+        await _db.SaveChangesAsync(ct);
+        var inviteUrl = $"{Request.Scheme}://{Request.Host}/auth/accept-invite?token={token}";
+        return Ok(new { token, inviteUrl, expiresAt = DateTimeOffset.UtcNow.AddDays(2) });
     }
 
     [HttpPut("{userId:guid}")]
@@ -97,6 +151,16 @@ public class StoreTeamController : ControllerBase
 
         row.Role = ParseRole(req.Role);
         row.CustomRoleName = req.CustomRoleName?.Trim();
+        _db.AuditLogs.Add(new AuditLog
+        {
+            StoreId = storeId,
+            ActorUserId = Tenancy?.UserId,
+            Action = "store.team.role_updated",
+            EntityType = "store_user_role",
+            EntityId = userId.ToString(),
+            Details = $"role={row.Role}",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
         await _db.SaveChangesAsync(ct);
         return Ok(new { updated = true });
     }
@@ -117,6 +181,15 @@ public class StoreTeamController : ControllerBase
         }
 
         _db.StoreUserRoles.Remove(row);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            StoreId = storeId,
+            ActorUserId = Tenancy?.UserId,
+            Action = "store.team.member_removed",
+            EntityType = "store_user_role",
+            EntityId = userId.ToString(),
+            CreatedAt = DateTimeOffset.UtcNow
+        });
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }

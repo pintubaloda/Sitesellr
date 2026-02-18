@@ -30,6 +30,8 @@ public class AppDbContext : DbContext
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<BillingPlan> BillingPlans => Set<BillingPlan>();
     public DbSet<MerchantSubscription> MerchantSubscriptions => Set<MerchantSubscription>();
+    public DbSet<TeamInviteToken> TeamInviteTokens => Set<TeamInviteToken>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -248,6 +250,35 @@ public class AppDbContext : DbContext
             b.Property(s => s.ExpiresAt).HasColumnType("timestamp with time zone");
             b.HasOne(s => s.Merchant).WithMany().HasForeignKey(s => s.MerchantId);
             b.HasOne(s => s.Plan).WithMany().HasForeignKey(s => s.PlanId);
+        });
+
+        modelBuilder.Entity<TeamInviteToken>(b =>
+        {
+            b.ToTable("team_invite_tokens");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Email).IsRequired().HasMaxLength(320);
+            b.Property(x => x.TokenHash).IsRequired().HasMaxLength(128);
+            b.Property(x => x.Role).HasConversion<int>();
+            b.Property(x => x.CustomRoleName).HasMaxLength(120);
+            b.Property(x => x.ExpiresAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.AcceptedAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => x.TokenHash).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AuditLog>(b =>
+        {
+            b.ToTable("audit_logs");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Action).IsRequired().HasMaxLength(80);
+            b.Property(x => x.EntityType).HasMaxLength(80);
+            b.Property(x => x.EntityId).HasMaxLength(80);
+            b.Property(x => x.Details).HasMaxLength(2000);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => x.CreatedAt);
+            b.HasIndex(x => x.StoreId);
+            b.HasIndex(x => x.MerchantId);
         });
 
         modelBuilder.Entity<AccessToken>(b =>

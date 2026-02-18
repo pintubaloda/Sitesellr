@@ -2,11 +2,10 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-COPY backend-dotnet/*.csproj ./backend-dotnet/
-RUN dotnet restore backend-dotnet/backend-dotnet.csproj
+COPY *.csproj ./
+RUN dotnet restore backend-dotnet.csproj
 
-COPY backend-dotnet/. ./backend-dotnet/
-WORKDIR /src/backend-dotnet
+COPY . ./
 RUN dotnet publish backend-dotnet.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 # runtime stage

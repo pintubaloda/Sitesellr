@@ -13,6 +13,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Antiforgery;
 using OtpNet;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,10 +27,43 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // Configuration
-var connectionString =
-    builder.Configuration.GetConnectionString("Postgres") ??
-    builder.Configuration["POSTGRES_CONNECTION_STRING"] ??
-    throw new InvalidOperationException("PostgreSQL connection string not configured. Set POSTGRES_CONNECTION_STRING or ConnectionStrings:Postgres.");
+string? ResolvePostgresConnectionString(IConfiguration config)
+{
+    var raw =
+        config["POSTGRES_CONNECTION_STRING"] ??
+        config.GetConnectionString("Postgres") ??
+        config["ConnectionStrings:Postgres"] ??
+        config["DATABASE_URL"] ??
+        config["RENDER_EXTERNAL_DATABASE_URL"] ??
+        config["RENDER_INTERNAL_DATABASE_URL"];
+
+    if (string.IsNullOrWhiteSpace(raw)) return null;
+    if (raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+        raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+    {
+        var uri = new Uri(raw);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.IsDefaultPort ? 5432 : uri.Port,
+            Username = Uri.UnescapeDataString(userInfo[0]),
+            Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "",
+            Database = uri.AbsolutePath.Trim('/'),
+            SslMode = SslMode.Require
+        };
+        return builder.ConnectionString;
+    }
+    return raw;
+}
+
+var connectionString = ResolvePostgresConnectionString(builder.Configuration)
+    ?? throw new InvalidOperationException("PostgreSQL connection string not configured. Set POSTGRES_CONNECTION_STRING / ConnectionStrings__Postgres / DATABASE_URL.");
+
+if (builder.Environment.IsProduction() && connectionString.Contains("Host=localhost", StringComparison.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException("Invalid PostgreSQL host 'localhost' in production. Set POSTGRES_CONNECTION_STRING to managed database host.");
+}
 
 var corsOrigins = (builder.Configuration["CORS_ORIGINS"] ?? "*")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

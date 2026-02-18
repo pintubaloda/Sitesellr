@@ -44,4 +44,20 @@ public class MerchantsController : BaseApiController
         var merchant = await _db.Merchants.FindAsync(new object[] { id }, ct);
         return merchant == null ? NotFound() : Ok(merchant);
     }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = Policies.PlatformOwner)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] Merchant input, CancellationToken ct)
+    {
+        var merchant = await _db.Merchants.FirstOrDefaultAsync(m => m.Id == id, ct);
+        if (merchant == null) return NotFound();
+
+        merchant.Name = string.IsNullOrWhiteSpace(input.Name) ? merchant.Name : input.Name.Trim();
+        merchant.PrimaryDomain = string.IsNullOrWhiteSpace(input.PrimaryDomain) ? null : input.PrimaryDomain.Trim();
+        merchant.Status = input.Status;
+        merchant.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(merchant);
+    }
 }

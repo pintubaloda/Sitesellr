@@ -5,13 +5,6 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import api from "../../lib/api";
 
-const statusMap = {
-  0: "Trial",
-  1: "Active",
-  2: "Suspended",
-  3: "Expired",
-};
-
 export const Merchants = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -70,6 +63,24 @@ export const Merchants = () => {
     }
   };
 
+  const updateMerchantStatus = async (merchant, status) => {
+    setError("");
+    try {
+      await api.put(`/merchants/${merchant.id}`, {
+        ...merchant,
+        status: Number(status),
+      });
+      setRows((prev) => prev.map((m) => (m.id === merchant.id ? { ...m, status: Number(status) } : m)));
+      setMessage("Merchant updated.");
+    } catch (err) {
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        setError("You are not authorized.");
+      } else {
+        setError(err?.response?.data?.error || "Could not update merchant.");
+      }
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="merchants-page">
       <div>
@@ -115,7 +126,19 @@ export const Merchants = () => {
               <div key={m.id} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
                 <p className="font-medium">{m.name}</p>
                 <p className="text-sm text-slate-500">{m.primaryDomain || "-"}</p>
-                <p className="text-sm text-slate-500">Status: {statusMap[m.status] || m.status}</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <p className="text-sm text-slate-500">Status:</p>
+                  <select
+                    className="rounded border border-slate-300 px-2 py-1 text-sm"
+                    value={String(m.status)}
+                    onChange={(e) => updateMerchantStatus(m, e.target.value)}
+                  >
+                    <option value="0">Trial</option>
+                    <option value="1">Active</option>
+                    <option value="2">Suspended</option>
+                    <option value="3">Expired</option>
+                  </select>
+                </div>
               </div>
             ))}
             {!loading && rows.length === 0 ? <p className="text-sm text-slate-500">No merchants found.</p> : null}

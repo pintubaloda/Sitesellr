@@ -68,6 +68,12 @@ export const Settings = () => {
   });
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [generalMessage, setGeneralMessage] = useState("");
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamMessage, setTeamMessage] = useState("");
+  const [teamError, setTeamError] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("Staff");
 
   useEffect(() => {
     if (!selectedStore) return;
@@ -78,6 +84,24 @@ export const Settings = () => {
       timezone: selectedStore.timezone || prev.timezone,
     }));
   }, [selectedStore]);
+
+  const loadTeamMembers = async () => {
+    if (!storeId) return;
+    setTeamLoading(true);
+    setTeamError("");
+    try {
+      const res = await api.get(`/stores/${storeId}/team`);
+      setTeamMembers(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not load team members.");
+    } finally {
+      setTeamLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTeamMembers();
+  }, [storeId]);
 
   const handleSaveGeneral = async () => {
     if (!selectedStore?.id) {
@@ -98,6 +122,46 @@ export const Settings = () => {
       setGeneralMessage("Could not save store settings.");
     } finally {
       setSavingGeneral(false);
+    }
+  };
+
+  const inviteMember = async () => {
+    if (!storeId || !inviteEmail.trim()) return;
+    setTeamError("");
+    setTeamMessage("");
+    try {
+      await api.post(`/stores/${storeId}/team`, {
+        email: inviteEmail.trim(),
+        role: inviteRole,
+      });
+      setInviteEmail("");
+      setInviteRole("Staff");
+      setTeamMessage("Member added to store.");
+      await loadTeamMembers();
+    } catch (err) {
+      setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not add member.");
+    }
+  };
+
+  const updateMemberRole = async (userId, role) => {
+    if (!storeId) return;
+    setTeamError("");
+    try {
+      await api.put(`/stores/${storeId}/team/${userId}`, { role });
+      setTeamMembers((prev) => prev.map((m) => (m.userId === userId ? { ...m, role } : m)));
+    } catch (err) {
+      setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not update role.");
+    }
+  };
+
+  const removeMember = async (userId) => {
+    if (!storeId) return;
+    setTeamError("");
+    try {
+      await api.delete(`/stores/${storeId}/team/${userId}`);
+      setTeamMembers((prev) => prev.filter((m) => m.userId !== userId));
+    } catch (err) {
+      setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not remove member.");
     }
   };
 
@@ -484,38 +548,74 @@ export const Settings = () => {
                 <CardTitle>Team Members</CardTitle>
                 <CardDescription>Manage who has access to your store</CardDescription>
               </div>
-              <Button className="bg-blue-600 hover:bg-blue-700" data-testid="invite-member-btn">
-                <Plus className="w-4 h-4 mr-2" />
-                Invite Member
+              <Button className="bg-blue-600 hover:bg-blue-700" data-testid="refresh-team-btn" onClick={loadTeamMembers}>
+                Refresh
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              {[
-                { name: "Admin User", email: "admin@store.com", role: "Owner", avatar: "Admin" },
-                { name: "John Doe", email: "john@store.com", role: "Admin", avatar: "John" },
-                { name: "Jane Smith", email: "jane@store.com", role: "Staff", avatar: "Jane" },
-              ].map((member) => (
-                <div key={member.email} className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
+              <div className="grid gap-3 md:grid-cols-[1fr_160px_auto]">
+                <Input
+                  placeholder="Member email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  data-testid="team-email-input"
+                />
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger data-testid="team-role-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Owner">Owner</SelectItem>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="Staff">Staff</SelectItem>
+                    <SelectItem value="Custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button className="bg-blue-600 hover:bg-blue-700" data-testid="invite-member-btn" onClick={inviteMember}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Member
+                </Button>
+              </div>
+
+              {teamLoading ? <p className="text-sm text-slate-500">Loading team...</p> : null}
+              {teamError ? <p className="text-sm text-red-600">{teamError}</p> : null}
+              {teamMessage ? <p className="text-sm text-green-600">{teamMessage}</p> : null}
+
+              {teamMembers.map((member) => (
+                <div key={member.userId} className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
                   <div className="flex items-center gap-4">
                     <Avatar>
-                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatar}`} />
-                      <AvatarFallback>{member.name[0]}</AvatarFallback>
+                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.email}`} />
+                      <AvatarFallback>{(member.email || "?")[0]?.toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{member.name}</p>
+                      <p className="font-medium text-slate-900 dark:text-white">{member.email?.split("@")[0] || "Member"}</p>
                       <p className="text-sm text-slate-500">{member.email}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant="secondary">{member.role}</Badge>
+                    <Select value={member.role} onValueChange={(value) => updateMemberRole(member.userId, value)}>
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Owner">Owner</SelectItem>
+                        <SelectItem value="Admin">Admin</SelectItem>
+                        <SelectItem value="Staff">Staff</SelectItem>
+                        <SelectItem value="Custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
                     {member.role !== "Owner" && (
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => removeMember(member.userId)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     )}
                   </div>
                 </div>
               ))}
+              {!teamLoading && teamMembers.length === 0 ? (
+                <p className="text-sm text-slate-500">No team members found for this store.</p>
+              ) : null}
             </CardContent>
           </Card>
 

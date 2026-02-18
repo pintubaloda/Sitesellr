@@ -568,7 +568,7 @@ if (builder.Configuration.GetValue("SEED_TEST_USERS", false))
         return user;
     }
 
-    var pwd = builder.Configuration["TEST_USER_PASSWORD"] ?? "ChangeMe123!";
+    var pwd = builder.Configuration["TEST_USER_PASSWORD"] ?? "9414064554";
     var platformOwner = await EnsureUserAsync("platform.owner@sitesellr.local", pwd);
     var platformStaff = await EnsureUserAsync("platform.staff@sitesellr.local", pwd);
     var storeOwner = await EnsureUserAsync("store.owner@sitesellr.local", pwd);

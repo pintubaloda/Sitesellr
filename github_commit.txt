@@ -291,3 +291,7 @@ Update Entry: 2026-02-18 (CORS registration fix + role test user seed)
 Fix Entry: 2026-02-18 (seeded login credentials reliability)
 - Updated test-user seeding in `Program.cs` to always reset seeded users to known password and unlocked state
 - Prevents pre-existing locked/random-password accounts (e.g., from `PLATFORM_OWNER_EMAIL` seed path) from breaking test credentials
+
+Update Entry: 2026-02-18 (default seeded password update)
+- Updated fallback test seed password in `Program.cs` to `9414064554`
+- Effective when `SEED_TEST_USERS=true` and `TEST_USER_PASSWORD` env is not set

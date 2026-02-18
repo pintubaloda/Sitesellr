@@ -155,3 +155,10 @@ Updated: 2026-02-18
 
 Module Name	Developed	Partial Developed	Need To Develop
 Test Role Login Stability	Seed flow now enforces known password + unlocked state for all seeded test users on startup	-	-
+
+---
+Test Password Default Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Test Role Login Setup	Default seed password updated to `9414064554` when `TEST_USER_PASSWORD` is not provided	-	-

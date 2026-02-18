@@ -9,12 +9,12 @@ Developed (latest working tree)
 - Turnstile widget integrated on Login/Register and enforced via backend verification.
 - Settings General save updates store via backend API.
 
-New in this update (Render deployment setup)
-- Added Render Blueprint file: `render.yaml`.
-  - Provisions PostgreSQL, backend service, and frontend static service.
-- Added Render deploy runbook: `DEPLOY_RENDER.md`.
-- Render build config includes frontend install fallback:
-  - `npm install --legacy-peer-deps && npm run build`.
+New in this update (Render npm ERESOLVE fix)
+- Fixed frontend dependency conflict causing Render build failure:
+  - Changed `date-fns` from `^4.1.0` to `^3.6.0` in `frontend/package.json`.
+  - This satisfies `react-day-picker@8.10.1` peer requirement (`^2.28.0 || ^3.0.0`).
+- Updated `render.yaml` frontend build command back to:
+  - `npm install && npm run build`
 
 Pending / Partial
 - Store email/phone/address fields are currently UI-only placeholders (not persisted in current store model).
@@ -23,5 +23,5 @@ Pending / Partial
 - Full Shopify-level modules (theme marketplace, logistics integrations, plugin ecosystem, SaaS metering, etc.) remain pending.
 
 Git state
-- Last pushed commit: 09217f9
-- Current Render deployment setup is local and not pushed yet.
+- Last pushed commit: 0369be1
+- Current Render dependency fix is local and not pushed yet.

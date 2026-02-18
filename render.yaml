@@ -1,0 +1,48 @@
+databases:
+  - name: sitesellr-db
+    databaseName: sitesellr
+    user: sitesellr
+    plan: free
+
+services:
+  - type: web
+    name: sitesellr-api
+    runtime: docker
+    rootDir: backend-dotnet
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/
+    envVars:
+      - key: POSTGRES_CONNECTION_STRING
+        fromDatabase:
+          name: sitesellr-db
+          property: connectionString
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: APPLY_MIGRATIONS_ON_STARTUP
+        value: "true"
+      - key: CORS_ORIGINS
+        value: https://sitesellr-web.onrender.com
+      - key: Turnstile__SecretKey
+        sync: false
+      - key: WebAuthn__RpId
+        value: sitesellr-web.onrender.com
+      - key: WebAuthn__Origin
+        value: https://sitesellr-web.onrender.com
+      - key: WebAuthn__RpName
+        value: Sitesellr
+
+  - type: web
+    name: sitesellr-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install --legacy-peer-deps && npm run build
+    staticPublishPath: build
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: REACT_APP_API_BASE
+        value: https://sitesellr-api.onrender.com/api
+      - key: REACT_APP_TURNSTILE_SITE_KEY
+        sync: false
+      - key: REACT_APP_STORE_ID
+        sync: false

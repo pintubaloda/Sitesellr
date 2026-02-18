@@ -9,20 +9,19 @@ Developed (latest working tree)
 - Turnstile widget integrated on Login/Register and enforced via backend verification.
 - Settings General save updates store via backend API.
 
-New in this update (Railway frontend dependency fix)
-- Fixed frontend Docker build failure due to peer dependency conflict:
-  - `react-day-picker@8.10.1` expects `date-fns ^2/^3`, while project uses `date-fns@4`.
-- Updated `frontend/Dockerfile` install command to:
-  - `npm install --legacy-peer-deps`
-- This resolves Railway build error `ERESOLVE unable to resolve dependency tree`.
+New in this update (Render deployment setup)
+- Added Render Blueprint file: `render.yaml`.
+  - Provisions PostgreSQL, backend service, and frontend static service.
+- Added Render deploy runbook: `DEPLOY_RENDER.md`.
+- Render build config includes frontend install fallback:
+  - `npm install --legacy-peer-deps && npm run build`.
 
 Pending / Partial
-- Proper long-term dependency alignment still pending (recommended: migrate `date-fns` to a version compatible with all peers or upgrade dependent packages).
 - Store email/phone/address fields are currently UI-only placeholders (not persisted in current store model).
 - Some advanced form fields are minimal for now (rich order item editor, full address management UI).
 - Billing plan enforcement, real payment providers, WebAuthn UI flows, and production CSP/CORS/rate tuning remain pending.
 - Full Shopify-level modules (theme marketplace, logistics integrations, plugin ecosystem, SaaS metering, etc.) remain pending.
 
 Git state
-- Last pushed commit: 9cfabad
-- Current frontend dependency build fix is local and not pushed yet.
+- Last pushed commit: 09217f9
+- Current Render deployment setup is local and not pushed yet.

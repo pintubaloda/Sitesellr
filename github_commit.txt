@@ -185,3 +185,14 @@ Update Entry: 2026-02-18 (WYSIWYG deep nested canvas iteration)
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Update Entry: 2026-02-18 (Canvas UX: before/after zones + grid/absolute + timeline)
+- Store Builder canvas upgraded with sibling drop zones (before/after) and recursive nested drop handling
+- Added absolute/freeform canvas mode with grid snapping (8px) and inspector position controls (x/y/w)
+- Added timeline playback panel using editor history snapshots with node-count delta insight
+- Files updated:
+  - frontend/src/pages/admin/StoreBuilder.js
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

@@ -65,9 +65,6 @@ const normalizeNodes = (nodes = []) =>
     children: normalizeNodes(n.children || []),
   }));
 
-const walkNodes = (nodes, cb) =>
-  nodes.map((n) => ({ ...cb(n), children: walkNodes(n.children || [], cb) }));
-
 const findNodeByIdInTree = (nodes, id) => {
   for (const node of nodes) {
     if (node.id === id) return node;
@@ -76,6 +73,32 @@ const findNodeByIdInTree = (nodes, id) => {
   }
   return null;
 };
+
+const insertNodeRelative = (nodes, targetId, node, position) => {
+  const out = [];
+  let inserted = false;
+  for (const item of nodes) {
+    if (item.id === targetId && position === "before") {
+      out.push(node);
+      inserted = true;
+    }
+    if (item.children?.length) {
+      const nested = insertNodeRelative(item.children, targetId, node, position);
+      out.push({ ...item, children: nested.nodes });
+      if (nested.inserted) inserted = true;
+    } else {
+      out.push(item);
+    }
+    if (item.id === targetId && position === "after") {
+      out.push(node);
+      inserted = true;
+    }
+  }
+  return { nodes: out, inserted };
+};
+
+const countNodes = (nodes) =>
+  nodes.reduce((acc, n) => acc + 1 + countNodes(n.children || []), 0);
 
 const ThemeCard = ({ theme, isActive, onSelect }) => {
   const blocked = !theme.planAllowed;
@@ -156,11 +179,15 @@ export const StoreBuilder = () => {
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(0);
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [draggingNodeId, setDraggingNodeId] = useState("");
+  const [canvasMode, setCanvasMode] = useState("flow");
+  const [gridSnap, setGridSnap] = useState(true);
+  const [playbackIndex, setPlaybackIndex] = useState(null);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
   const activeTheme = useMemo(() => themes.find((x) => x.id === activeThemeId) || null, [themes, activeThemeId]);
   const selectedNode = useMemo(() => findNodeByIdInTree(sections, selectedNodeId), [sections, selectedNodeId]);
+  const historyFrames = useMemo(() => [...pastSections, sections], [pastSections, sections]);
 
   const loadData = async () => {
     if (!storeId) return;
@@ -337,6 +364,36 @@ export const StoreBuilder = () => {
     setSections(inserted);
   };
 
+  const moveNodeRelative = (sourceId, targetId, position) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const targetNode = findNodeByIdInTree(sections, targetId);
+    if (!targetNode) return;
+    const sourceNode = findNodeByIdInTree(sections, sourceId);
+    if (!sourceNode) return;
+    const invalid = findNodeByIdInTree(sourceNode.children || [], targetId);
+    if (invalid) return;
+    recordSectionsHistory();
+    const removed = removeNodeById(sections, sourceId);
+    if (!removed.removed) return;
+    const inserted = insertNodeRelative(removed.nodes, targetId, removed.removed, position);
+    if (!inserted.inserted) return;
+    setSections(inserted.nodes);
+  };
+
+  const snapValue = (value) => {
+    if (!gridSnap) return Number(value || 0);
+    const n = Number(value || 0);
+    return Math.round(n / 8) * 8;
+  };
+
+  const jumpToHistory = (idx) => {
+    const frame = historyFrames[idx];
+    if (!frame) return;
+    setPlaybackIndex(idx);
+    setSections(cloneDeep(frame));
+    setSelectedNodeId(findNodeByIdInTree(frame, selectedNodeId)?.id || frame[0]?.id || "");
+  };
+
   const saveLayout = async () => {
     if (!storeId) return;
     setStatus("");
@@ -459,34 +516,58 @@ export const StoreBuilder = () => {
     }
   };
 
-  const renderCanvasNode = (node, depth = 0) => (
-    <div
-      key={node.id}
-      className={`rounded-lg border p-3 ${selectedNodeId === node.id ? "border-blue-500 bg-blue-50/40 dark:bg-blue-900/10" : "border-slate-200 dark:border-slate-700"} ${draggingNodeId === node.id ? "opacity-60" : ""}`}
-      style={{ marginLeft: `${Math.min(depth, 6) * 14}px` }}
-      draggable
-      onDragStart={() => setDraggingNodeId(node.id)}
-      onDragEnd={() => setDraggingNodeId("")}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault();
-        const sourceId = draggingNodeId;
-        setDraggingNodeId("");
-        moveNodeAsChild(sourceId, node.id);
-      }}
-      onClick={() => setSelectedNodeId(node.id)}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-medium">{node.title || node.type}</div>
-        <div className="text-xs text-slate-500">{node.type}</div>
-      </div>
-      {(node.children || []).length > 0 ? (
-        <div className="mt-2 space-y-2">
-          {node.children.map((child) => renderCanvasNode(child, depth + 1))}
+  const renderCanvasNode = (node, depth = 0) => {
+    const x = Number(node.settings?.x || 0);
+    const y = Number(node.settings?.y || 0);
+    const w = Number(node.settings?.w || 280);
+    return (
+      <div key={node.id} className="space-y-1">
+        <div
+          className="h-2 rounded bg-transparent hover:bg-blue-200/60"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            moveNodeRelative(draggingNodeId, node.id, "before");
+            setDraggingNodeId("");
+          }}
+        />
+        <div
+          className={`rounded-lg border p-3 ${selectedNodeId === node.id ? "border-blue-500 bg-blue-50/40 dark:bg-blue-900/10" : "border-slate-200 dark:border-slate-700"} ${draggingNodeId === node.id ? "opacity-60" : ""}`}
+          style={canvasMode === "absolute" ? { position: "absolute", left: `${x}px`, top: `${y}px`, width: `${w}px` } : { marginLeft: `${Math.min(depth, 6) * 14}px` }}
+          draggable
+          onDragStart={() => setDraggingNodeId(node.id)}
+          onDragEnd={() => setDraggingNodeId("")}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const sourceId = draggingNodeId;
+            setDraggingNodeId("");
+            moveNodeAsChild(sourceId, node.id);
+          }}
+          onClick={() => setSelectedNodeId(node.id)}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-medium">{node.title || node.type}</div>
+            <div className="text-xs text-slate-500">{node.type}</div>
+          </div>
+          {(node.children || []).length > 0 ? (
+            <div className="mt-2 space-y-2">
+              {node.children.map((child) => renderCanvasNode(child, depth + 1))}
+            </div>
+          ) : null}
         </div>
-      ) : null}
-    </div>
-  );
+        <div
+          className="h-2 rounded bg-transparent hover:bg-blue-200/60"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            moveNodeRelative(draggingNodeId, node.id, "after");
+            setDraggingNodeId("");
+          }}
+        />
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6" data-testid="store-builder-page">
@@ -597,6 +678,14 @@ export const StoreBuilder = () => {
                   <Button variant="outline" onClick={undoSections} disabled={pastSections.length === 0}><Undo2 className="w-4 h-4 mr-2" />Undo</Button>
                   <Button variant="outline" onClick={redoSections} disabled={futureSections.length === 0}><Redo2 className="w-4 h-4 mr-2" />Redo</Button>
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant={canvasMode === "flow" ? "default" : "outline"} onClick={() => setCanvasMode("flow")}>Flow Mode</Button>
+                  <Button variant={canvasMode === "absolute" ? "default" : "outline"} onClick={() => setCanvasMode("absolute")}>Absolute Mode</Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input id="gridSnap" type="checkbox" checked={gridSnap} onChange={(e) => setGridSnap(e.target.checked)} />
+                  <Label htmlFor="gridSnap">Grid snapping (8px)</Label>
+                </div>
                 {sections.map((section, idx) => (
                   <div key={`${section.type}-${idx}`} className={`flex items-center gap-3 p-3 border rounded-lg ${idx === selectedSectionIndex ? "border-blue-500" : "border-slate-200 dark:border-slate-700"}`} onClick={() => { setSelectedSectionIndex(idx); setSelectedNodeId(section.id); }}>
                     <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
@@ -621,6 +710,32 @@ export const StoreBuilder = () => {
                     <Input value={selectedNode?.settings?.cssClass || ""} onChange={(e) => patchSelectedNode({ settings: { ...(selectedNode?.settings || {}), cssClass: e.target.value } })} />
                     <Label>Inspector: Background</Label>
                     <Input value={selectedNode?.settings?.background || ""} onChange={(e) => patchSelectedNode({ settings: { ...(selectedNode?.settings || {}), background: e.target.value } })} />
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label>X</Label>
+                        <Input
+                          type="number"
+                          value={selectedNode?.settings?.x || 0}
+                          onChange={(e) => patchSelectedNode({ settings: { ...(selectedNode?.settings || {}), x: snapValue(e.target.value) } })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Y</Label>
+                        <Input
+                          type="number"
+                          value={selectedNode?.settings?.y || 0}
+                          onChange={(e) => patchSelectedNode({ settings: { ...(selectedNode?.settings || {}), y: snapValue(e.target.value) } })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>W</Label>
+                        <Input
+                          type="number"
+                          value={selectedNode?.settings?.w || 280}
+                          onChange={(e) => patchSelectedNode({ settings: { ...(selectedNode?.settings || {}), w: snapValue(e.target.value) } })}
+                        />
+                      </div>
+                    </div>
                     <Label>Nested Blocks</Label>
                     <div className="space-y-1">
                       {(selectedNode?.children || []).map((c, i) => (
@@ -650,6 +765,24 @@ export const StoreBuilder = () => {
                     </div>
                   ))}
                 </div>
+                <div className="space-y-2">
+                  <Label>Timeline Playback</Label>
+                  {historyFrames.slice(-8).map((frame, idx) => {
+                    const frameIdx = historyFrames.length - Math.min(8, historyFrames.length) + idx;
+                    const prev = historyFrames[frameIdx - 1] || [];
+                    const delta = countNodes(frame) - countNodes(prev);
+                    return (
+                      <button
+                        key={`timeline-${frameIdx}`}
+                        type="button"
+                        className={`w-full text-left text-xs p-2 border rounded ${playbackIndex === frameIdx ? "border-blue-500" : "border-slate-200 dark:border-slate-700"}`}
+                        onClick={() => jumpToHistory(frameIdx)}
+                      >
+                        Step {frameIdx + 1} · nodes {countNodes(frame)} · diff {delta >= 0 ? `+${delta}` : delta}
+                      </button>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
 
@@ -667,7 +800,7 @@ export const StoreBuilder = () => {
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className={`mx-auto bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden transition-all ${previewDevice === "desktop" ? "w-full" : previewDevice === "tablet" ? "w-[768px] max-w-full" : "w-[375px] max-w-full"}`}>
-                    <div className="h-96 overflow-auto p-6 space-y-3" onDragOver={(e) => e.preventDefault()}>
+                    <div className={`${canvasMode === "absolute" ? "relative min-h-[520px]" : "h-96"} overflow-auto p-6 space-y-3 bg-[linear-gradient(to_right,rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.12)_1px,transparent_1px)] bg-[size:8px_8px]`} onDragOver={(e) => e.preventDefault()}>
                       {sections.map((section) => renderCanvasNode(section, 0))}
                     </div>
                   </div>

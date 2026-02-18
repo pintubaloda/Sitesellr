@@ -33,7 +33,7 @@ export default function DomainsSsl() {
       const res = await api.post(`/stores/${storeId}/domains`, { hostname: hostname.trim(), sslProvider: "letsencrypt" });
       setHostname("");
       await load();
-      setMessage(`Domain added. Create TXT: ${res.data?.verification?.host} = ${res.data?.verification?.value}`);
+      setMessage(`Domain added. Auto verify/SSL attempted. TXT fallback: ${res.data?.verification?.host} = ${res.data?.verification?.value}`);
     } catch (err) {
       setMessage(err?.response?.data?.error || "Could not add domain.");
     }
@@ -99,7 +99,7 @@ export default function DomainsSsl() {
                 {d.lastError ? <p className="text-xs text-red-600">{d.lastError}</p> : null}
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => verify(d.id)}>Verify DNS</Button>
+                <Button variant="outline" onClick={() => verify(d.id)}>Verify Now</Button>
                 <Button onClick={() => issueSsl(d.id)}>Issue SSL</Button>
               </div>
             </div>

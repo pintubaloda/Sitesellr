@@ -11,10 +11,12 @@ namespace backend_dotnet.Controllers;
 public class StoresController : BaseApiController
 {
     private readonly AppDbContext _db;
+    private readonly ICloudflareDnsService _cloudflareDns;
 
-    public StoresController(AppDbContext db)
+    public StoresController(AppDbContext db, ICloudflareDnsService cloudflareDns)
     {
         _db = db;
+        _cloudflareDns = cloudflareDns;
     }
 
     [HttpGet]
@@ -41,6 +43,10 @@ public class StoresController : BaseApiController
         input.UpdatedAt = DateTimeOffset.UtcNow;
         _db.Stores.Add(input);
         await _db.SaveChangesAsync(ct);
+        if (!string.IsNullOrWhiteSpace(input.Subdomain))
+        {
+            await _cloudflareDns.EnsureTenantSubdomainAsync(input.Subdomain, ct);
+        }
         return CreatedAtAction(nameof(Get), new { id = input.Id }, input);
     }
 
@@ -73,6 +79,10 @@ public class StoresController : BaseApiController
         store.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+        if (!string.IsNullOrWhiteSpace(store.Subdomain))
+        {
+            await _cloudflareDns.EnsureTenantSubdomainAsync(store.Subdomain, ct);
+        }
         return Ok(store);
     }
 }

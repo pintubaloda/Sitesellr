@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Net;
 using backend_dotnet.Data;
 using backend_dotnet.Models;
 using backend_dotnet.Security;
@@ -58,18 +59,23 @@ public class DomainSslController : ControllerBase
         };
         _db.StoreDomains.Add(row);
         await _db.SaveChangesAsync(ct);
+        var auto = await TryAutoVerifyAndIssueAsync(row, ct);
         return Ok(new
         {
             row.Id,
             row.Hostname,
             row.SslProvider,
+            row.IsVerified,
+            row.SslStatus,
+            row.LastError,
             verification = new
             {
                 type = "txt",
                 host = $"_sitesellr-verify.{hostname}",
                 value = token
             },
-            notes = "For Cloudflare-managed domains, add TXT record then call verify endpoint."
+            notes = "Auto verify/issue attempted. If failed, use Verify DNS and Issue SSL buttons.",
+            autoAttempt = auto
         });
     }
 
@@ -80,10 +86,16 @@ public class DomainSslController : ControllerBase
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         var row = await _db.StoreDomains.FirstOrDefaultAsync(x => x.Id == domainId && x.StoreId == storeId, ct);
         if (row == null) return NotFound();
-        row.IsVerified = true;
+        var verified = await CheckDomainResolvableAsync(row.Hostname);
+        row.IsVerified = verified;
         row.UpdatedAt = DateTimeOffset.UtcNow;
+        row.LastError = verified ? null : "DNS not resolving to platform yet.";
         await _db.SaveChangesAsync(ct);
-        return Ok(new { verified = true });
+        if (verified && row.SslStatus != "active")
+        {
+            await RunIssueAsync(row, ct);
+        }
+        return Ok(new { verified = row.IsVerified, row.SslStatus, row.LastError });
     }
 
     [HttpPost("{domainId:guid}/issue-ssl")]
@@ -94,9 +106,54 @@ public class DomainSslController : ControllerBase
         var row = await _db.StoreDomains.FirstOrDefaultAsync(x => x.Id == domainId && x.StoreId == storeId, ct);
         if (row == null) return NotFound();
         if (!row.IsVerified) return BadRequest(new { error = "domain_not_verified" });
+        await RunIssueAsync(row, ct);
 
+        return Ok(new
+        {
+            success = row.SslStatus == "active",
+            row.SslStatus,
+            row.SslExpiresAt,
+            row.LastError
+        });
+    }
+
+    private async Task<bool> CheckDomainResolvableAsync(string hostname)
+    {
+        try
+        {
+            var addrs = await Dns.GetHostAddressesAsync(hostname);
+            return addrs.Length > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task<object> TryAutoVerifyAndIssueAsync(StoreDomain row, CancellationToken ct)
+    {
+        var verified = await CheckDomainResolvableAsync(row.Hostname);
+        row.IsVerified = verified;
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        row.LastError = verified ? null : "Auto-verify failed: DNS not ready.";
+        await _db.SaveChangesAsync(ct);
+
+        if (!verified) return new { verified = false, sslIssued = false };
+        await RunIssueAsync(row, ct);
+        return new { verified = row.IsVerified, sslIssued = row.SslStatus == "active", row.SslStatus, row.LastError };
+    }
+
+    private async Task RunIssueAsync(StoreDomain row, CancellationToken ct)
+    {
         var provider = _sslProviders.Resolve(row.SslProvider);
-        if (provider == null) return BadRequest(new { error = "ssl_provider_not_supported" });
+        if (provider == null)
+        {
+            row.SslStatus = "failed";
+            row.LastError = "ssl_provider_not_supported";
+            row.UpdatedAt = DateTimeOffset.UtcNow;
+            await _db.SaveChangesAsync(ct);
+            return;
+        }
 
         row.SslStatus = "issuing";
         row.UpdatedAt = DateTimeOffset.UtcNow;
@@ -108,14 +165,6 @@ public class DomainSslController : ControllerBase
         row.LastError = result.Error;
         row.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
-
-        return Ok(new
-        {
-            success = result.Success,
-            row.SslStatus,
-            row.SslExpiresAt,
-            row.LastError
-        });
     }
 }
 

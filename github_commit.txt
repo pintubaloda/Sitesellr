@@ -125,3 +125,23 @@ Fix Entry: 2026-02-18 (CI compile fix for commit 6d36a56)
 Fix Entry: 2026-02-18 (CI compile fix for commit bcb555e)
 - Fixed verbatim SQL escaping in `backend-dotnet/Migrations/20260218175500_StoreDomainsFreeSsl.cs`
 - Replaced `\"` with `""` in SQL blocks (store_domains + store_media_assets)
+
+Update Entry: 2026-02-18 (Cloudflare subdomain + automatic custom-domain SSL flow)
+- Added Cloudflare DNS service and auto tenant subdomain provisioning:
+  - `backend-dotnet/Services/CloudflareDnsService.cs`
+  - `StoresController` now calls Cloudflare provisioning on create/update when subdomain exists
+- Added automatic custom-domain verification+SSL attempt on add:
+  - `DomainSslController` now auto-checks DNS, marks verified when resolvable, and triggers SSL issuance automatically
+  - Fallback remains available via `Verify Now` and `Issue SSL` actions
+- Registered Cloudflare DNS service in runtime DI (`Program.cs`)
+- Updated domain UI wording/button for fallback flow (`Verify Now`)
+- Files updated:
+  - backend-dotnet/Services/CloudflareDnsService.cs
+  - backend-dotnet/Controllers/StoresController.cs
+  - backend-dotnet/Controllers/DomainSslController.cs
+  - backend-dotnet/Program.cs
+  - frontend/src/pages/admin/DomainsSsl.js
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

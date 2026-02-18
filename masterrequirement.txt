@@ -79,3 +79,11 @@ Updated: 2026-02-18
 
 Module Name	Developed	Partial Developed	Need To Develop
 Migration Build Stability	Fixed store domain/free-SSL migration compile syntax for CI	-	-
+
+---
+Cloudflare Tenant Subdomain + Auto SSL Flow Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Tenant Subdomain (store.sitesellr.com)	Cloudflare DNS integration service added; on store create/update system auto-ensures tenant CNAME via Cloudflare API using configured zone/token/base domain/ingress host	No bulk reconciliation job yet for existing stores	Backfill worker for all existing stores and drift detection dashboard
+Custom Domain + Free SSL	On custom domain add, system now auto-attempts DNS resolve verification and SSL issuance; if auto fails, UI fallback button `Verify Now` + `Issue SSL` is available	Auto verify currently checks DNS resolvability (not full delegated DNS TXT validation automation)	Full Cloudflare DNS-01 TXT automation per custom domain provider integration, scheduled auto-renew queue and retry backoff

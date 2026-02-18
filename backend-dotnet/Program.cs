@@ -87,6 +87,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHttpClient<ITurnstileService, TurnstileService>();
 builder.Services.AddScoped<IWebAuthnService, WebAuthnService>();
 builder.Services.AddScoped<ITenancyResolver, TenancyResolver>();
+builder.Services.AddHttpClient<ICloudflareDnsService, CloudflareDnsService>();
 builder.Services.AddSingleton<ISslProvider, LetsEncryptShellProvider>();
 builder.Services.AddSingleton<ISslProviderFactory, SslProviderFactory>();
 builder.Services.AddSingleton<IPaymentPlugin, DummyPaymentPlugin>();

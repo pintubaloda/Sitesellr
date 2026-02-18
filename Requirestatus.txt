@@ -148,3 +148,10 @@ Updated: 2026-02-18
 Module Name	Developed	Partial Developed	Need To Develop
 Registration CORS	Adjusted CORS policy: explicit origins now enable credentials; wildcard stays non-credential mode for safety	If frontend uses `withCredentials=true`, wildcard CORS still fails by browser design	Set concrete `CORS_ORIGINS` in all deploy envs and keep front/back URL alignment
 Test Role Login Setup	Added optional runtime dev seed (`SEED_TEST_USERS=true`) to generate platform/store role users with known password and assign roles/store demo data	Seeding is env-flagged and intended for non-production test only	Separate secure test-fixture bootstrap pipeline for CI/staging with rotated secrets
+
+---
+Seed Credential Reliability Fix
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Test Role Login Stability	Seed flow now enforces known password + unlocked state for all seeded test users on startup	-	-

@@ -542,17 +542,27 @@ if (builder.Configuration.GetValue("SEED_TEST_USERS", false))
     {
         var normalized = email.Trim().ToLowerInvariant();
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == normalized);
+        var hash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
         if (user == null)
         {
             user = new User
             {
                 Email = normalized,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12),
+                PasswordHash = hash,
                 IsLocked = false,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow
             };
             db.Users.Add(user);
+            await db.SaveChangesAsync();
+        }
+        else
+        {
+            // In seeded test mode we force a known, unlocked login state.
+            user.PasswordHash = hash;
+            user.IsLocked = false;
+            user.LockoutEnd = null;
+            user.UpdatedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync();
         }
         return user;

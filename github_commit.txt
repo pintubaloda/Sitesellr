@@ -287,3 +287,7 @@ Update Entry: 2026-02-18 (CORS registration fix + role test user seed)
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Fix Entry: 2026-02-18 (seeded login credentials reliability)
+- Updated test-user seeding in `Program.cs` to always reset seeded users to known password and unlocked state
+- Prevents pre-existing locked/random-password accounts (e.g., from `PLATFORM_OWNER_EMAIL` seed path) from breaking test credentials

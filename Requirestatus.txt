@@ -1,12 +1,14 @@
 Sitesellr Cumulative Requirement Status
 Updated: 2026-02-18
 
-Module	Status	What was completed now	What remains
-Real Invite Delivery	Developed (config-based)	Implemented backend email service for invite delivery via SMTP/provider config (`SMTP__Host/Port/Username/Password/From/UseSsl`). Team invite endpoint now attempts real email send and returns `emailSent` flag.	Provider templates, retry queue, bounce handling.
-Invite / Accept Flow	Developed	Team invite create + accept flow is active (tokenized invite, password set on accept, role binding, sign-in tokens issued).	Optional revoke/resend endpoints.
-Audit Logs Viewer	Developed	Added backend audit logs API (`GET /api/audit-logs` with filters/pagination) and admin Audit Logs UI with action/store/merchant filters + CSV export.	Advanced filters/date ranges + server-side export jobs.
-User/Merchant Lifecycle Partials	Partial improved	Merchant status transitions and store lifecycle controls are wired in UI; team role management with custom role support is wired.	Full role-builder UX and approval workflows.
+Requested Scope	Status	Developed Now	Remaining
+Full merchant lifecycle management UI/actions	Developed (core)	Implemented Merchant Ops UI + API lifecycle actions: trial/activate/suspend/expire/reactivate with optional approval routing for sensitive actions.	Bulk lifecycle operations and reason taxonomy dashboards.
+Merchant onboarding completion pipeline	Developed (operational core)	Added onboarding pipeline profile (email/mobile/KYC/ops/risk flags + pipeline status) with Merchant Ops UI + API update/load.	External verification providers and automated operational checks.
+Team management module (invite/role/revoke/audit)	Developed (expanded)	Already wired team APIs expanded with invite/accept and audit; now role templates and template apply flow added via Settings Team UI and backend role-template APIs.	Email template branding/retry queue and revoke/resend flow hardening.
+Franchise/back-office hierarchy + scoped access	Developed (core)	Added franchise unit and back-office assignment models + Merchant Ops UI/API create/list workflows.	Deeper hierarchy visuals and policy matrix per department.
+Role template/custom role builder + sensitive approvals	Developed (core)	Added store role templates CRUD/apply APIs and UI builder (permissions CSV + sensitive flag); sensitive actions generate approval requests; Merchant Ops includes approval queue + approve action.	Rich permission picker UI (instead of CSV), multi-step approval chain.
+Full audit logs for merchant/user admin changes	Developed (core)	Audit logs already capture merchant lifecycle/team changes; audit logs viewer UI with filters/export exists from prior update.	Broader event coverage and immutable retention controls.
 
 Git state
-- Last pushed commit: 2080fd6
-- Current email-invite + audit viewer update is local and pending push.
+- Last pushed commit: 7a4a904
+- Current lifecycle/onboarding/role-template/franchise/backoffice/approval expansion is local and pending push.

@@ -207,6 +207,68 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_audit_logs_CreatedAt ON audit_logs (""CreatedAt"");");
     await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_audit_logs_StoreId ON audit_logs (""StoreId"");");
     await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_audit_logs_MerchantId ON audit_logs (""MerchantId"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS merchant_onboarding_profiles (
+  ""Id"" uuid PRIMARY KEY,
+  ""MerchantId"" uuid NOT NULL,
+  ""EmailVerified"" boolean NOT NULL,
+  ""MobileVerified"" boolean NOT NULL,
+  ""KycVerified"" boolean NOT NULL,
+  ""OpsApproved"" boolean NOT NULL,
+  ""RiskApproved"" boolean NOT NULL,
+  ""PipelineStatus"" character varying(80) NOT NULL,
+  ""UpdatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_merchant_onboarding_profiles_MerchantId ON merchant_onboarding_profiles (""MerchantId"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS store_role_templates (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""Name"" character varying(80) NOT NULL,
+  ""PermissionsCsv"" character varying(2000) NOT NULL,
+  ""IsSensitive"" boolean NOT NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_role_templates_StoreId_Name ON store_role_templates (""StoreId"", ""Name"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS sensitive_action_approvals (
+  ""Id"" uuid PRIMARY KEY,
+  ""ActionType"" character varying(120) NOT NULL,
+  ""EntityType"" character varying(80),
+  ""EntityId"" character varying(80),
+  ""PayloadJson"" character varying(4000),
+  ""RequestedByUserId"" uuid NOT NULL,
+  ""ApprovedByUserId"" uuid NULL,
+  ""Status"" character varying(30) NOT NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL,
+  ""ApprovedAt"" timestamp with time zone NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_sensitive_action_approvals_Status ON sensitive_action_approvals (""Status"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS franchise_units (
+  ""Id"" uuid PRIMARY KEY,
+  ""MerchantId"" uuid NOT NULL,
+  ""Name"" character varying(120) NOT NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_franchise_units_MerchantId_Name ON franchise_units (""MerchantId"", ""Name"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS franchise_stores (
+  ""Id"" uuid PRIMARY KEY,
+  ""FranchiseUnitId"" uuid NOT NULL,
+  ""StoreId"" uuid NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_franchise_stores_Unit_Store ON franchise_stores (""FranchiseUnitId"", ""StoreId"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS backoffice_assignments (
+  ""Id"" uuid PRIMARY KEY,
+  ""MerchantId"" uuid NOT NULL,
+  ""UserId"" uuid NOT NULL,
+  ""StoreScopeId"" uuid NULL,
+  ""Scope"" character varying(80) NOT NULL,
+  ""Department"" character varying(80) NOT NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
 }
 
 var platformOwnerEmail = builder.Configuration["PLATFORM_OWNER_EMAIL"];

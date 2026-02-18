@@ -78,6 +78,10 @@ export const Settings = () => {
   const [inviteLink, setInviteLink] = useState("");
   const [customRoleNames, setCustomRoleNames] = useState({});
   const [memberPermissions, setMemberPermissions] = useState({});
+  const [roleTemplates, setRoleTemplates] = useState([]);
+  const [templateName, setTemplateName] = useState("");
+  const [templatePermissions, setTemplatePermissions] = useState("");
+  const [templateSensitive, setTemplateSensitive] = useState(false);
 
   useEffect(() => {
     if (!selectedStore) return;
@@ -102,6 +106,8 @@ export const Settings = () => {
         names[m.userId] = m.customRoleName || "";
       });
       setCustomRoleNames(names);
+      const templateRes = await api.get(`/stores/${storeId}/role-templates`);
+      setRoleTemplates(Array.isArray(templateRes.data) ? templateRes.data : []);
     } catch (err) {
       setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not load team members.");
     } finally {
@@ -180,6 +186,37 @@ export const Settings = () => {
       setTeamMessage("Custom permissions saved.");
     } catch (err) {
       setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not save permissions.");
+    }
+  };
+
+  const createRoleTemplate = async () => {
+    if (!storeId || !templateName.trim() || !templatePermissions.trim()) return;
+    setTeamError("");
+    try {
+      await api.post(`/stores/${storeId}/role-templates`, {
+        name: templateName.trim(),
+        permissionsCsv: templatePermissions.trim(),
+        isSensitive: templateSensitive,
+      });
+      setTemplateName("");
+      setTemplatePermissions("");
+      setTemplateSensitive(false);
+      await loadTeamMembers();
+      setTeamMessage("Role template created.");
+    } catch (err) {
+      setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not create role template.");
+    }
+  };
+
+  const applyTemplate = async (templateId, userId) => {
+    if (!storeId) return;
+    setTeamError("");
+    try {
+      await api.post(`/stores/${storeId}/role-templates/${templateId}/apply/${userId}`);
+      await loadTeamMembers();
+      setTeamMessage("Template applied.");
+    } catch (err) {
+      setTeamError(err?.response?.status === 403 ? "You are not authorized." : "Could not apply template.");
     }
   };
 
@@ -620,6 +657,30 @@ export const Settings = () => {
                 </Button>
               </div>
 
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+                <p className="font-medium text-slate-900 dark:text-white">Role Template Builder</p>
+                <div className="grid gap-3 md:grid-cols-[220px_1fr_auto_auto]">
+                  <Input placeholder="Template name" value={templateName} onChange={(e) => setTemplateName(e.target.value)} />
+                  <Input placeholder="permissions csv" value={templatePermissions} onChange={(e) => setTemplatePermissions(e.target.value)} />
+                  <label className="text-sm text-slate-600 flex items-center gap-2">
+                    <input type="checkbox" checked={templateSensitive} onChange={(e) => setTemplateSensitive(e.target.checked)} />
+                    Sensitive
+                  </label>
+                  <Button variant="outline" onClick={createRoleTemplate}>Create Template</Button>
+                </div>
+                <div className="space-y-2">
+                  {roleTemplates.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-700 p-2">
+                      <div>
+                        <p className="text-sm font-medium">{t.name}{t.isSensitive ? " (Sensitive)" : ""}</p>
+                        <p className="text-xs text-slate-500">{t.permissionsCsv}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {roleTemplates.length === 0 ? <p className="text-xs text-slate-500">No templates yet.</p> : null}
+                </div>
+              </div>
+
               {teamLoading ? <p className="text-sm text-slate-500">Loading team...</p> : null}
               {teamError ? <p className="text-sm text-red-600">{teamError}</p> : null}
               {teamMessage ? <p className="text-sm text-green-600">{teamMessage}</p> : null}
@@ -672,6 +733,22 @@ export const Settings = () => {
                           Save
                         </Button>
                       </div>
+                    ) : null}
+                    {roleTemplates.length > 0 ? (
+                      <select
+                        className="rounded border border-slate-300 px-2 py-1 text-xs"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            applyTemplate(e.target.value, member.userId);
+                            e.target.value = "";
+                          }
+                        }}
+                      >
+                        <option value="">Apply template</option>
+                        {roleTemplates.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
                     ) : null}
                     {member.role !== "Owner" && (
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => removeMember(member.userId)}>

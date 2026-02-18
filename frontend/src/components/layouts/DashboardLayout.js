@@ -38,6 +38,7 @@ import {
   Building2,
   ShieldCheck,
   ClipboardList,
+  Network,
   ChevronLeft,
   Menu,
   Moon,
@@ -108,6 +109,11 @@ const sidebarItems = [
     title: "Audit Logs",
     icon: ClipboardList,
     path: "/admin/audit-logs",
+  },
+  {
+    title: "Merchant Ops",
+    icon: Network,
+    path: "/admin/merchant-ops",
   },
 ];
 

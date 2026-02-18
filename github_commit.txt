@@ -2,18 +2,19 @@ Sitesellr Cumulative Development Ledger (Latest)
 Updated: 2026-02-18
 
 New local package (pending push)
-- SMTP/provider-backed invite email send service
-- Team invite endpoint upgraded to send real emails
-- Audit logs API (filter + pagination)
-- Audit Logs admin UI (filters + export CSV)
-- Admin routing/sidebar wiring for audit logs
+- Merchant Ops module (lifecycle actions + onboarding pipeline + approvals queue)
+- Governance data models: onboarding profile, role templates, sensitive approvals, franchise units, franchise-store mapping, backoffice assignments
+- Role templates backend + Settings Team UI builder/apply
+- Franchise/back-office backend + Merchant Ops UI actions
+- Sensitive action approval APIs + approval execution flow
 
-Changed files
-- backend-dotnet/Services/EmailService.cs
-- backend-dotnet/Controllers/StoreTeamController.cs
-- backend-dotnet/Controllers/AuditLogsController.cs
+Primary files
+- backend-dotnet/Models/Governance.cs
+- backend-dotnet/Data/AppDbContext.cs
+- backend-dotnet/Controllers/MerchantOpsController.cs
+- backend-dotnet/Controllers/RoleTemplatesController.cs
 - backend-dotnet/Program.cs
-- frontend/src/pages/admin/AuditLogs.js
+- frontend/src/pages/admin/MerchantOps.js
+- frontend/src/pages/admin/Settings.js
 - frontend/src/App.js
 - frontend/src/components/layouts/DashboardLayout.js
-- Requirestatus.txt / github_commit.txt / masterrequirement.docx

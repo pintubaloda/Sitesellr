@@ -32,6 +32,12 @@ public class AppDbContext : DbContext
     public DbSet<MerchantSubscription> MerchantSubscriptions => Set<MerchantSubscription>();
     public DbSet<TeamInviteToken> TeamInviteTokens => Set<TeamInviteToken>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<MerchantOnboardingProfile> MerchantOnboardingProfiles => Set<MerchantOnboardingProfile>();
+    public DbSet<StoreRoleTemplate> StoreRoleTemplates => Set<StoreRoleTemplate>();
+    public DbSet<SensitiveActionApproval> SensitiveActionApprovals => Set<SensitiveActionApproval>();
+    public DbSet<FranchiseUnit> FranchiseUnits => Set<FranchiseUnit>();
+    public DbSet<FranchiseStore> FranchiseStores => Set<FranchiseStore>();
+    public DbSet<BackofficeAssignment> BackofficeAssignments => Set<BackofficeAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -279,6 +285,73 @@ public class AppDbContext : DbContext
             b.HasIndex(x => x.CreatedAt);
             b.HasIndex(x => x.StoreId);
             b.HasIndex(x => x.MerchantId);
+        });
+
+        modelBuilder.Entity<MerchantOnboardingProfile>(b =>
+        {
+            b.ToTable("merchant_onboarding_profiles");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.PipelineStatus).HasMaxLength(80);
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => x.MerchantId).IsUnique();
+            b.HasOne(x => x.Merchant).WithMany().HasForeignKey(x => x.MerchantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StoreRoleTemplate>(b =>
+        {
+            b.ToTable("store_role_templates");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(80);
+            b.Property(x => x.PermissionsCsv).IsRequired().HasMaxLength(2000);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.Name }).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SensitiveActionApproval>(b =>
+        {
+            b.ToTable("sensitive_action_approvals");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.ActionType).IsRequired().HasMaxLength(120);
+            b.Property(x => x.EntityType).HasMaxLength(80);
+            b.Property(x => x.EntityId).HasMaxLength(80);
+            b.Property(x => x.PayloadJson).HasMaxLength(4000);
+            b.Property(x => x.Status).HasMaxLength(30);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.ApprovedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => x.Status);
+        });
+
+        modelBuilder.Entity<FranchiseUnit>(b =>
+        {
+            b.ToTable("franchise_units");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(120);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.MerchantId, x.Name }).IsUnique();
+            b.HasOne(x => x.Merchant).WithMany().HasForeignKey(x => x.MerchantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FranchiseStore>(b =>
+        {
+            b.ToTable("franchise_stores");
+            b.HasKey(x => x.Id);
+            b.HasIndex(x => new { x.FranchiseUnitId, x.StoreId }).IsUnique();
+            b.HasOne(x => x.FranchiseUnit).WithMany().HasForeignKey(x => x.FranchiseUnitId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BackofficeAssignment>(b =>
+        {
+            b.ToTable("backoffice_assignments");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Scope).HasMaxLength(80);
+            b.Property(x => x.Department).HasMaxLength(80);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.MerchantId, x.UserId, x.Scope, x.Department });
+            b.HasOne(x => x.Merchant).WithMany().HasForeignKey(x => x.MerchantId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.StoreScope).WithMany().HasForeignKey(x => x.StoreScopeId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<AccessToken>(b =>

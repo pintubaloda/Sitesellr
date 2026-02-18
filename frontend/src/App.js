@@ -22,6 +22,7 @@ import Settings from "./pages/admin/Settings";
 import Merchants from "./pages/admin/Merchants";
 import PlatformRbac from "./pages/admin/PlatformRbac";
 import AuditLogs from "./pages/admin/AuditLogs";
+import MerchantOps from "./pages/admin/MerchantOps";
 import { getStoredAccessToken } from "./lib/session";
 
 const ProtectedRoute = ({ children }) => {
@@ -66,6 +67,7 @@ function App() {
             <Route path="merchants" element={<Merchants />} />
             <Route path="platform-rbac" element={<PlatformRbac />} />
             <Route path="audit-logs" element={<AuditLogs />} />
+            <Route path="merchant-ops" element={<MerchantOps />} />
           </Route>
 
           {/* Catch all - redirect to home */}

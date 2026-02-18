@@ -117,3 +117,7 @@ Update Entry: 2026-02-18 (Custom Domain + Free SSL utility)
 Fix Entry: 2026-02-18 (CI compile fix for commit a11d081)
 - Fixed invalid escape usage in migration `backend-dotnet/Migrations/20260218162000_StorefrontCmsThemeEngine.cs`
 - Replaced `\"` with doubled quotes `""` inside verbatim SQL strings to resolve C# compile errors (newline in constant / unexpected '\\')
+
+Fix Entry: 2026-02-18 (CI compile fix for commit 6d36a56)
+- Fixed verbatim SQL escaping in `backend-dotnet/Migrations/20260218170000_StorefrontPublicB2BMedia.cs`
+- Replaced `\"` with `""` in SQL string block to remove C# parser errors

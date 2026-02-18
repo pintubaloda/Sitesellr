@@ -65,3 +65,10 @@ Updated: 2026-02-18
 
 Module Name	Developed	Partial Developed	Need To Develop
 Migration Build Stability	Fixed storefront CMS migration compile syntax for CI	-	-
+
+---
+Build Fix Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Migration Build Stability	Fixed storefront public/B2B/media migration compile syntax for CI	-	-

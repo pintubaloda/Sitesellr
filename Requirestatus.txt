@@ -2,17 +2,11 @@ Sitesellr Cumulative Requirement Status
 Updated: 2026-02-18
 
 Module	Status	What was completed now	What remains
-Invitation / Accept Flow	Developed	Implemented store team invite token flow: create invite from Settings Team, generate invite token/link, new accept-invite auth page, backend accept endpoint issues opaque tokens and redirects to admin.	Email delivery provider integration (send invite by email) and invite reminder/revoke flows.
-Audit Logs (team + merchant status)	Developed (core)	Added audit log entries for team invite/create/role-update/remove/accept and merchant status changes.	Audit log explorer UI + export/search filters.
-Merchant Onboarding Automation	Partial improved	Onboarding flow remains functional and connected; invite acceptance now supports team onboarding path with password set and role binding.	Full business workflow automation (checks, notifications, approvals, lifecycle triggers).
-Store Lifecycle Workflows	Partial improved	Store lifecycle selector added in Settings (Draft/Active/Suspended/Closed) and saved to backend; merchant status update flow active in Merchants UI.	Bulk lifecycle operations, suspend reason history, policy workflows.
-Custom Roles UX	Partial improved	Team UI now supports Custom role path with custom role name and permission CSV save (wired to store permission API).	Structured role builder UX (permission picker, templates, validation presets).
-Platform Owner Seeding	Developed	Added production seed path via env `PLATFORM_OWNER_EMAIL` to auto-create/assign platform owner role at startup.	Operational runbook and secure owner bootstrap process.
-
-Important Env Vars
-- PLATFORM_OWNER_EMAIL: first owner bootstrap email
-- APPLY_MIGRATIONS_ON_STARTUP=true (first boot)
+Real Invite Delivery	Developed (config-based)	Implemented backend email service for invite delivery via SMTP/provider config (`SMTP__Host/Port/Username/Password/From/UseSsl`). Team invite endpoint now attempts real email send and returns `emailSent` flag.	Provider templates, retry queue, bounce handling.
+Invite / Accept Flow	Developed	Team invite create + accept flow is active (tokenized invite, password set on accept, role binding, sign-in tokens issued).	Optional revoke/resend endpoints.
+Audit Logs Viewer	Developed	Added backend audit logs API (`GET /api/audit-logs` with filters/pagination) and admin Audit Logs UI with action/store/merchant filters + CSV export.	Advanced filters/date ranges + server-side export jobs.
+User/Merchant Lifecycle Partials	Partial improved	Merchant status transitions and store lifecycle controls are wired in UI; team role management with custom role support is wired.	Full role-builder UX and approval workflows.
 
 Git state
-- Last pushed commit: 82946f9
-- Current partial-completion package is local and pending push.
+- Last pushed commit: 2080fd6
+- Current email-invite + audit viewer update is local and pending push.

@@ -14,11 +14,13 @@ public class StoreTeamController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ITokenService _tokenService;
+    private readonly IEmailService _emailService;
 
-    public StoreTeamController(AppDbContext db, ITokenService tokenService)
+    public StoreTeamController(AppDbContext db, ITokenService tokenService, IEmailService emailService)
     {
         _db = db;
         _tokenService = tokenService;
+        _emailService = emailService;
     }
 
     private backend_dotnet.Services.TenancyContext? Tenancy => HttpContext.Items["Tenancy"] as backend_dotnet.Services.TenancyContext;
@@ -137,7 +139,8 @@ public class StoreTeamController : ControllerBase
 
         await _db.SaveChangesAsync(ct);
         var inviteUrl = $"{Request.Scheme}://{Request.Host}/auth/accept-invite?token={token}";
-        return Ok(new { token, inviteUrl, expiresAt = DateTimeOffset.UtcNow.AddDays(2) });
+        var sent = await _emailService.SendInviteAsync(normalizedEmail, inviteUrl, role.ToString(), ct);
+        return Ok(new { token, inviteUrl, emailSent = sent, expiresAt = DateTimeOffset.UtcNow.AddDays(2) });
     }
 
     [HttpPut("{userId:guid}")]

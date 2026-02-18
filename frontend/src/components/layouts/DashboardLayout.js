@@ -37,6 +37,7 @@ import {
   Settings,
   Building2,
   ShieldCheck,
+  ClipboardList,
   ChevronLeft,
   Menu,
   Moon,
@@ -102,6 +103,11 @@ const sidebarItems = [
     title: "Platform RBAC",
     icon: ShieldCheck,
     path: "/admin/platform-rbac",
+  },
+  {
+    title: "Audit Logs",
+    icon: ClipboardList,
+    path: "/admin/audit-logs",
   },
 ];
 

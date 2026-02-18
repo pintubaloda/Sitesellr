@@ -121,3 +121,7 @@ Fix Entry: 2026-02-18 (CI compile fix for commit a11d081)
 Fix Entry: 2026-02-18 (CI compile fix for commit 6d36a56)
 - Fixed verbatim SQL escaping in `backend-dotnet/Migrations/20260218170000_StorefrontPublicB2BMedia.cs`
 - Replaced `\"` with `""` in SQL string block to remove C# parser errors
+
+Fix Entry: 2026-02-18 (CI compile fix for commit bcb555e)
+- Fixed verbatim SQL escaping in `backend-dotnet/Migrations/20260218175500_StoreDomainsFreeSsl.cs`
+- Replaced `\"` with `""` in SQL blocks (store_domains + store_media_assets)

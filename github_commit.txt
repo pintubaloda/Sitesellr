@@ -1,9 +1,38 @@
-Sitesellr Requirement Status
-Updated: 2026-02-18 (local)
+Sitesellr Cumulative Development Ledger (Git-backed)
+Updated: 2026-02-18
+Branch: main
 
-Module	Status	What's Done	What's Pending / Partial
-Register Heading Content	Developed	Changed right-panel heading to `Lets Get Started !` with icon (Sparkles) for stronger visual entry.	Can adjust punctuation/case if you want exact brand wording.
+Latest Commit
+- b15bcae: Update register heading to Lets Get Started with icon
 
-Git state
-- Last pushed commit: 150e51f
-- Current heading text+icon update is local and pending push.
+Cumulative Milestone Commits (oldest -> latest)
+- b86ebad: auth hardening (TOTP/WebAuthn/Turnstile baseline)
+- 4e09f5c: tenancy/catalog/customer/order core models
+- c7b392c: tenancy policies + CRUD APIs + billing scaffold
+- f3a4a21: backend Dockerfile + docs
+- 6ff5bf5: frontend API wiring base
+- c02864e: admin pages initial backend hook
+- 9f3fbc4: frontend auth turnstile + backend-driven admin data
+- 74645e0: end-to-end Product/Customer/Order CRUD wiring
+- 6a775f0: settings general save -> store API update
+- 8642aca/b90292a/9cfabad/09217f9: Railway deploy setup/fixes
+- 0369be1/7d0fd23/0c88abb: Render setup + dependency fixes
+- 9607153: Render DB URL env support + localhost fail-fast
+- cc46cf5: removed Emergent branding
+- d80bdb1: onboarding wizard + backend onboarding APIs
+- 8c6401e: two-layer RBAC with permission policies
+- 484c966/0eca3c3/0254dd7/75bfc21/2372551/1d921a5/150e51f/b15bcae: iterative register/onboarding UX refinements
+- 11c9568: unified register as primary wizard entry
+- 3b14c70: dashboard real API wiring + runtime API base binding
+- 61bee7a: merchants UI + platform RBAC UI wiring
+- b6a6d1b: unauthorized message handling
+- 3a4b4be: proxy runtime hardening + conditional HTTPS redirect
+- 8743d65: Render static SPA rewrite support
+
+Current Developed / Partial / Pending Summary
+- Developed: Core backend foundation, tenancy core, policy auth foundation, core CRUD APIs, primary admin wiring.
+- Partial: Billing/payments real flows, advanced security rollout, storefront builder ecosystem, analytics/marketing full backend wiring.
+- Pending: Full Shopify-level SaaS stack (theme marketplace, logistics depth, plugin marketplace, full finance ops).
+
+Action Reminder
+- For production RBAC pages: assign at least one user as platform owner before using platform RBAC/merchants admin actions.

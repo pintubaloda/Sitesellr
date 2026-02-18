@@ -1,9 +1,69 @@
-Sitesellr Requirement Status
-Updated: 2026-02-18 (local)
+Sitesellr Cumulative Requirement Status
+Updated: 2026-02-18
+Source: Rebuilt cumulatively from Git history and current codebase state.
 
-Module	Status	What's Done	What's Pending / Partial
-Register Heading Content	Developed	Changed right-panel heading to `Lets Get Started !` with icon (Sparkles) for stronger visual entry.	Can adjust punctuation/case if you want exact brand wording.
+Format: Module | Status | What is implemented | What is partial/pending next
 
-Git state
-- Last pushed commit: 150e51f
-- Current heading text+icon update is local and pending push.
+1) User / Merchant Management | Partial
+- Implemented: Auth APIs (opaque access/refresh tokens), lockout basics, onboarding flow, merchant + store models, store-user roles, merchants API + admin UI list/create page.
+- Pending: Full merchant onboarding workflow automation, franchise/back-office workflows, full merchant lifecycle ops UI (suspend/expire controls).
+
+2) Multi-tenant Architecture | Developed (Core)
+- Implemented: Tenancy resolver middleware (host/header/query store resolution), StoreId scoping checks on key CRUD APIs, role/policy checks tied to tenancy context.
+- Pending: Global query-filter hard enforcement pattern across all future services/modules.
+
+3) RBAC / Permission System | Partial
+- Implemented: Two-layer RBAC (Platform roles + Store permission claims), permission policies, platform RBAC APIs, Platform RBAC admin UI wired.
+- Pending: Seeded platform owner in production, approval workflows, full custom role templates UI, step-up auth on critical actions.
+
+4) Storefront System (themes/pages/builder) | Pending/Partial
+- Implemented: Frontend structure/pages exist, landing/auth/admin shells functional.
+- Pending: Real storefront engine (theme marketplace, drag-drop homepage builder, menu builder, static pages management, B2B visibility controls).
+
+5) Product Management | Partial
+- Implemented: Product/category/variant/media backend models and CRUD APIs; admin products UI wired to real APIs.
+- Pending: Bulk CSV/Excel import, advanced variant rules, wholesale-specific MOQ/pack/tier pricing logic UI+rules.
+
+6) Order Management | Partial
+- Implemented: Orders + order items models, CRUD APIs, admin orders UI wired.
+- Pending: Full lifecycle automation, GST-ready invoice generation engine, refund/cancellation workflow hardening, shipment integrations.
+
+7) Customer Management | Partial
+- Implemented: Customers + addresses models, CRUD APIs, admin customers UI wired.
+- Pending: Guest checkout/retail vs B2B customer journeys, ledger/credit controls, advanced segmentation.
+
+8) Payments & Financial Features | Partial
+- Implemented: Payment plugin interface scaffold; onboarding payment step stub; financial-related core entities scaffolded.
+- Pending: Real gateways (UPI/cards/COD/refunds/partial payments), settlement/payout tracking, reconciliation and full finance reporting.
+
+9) SaaS Billing Engine | Partial
+- Implemented: Billing plans + merchant subscriptions models, plan selection in onboarding.
+- Pending: Full subscription billing lifecycle, metering, plan limits enforcement, add-ons, upgrade/downgrade automation.
+
+10) Security & Compliance | Partial
+- Implemented: Turnstile verification (frontend/backend), CSRF middleware, security headers, rate limiting baseline, opaque tokens, WebAuthn backend endpoints scaffold, tenancy isolation baseline.
+- Pending: MFA/WebAuthn full UX rollout, production CSP/CORS/rate-limit tuning, encrypted secret storage with KMS, audit/event trails for all high-risk actions.
+
+11) Frontend-Backend Wiring Status | Partial (major core wired)
+- Implemented (real API): Auth login/logout, onboarding wizard, dashboard core metrics, products/customers/orders CRUD, store settings update, merchants UI, platform RBAC UI.
+- Pending: Analytics/Marketing/StoreBuilder modules still partly mock-driven and need backend-powered endpoints.
+
+12) Deployment & DevOps | Partial
+- Implemented: Dockerfiles, Railway/Render docs, Render blueprint, SPA rewrite for refresh routes, runtime proxy hardening updates.
+- Pending: Production-grade secrets/key persistence setup, final port/env standardization, monitoring/alerts/runbooks.
+
+13) Landing Page | Partial
+- Implemented: Functional landing/auth entry flow; wizard unified to /auth/register (with /onboarding redirect).
+- Pending: Final productized landing content pipeline, conversion instrumentation, SEO/content completion.
+
+Overall Program Status
+- Foundation/Core backend: Developed
+- Core admin operations wiring: Developed (for Products/Customers/Orders/Settings/Merchants/RBAC)
+- Enterprise-grade SaaS + fintech features: Partial/Pending
+
+Priority Next Execution Queue (recommended)
+1. Seed platform owner + validate RBAC in production.
+2. Replace remaining mock-driven admin modules with real APIs.
+3. Implement payment gateway real flow + billing enforcement.
+4. Add audit logs + step-up auth for sensitive actions.
+5. Complete storefront builder + theme/public storefront runtime.

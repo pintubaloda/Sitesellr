@@ -7,21 +7,29 @@ Developed (latest working tree)
 - Security baseline: opaque tokens, lockout/rate-limit, Turnstile verify on auth, CSRF middleware, security headers.
 - Frontend wired to backend data without UI/theme redesign for Dashboard, Products, Customers, Orders, Settings.
 - Turnstile widget integrated on Login/Register and enforced via backend verification.
-- Settings General save updates store via backend API.
+- Landing page Emergent branding removed from public entry.
 
-New in this update (Branding cleanup)
-- Removed Emergent branding artifacts from frontend public entry:
-  - Removed Emergent badge block (`Made with Emergent`).
-  - Removed Emergent external scripts from `index.html`.
-  - Updated page title to `Sitesellr`.
-  - Updated meta description to `Sitesellr commerce platform`.
+New in this update (Onboarding flow v1)
+- Added end-to-end onboarding APIs:
+  - `POST /api/onboarding/start`
+  - `POST /api/onboarding/verify-email`
+  - `POST /api/onboarding/verify-mobile`
+  - `GET /api/onboarding/plans`
+  - `POST /api/onboarding/choose-plan`
+  - `POST /api/onboarding/confirm-payment` (stub)
+  - `POST /api/onboarding/setup-store`
+  - `POST /api/onboarding/complete`
+- Added frontend onboarding wizard page at `/onboarding` and linked Get Started CTA buttons to it.
+- On completion, flow creates User + Merchant + Store + Owner role and signs user in with opaque tokens.
+- Onboarding session storage uses in-memory concurrent dictionary (dev-safe, non-persistent).
 
 Pending / Partial
-- Store email/phone/address fields are currently UI-only placeholders (not persisted in current store model).
-- Some advanced form fields are minimal for now (rich order item editor, full address management UI).
-- Billing plan enforcement, real payment providers, WebAuthn UI flows, and production CSP/CORS/rate tuning remain pending.
-- Full Shopify-level modules (theme marketplace, logistics integrations, plugin ecosystem, SaaS metering, etc.) remain pending.
+- Email/SMS OTP providers are not integrated yet (currently on-screen OTP for dev only).
+- Payment confirmation is stubbed; no real gateway capture in onboarding yet.
+- Store setup wizard is minimal (no advanced business fields / Cloudflare provisioning automation yet).
+- Billing plan enforcement, WebAuthn UI flows, and production CSP/CORS/rate tuning remain pending.
+- Full Shopify-level modules (themes marketplace, logistics integrations, plugin ecosystem, SaaS metering, etc.) remain pending.
 
 Git state
-- Last pushed commit: 9607153
-- Current branding cleanup is local and not pushed yet.
+- Last pushed commit: cc46cf5
+- Onboarding flow update is local and pending push.

@@ -14,6 +14,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Antiforgery;
 using OtpNet;
 using Npgsql;
+using System.Collections.Concurrent;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -561,5 +562,203 @@ api.MapGet("/auth/me", async (HttpContext context, AppDbContext db, ITokenServic
         user.CreatedAt
     });
 }).WithName("Me");
+
+string GenerateOtp()
+{
+    return Random.Shared.Next(100000, 999999).ToString();
+}
+
+var onboardingSessions = new ConcurrentDictionary<Guid, OnboardingMemorySession>();
+
+api.MapPost("/onboarding/start", async (AppDbContext db, OnboardingStartRequest req, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Mobile) || string.IsNullOrWhiteSpace(req.Password))
+        return Results.BadRequest(new { error = "invalid_input" });
+
+    var normalizedEmail = req.Email.Trim().ToLowerInvariant();
+    if (await db.Users.AnyAsync(u => u.Email == normalizedEmail, ct))
+        return Results.Conflict(new { error = "email_exists" });
+
+    var hash = BCrypt.Net.BCrypt.HashPassword(req.Password, workFactor: 12);
+    var session = new OnboardingMemorySession
+    {
+        Id = Guid.NewGuid(),
+        Name = req.Name.Trim(),
+        Email = normalizedEmail,
+        Mobile = req.Mobile.Trim(),
+        PasswordHash = hash,
+        EmailOtp = GenerateOtp(),
+        MobileOtp = GenerateOtp(),
+        Status = OnboardingMemoryStatus.Started,
+        UpdatedAt = DateTimeOffset.UtcNow,
+        CreatedAt = DateTimeOffset.UtcNow
+    };
+
+    onboardingSessions[session.Id] = session;
+
+    return Results.Ok(new
+    {
+        sessionId = session.Id,
+        emailOtp = session.EmailOtp,
+        mobileOtp = session.MobileOtp
+    });
+});
+
+api.MapPost("/onboarding/verify-email", (OtpVerifyRequest req) =>
+{
+    onboardingSessions.TryGetValue(req.SessionId, out var session);
+    if (session == null) return Results.NotFound();
+    if (session.EmailOtp != req.Otp) return Results.BadRequest(new { error = "invalid_otp" });
+    session.EmailVerified = true;
+    session.Status = session.MobileVerified ? OnboardingMemoryStatus.OtpVerified : session.Status;
+    session.UpdatedAt = DateTimeOffset.UtcNow;
+    return Results.Ok(new { emailVerified = true, mobileVerified = session.MobileVerified });
+});
+
+api.MapPost("/onboarding/verify-mobile", (OtpVerifyRequest req) =>
+{
+    onboardingSessions.TryGetValue(req.SessionId, out var session);
+    if (session == null) return Results.NotFound();
+    if (session.MobileOtp != req.Otp) return Results.BadRequest(new { error = "invalid_otp" });
+    session.MobileVerified = true;
+    session.Status = session.EmailVerified ? OnboardingMemoryStatus.OtpVerified : session.Status;
+    session.UpdatedAt = DateTimeOffset.UtcNow;
+    return Results.Ok(new { emailVerified = session.EmailVerified, mobileVerified = true });
+});
+
+api.MapGet("/onboarding/plans", async (AppDbContext db, CancellationToken ct) =>
+{
+    var plans = await db.BillingPlans.AsNoTracking()
+        .Where(x => x.IsActive)
+        .OrderBy(x => x.PricePerMonth)
+        .Select(x => new { x.Code, x.Name, x.PricePerMonth, x.TrialDays })
+        .ToListAsync(ct);
+
+    if (plans.Count == 0)
+    {
+        return Results.Ok(new[]
+        {
+            new { Code = "free", Name = "Free", PricePerMonth = 0m, TrialDays = 14 },
+            new { Code = "pro", Name = "Pro", PricePerMonth = 1999m, TrialDays = 14 },
+            new { Code = "enterprise", Name = "Enterprise", PricePerMonth = 7999m, TrialDays = 14 }
+        });
+    }
+
+    return Results.Ok(plans);
+});
+
+api.MapPost("/onboarding/choose-plan", async (AppDbContext db, ChoosePlanRequest req, CancellationToken ct) =>
+{
+    onboardingSessions.TryGetValue(req.SessionId, out var session);
+    if (session == null) return Results.NotFound();
+    if (!session.EmailVerified || !session.MobileVerified) return Results.BadRequest(new { error = "otp_not_verified" });
+
+    var plan = await db.BillingPlans.AsNoTracking().FirstOrDefaultAsync(x => x.Code == req.PlanCode && x.IsActive, ct);
+    var price = plan?.PricePerMonth ?? (req.PlanCode == "free" ? 0m : 1999m);
+    session.PlanCode = req.PlanCode;
+    session.PaymentRequired = price > 0;
+    session.Status = OnboardingMemoryStatus.PlanChosen;
+    session.UpdatedAt = DateTimeOffset.UtcNow;
+    return Results.Ok(new { paymentRequired = session.PaymentRequired, amount = price });
+});
+
+api.MapPost("/onboarding/confirm-payment", (SessionOnlyRequest req) =>
+{
+    onboardingSessions.TryGetValue(req.SessionId, out var session);
+    if (session == null) return Results.NotFound();
+    if (session.Status < OnboardingMemoryStatus.PlanChosen) return Results.BadRequest(new { error = "plan_not_chosen" });
+    session.PaymentDone = true;
+    session.Status = OnboardingMemoryStatus.PaymentCompleted;
+    session.UpdatedAt = DateTimeOffset.UtcNow;
+    return Results.Ok(new { paid = true });
+});
+
+api.MapPost("/onboarding/setup-store", async (AppDbContext db, SetupStoreRequest req, CancellationToken ct) =>
+{
+    onboardingSessions.TryGetValue(req.SessionId, out var session);
+    if (session == null) return Results.NotFound();
+    if (session.PaymentRequired && !session.PaymentDone) return Results.BadRequest(new { error = "payment_required" });
+
+    var sub = req.Subdomain.Trim().ToLowerInvariant();
+    if (await db.Stores.AnyAsync(s => s.Subdomain == sub, ct)) return Results.Conflict(new { error = "subdomain_taken" });
+
+    session.StoreName = req.StoreName.Trim();
+    session.Subdomain = sub;
+    session.Status = OnboardingMemoryStatus.StoreSetup;
+    session.UpdatedAt = DateTimeOffset.UtcNow;
+    return Results.Ok(new { storeName = session.StoreName, subdomain = session.Subdomain });
+});
+
+api.MapPost("/onboarding/complete", async (AppDbContext db, SessionOnlyRequest req, ITokenService tokenService, HttpContext httpContext, CancellationToken ct) =>
+{
+    onboardingSessions.TryGetValue(req.SessionId, out var session);
+    if (session == null) return Results.NotFound();
+    if (session.Status < OnboardingMemoryStatus.StoreSetup) return Results.BadRequest(new { error = "store_not_setup" });
+
+    var existingUser = await db.Users.FirstOrDefaultAsync(x => x.Email == session.Email, ct);
+    if (existingUser != null) return Results.Conflict(new { error = "email_exists" });
+
+    var user = new User
+    {
+        Email = session.Email,
+        PasswordHash = session.PasswordHash,
+        CreatedAt = DateTimeOffset.UtcNow,
+        UpdatedAt = DateTimeOffset.UtcNow
+    };
+    db.Users.Add(user);
+
+    var merchant = new Merchant
+    {
+        Name = $"{session.Name}'s Merchant",
+        Status = MerchantStatus.Trial,
+        CreatedAt = DateTimeOffset.UtcNow,
+        UpdatedAt = DateTimeOffset.UtcNow
+    };
+    db.Merchants.Add(merchant);
+
+    var store = new Store
+    {
+        Merchant = merchant,
+        Name = session.StoreName ?? "My Store",
+        Subdomain = session.Subdomain,
+        Status = StoreStatus.Active,
+        CreatedAt = DateTimeOffset.UtcNow,
+        UpdatedAt = DateTimeOffset.UtcNow
+    };
+    db.Stores.Add(store);
+
+    var role = new StoreUserRole
+    {
+        Store = store,
+        User = user,
+        Role = StoreRole.Owner
+    };
+    db.StoreUserRoles.Add(role);
+
+    var selectedPlan = await db.BillingPlans.FirstOrDefaultAsync(x => x.Code == session.PlanCode && x.IsActive, ct);
+    if (selectedPlan != null)
+    {
+        db.MerchantSubscriptions.Add(new MerchantSubscription
+        {
+            Merchant = merchant,
+            Plan = selectedPlan,
+            StartedAt = DateTimeOffset.UtcNow,
+            TrialEndsAt = DateTimeOffset.UtcNow.AddDays(selectedPlan.TrialDays)
+        });
+    }
+
+    await db.SaveChangesAsync(ct);
+    onboardingSessions.TryRemove(req.SessionId, out _);
+
+    var ip = httpContext.Connection.RemoteIpAddress?.ToString();
+    var ua = httpContext.Request.Headers.UserAgent.ToString();
+    var (access, refresh, _, _) = await tokenService.IssueAsync(user, scope: null, clientIp: ip, userAgent: ua, ct);
+    return Results.Ok(new
+    {
+        access_token = access,
+        refresh_token = refresh,
+        storeId = store.Id
+    });
+});
 
 app.Run();

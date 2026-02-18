@@ -83,7 +83,7 @@ const Navbar = () => {
             <Link to="/auth/login">
               <Button variant="ghost" data-testid="login-btn">Log in</Button>
             </Link>
-            <Link to="/auth/register">
+            <Link to="/onboarding">
               <Button className="rounded-full bg-blue-600 hover:bg-blue-700" data-testid="get-started-btn">
                 Get Started Free
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -124,7 +124,7 @@ const Navbar = () => {
                 <Link to="/auth/login" className="flex-1">
                   <Button variant="outline" className="w-full">Log in</Button>
                 </Link>
-                <Link to="/auth/register" className="flex-1">
+                <Link to="/onboarding" className="flex-1">
                   <Button className="w-full bg-blue-600 hover:bg-blue-700">Get Started</Button>
                 </Link>
               </div>
@@ -165,7 +165,7 @@ const HeroSection = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12 animate-fade-in stagger-2">
-              <Link to="/auth/register">
+              <Link to="/onboarding">
                 <Button size="lg" className="rounded-full bg-blue-600 hover:bg-blue-700 text-base px-8 h-12 w-full sm:w-auto" data-testid="hero-cta-primary">
                   Start Selling Free
                   <ArrowRight className="w-5 h-5 ml-2" />
@@ -464,6 +464,7 @@ const PricingSection = () => {
                   ))}
                 </ul>
 
+                <Link to={`/onboarding?plan=${encodeURIComponent(plan.id === "basic" ? "free" : plan.id)}`}>
                 <Button
                   className={`w-full rounded-full ${
                     plan.popular
@@ -475,6 +476,7 @@ const PricingSection = () => {
                   {plan.cta}
                   <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
+                </Link>
               </CardContent>
             </Card>
           ))}
@@ -598,7 +600,7 @@ const CTASection = () => {
           Set up your store in minutes, not days.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to="/auth/register">
+          <Link to="/onboarding">
             <Button
               size="lg"
               className="rounded-full bg-white text-blue-600 hover:bg-blue-50 text-base px-8 h-12"

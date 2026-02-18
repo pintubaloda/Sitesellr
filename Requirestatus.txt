@@ -2,10 +2,10 @@ Sitesellr Requirement Status
 Updated: 2026-02-18 (local)
 
 Module	Status	What's Done	What's Pending / Partial
-Onboarding Wizard UI	Developed	Final pass done for a more compact/professional onboarding look: same Sitesellr logo style (icon + wordmark), tighter spacing, cleaner typography, balanced split layout, and preserved 5-step wizard flow.	Need one browser screenshot QA pass from your target resolution/zoom for tiny 10-20px adjustments.
-Onboarding Flow Logic	Developed	Flow remains exact: Register -> Verify Email+Mobile OTP -> Choose Plan -> Payment(if paid) -> Setup Store -> Activate and redirect to admin.	Payment stage still placeholder confirmation (real gateway not integrated).
-RBAC + Tenancy	Developed	Two-layer RBAC and tenant guards remain active from prior updates.	Audit logs + step-up auth for high-risk actions are pending.
+Onboarding Wizard UI	Developed	Added missing header menu (Features/Modules/Pricing/Resources) on onboarding right header and applied 10-20px micro-spacing/font/button/input refinements for closer visual match and more professional compact appearance.	One final live screenshot check can still be done for exact device/browser rendering differences.
+Onboarding Flow Logic	Developed	Flow unchanged and correct: Register -> Verify OTP(email+mobile) -> Choose Plan -> Payment(if paid) -> Setup Store -> Activate -> redirect admin.	Real payment gateway integration still pending.
+RBAC + Tenancy	Developed	Two-layer RBAC and tenancy guard updates remain active from previous commits.	Audit logs + step-up auth for high-risk actions pending.
 
 Git state
-- Last pushed commit: 0eca3c3
-- Current compact/professional onboarding UI pass is local and pending push.
+- Last pushed commit: 0254dd7
+- Current header menu + micro-adjustment pass is local and pending push.

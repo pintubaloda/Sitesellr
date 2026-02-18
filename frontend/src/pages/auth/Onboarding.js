@@ -158,14 +158,20 @@ export const Onboarding = () => {
       </aside>
 
       <main className="flex-1 flex flex-col bg-white">
-        <div className="flex items-center justify-between p-6">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
           <Link to="/" className="flex items-center gap-2 lg:hidden">
             <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
               <Store className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold text-slate-900">Sitesellr</span>
           </Link>
-          <div className="flex items-center gap-4 ml-auto">
+          <nav className="hidden xl:flex items-center gap-8 text-[15px] text-slate-600">
+            <Link to="/" className="hover:text-slate-900">Features</Link>
+            <Link to="/" className="hover:text-slate-900">Modules</Link>
+            <Link to="/" className="hover:text-slate-900">Pricing</Link>
+            <Link to="/" className="hover:text-slate-900">Resources</Link>
+          </nav>
+          <div className="flex items-center gap-4 ml-auto xl:ml-8">
             <span className="text-sm text-slate-500">Already have an account?</span>
             <Link to="/auth/login">
               <Button variant="outline" size="sm" className="rounded-full">Log in</Button>
@@ -175,9 +181,9 @@ export const Onboarding = () => {
 
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-xl">
-            <div className="mb-8">
-              <h2 className="text-6xl font-bold text-slate-900 mb-2">Create your account</h2>
-              <p className="text-[31px] text-slate-500">Enter your details to get started</p>
+            <div className="mb-7">
+              <h2 className="text-[68px] leading-[1.02] font-bold text-slate-900 mb-2">Create your account</h2>
+              <p className="text-[28px] text-slate-500">Enter your details to get started</p>
             </div>
 
             <form
@@ -185,25 +191,25 @@ export const Onboarding = () => {
                 e.preventDefault();
                 runStep();
               }}
-              className="space-y-5"
+              className="space-y-[18px]"
             >
               {step === "register" && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div>
                     <Label className="text-[20px] font-semibold text-slate-700">Name</Label>
-                    <Input className="mt-2 h-12 rounded-xl" value={form.name} onChange={(e) => setField("name", e.target.value)} />
+                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.name} onChange={(e) => setField("name", e.target.value)} />
                   </div>
                   <div>
                     <Label className="text-[20px] font-semibold text-slate-700">Email Address</Label>
-                    <Input className="mt-2 h-12 rounded-xl" value={form.email} onChange={(e) => setField("email", e.target.value)} />
+                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.email} onChange={(e) => setField("email", e.target.value)} />
                   </div>
                   <div>
                     <Label className="text-[20px] font-semibold text-slate-700">Mobile Number</Label>
-                    <Input className="mt-2 h-12 rounded-xl" value={form.mobile} onChange={(e) => setField("mobile", e.target.value)} />
+                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.mobile} onChange={(e) => setField("mobile", e.target.value)} />
                   </div>
                   <div>
                     <Label className="text-[20px] font-semibold text-slate-700">Password</Label>
-                    <Input className="mt-2 h-12 rounded-xl" type="password" value={form.password} onChange={(e) => setField("password", e.target.value)} />
+                    <Input className="mt-1.5 h-[54px] rounded-xl" type="password" value={form.password} onChange={(e) => setField("password", e.target.value)} />
                   </div>
                   <label className="flex items-start gap-2 text-sm text-slate-600">
                     <input className="mt-1" type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />
@@ -219,11 +225,11 @@ export const Onboarding = () => {
                   </div>
                   <div>
                     <Label className="text-[20px] font-semibold text-slate-700">Email OTP</Label>
-                    <Input className="mt-2 h-12 rounded-xl" value={form.emailOtp} onChange={(e) => setField("emailOtp", e.target.value)} />
+                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.emailOtp} onChange={(e) => setField("emailOtp", e.target.value)} />
                   </div>
                   <div>
                     <Label className="text-[20px] font-semibold text-slate-700">Mobile OTP</Label>
-                    <Input className="mt-2 h-12 rounded-xl" value={form.mobileOtp} onChange={(e) => setField("mobileOtp", e.target.value)} />
+                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.mobileOtp} onChange={(e) => setField("mobileOtp", e.target.value)} />
                   </div>
                 </div>
               )}
@@ -255,18 +261,18 @@ export const Onboarding = () => {
                 <div className="space-y-4">
                   <div>
                     <Label className="text-[20px] font-semibold text-slate-700">Store Name</Label>
-                    <Input className="mt-2 h-12 rounded-xl" value={form.storeName} onChange={(e) => setField("storeName", e.target.value)} />
+                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.storeName} onChange={(e) => setField("storeName", e.target.value)} />
                   </div>
                   <div>
                     <Label className="text-[20px] font-semibold text-slate-700">Subdomain</Label>
-                    <Input className="mt-2 h-12 rounded-xl" value={form.subdomain} onChange={(e) => setField("subdomain", e.target.value.toLowerCase())} />
+                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.subdomain} onChange={(e) => setField("subdomain", e.target.value.toLowerCase())} />
                   </div>
                 </div>
               )}
 
               {message ? <p className="text-sm text-red-600">{message}</p> : null}
 
-              <Button className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-base" disabled={loading} type="submit">
+              <Button className="w-full h-[54px] rounded-xl bg-blue-600 hover:bg-blue-700 text-[30px] font-medium" disabled={loading} type="submit">
                 <span className="flex items-center gap-2">
                   {loading ? "Please wait..." : step === "store" ? "Activate Store" : "Continue"}
                   {!loading ? <ArrowRight className="w-4 h-4" /> : null}

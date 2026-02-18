@@ -173,3 +173,15 @@ Update Entry: 2026-02-18 (Visual canvas foundation: validation + versions + undo
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Update Entry: 2026-02-18 (WYSIWYG deep nested canvas iteration)
+- Enhanced Store Builder canvas with recursive render and deep nested drag targets
+- Added node identity normalization (`id`) and tree-based reparent drag/drop flow
+- Added advanced inspector panel fields for node style/settings and JSON editor
+- Added deeper undo/redo snapshot handling for tree edits
+- Files updated:
+  - frontend/src/pages/admin/StoreBuilder.js
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

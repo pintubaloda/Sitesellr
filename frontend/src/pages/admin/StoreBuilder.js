@@ -54,6 +54,29 @@ const parseJsonArray = (value, fallback) => {
   }
 };
 
+const cloneDeep = (value) => JSON.parse(JSON.stringify(value));
+const newNodeId = () => `node_${Math.random().toString(36).slice(2, 10)}`;
+const normalizeNodes = (nodes = []) =>
+  (Array.isArray(nodes) ? nodes : []).map((n) => ({
+    id: n.id || newNodeId(),
+    type: n.type || "block",
+    title: n.title || n.type || "Block",
+    settings: n.settings || {},
+    children: normalizeNodes(n.children || []),
+  }));
+
+const walkNodes = (nodes, cb) =>
+  nodes.map((n) => ({ ...cb(n), children: walkNodes(n.children || [], cb) }));
+
+const findNodeByIdInTree = (nodes, id) => {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    const child = findNodeByIdInTree(node.children || [], id);
+    if (child) return child;
+  }
+  return null;
+};
+
 const ThemeCard = ({ theme, isActive, onSelect }) => {
   const blocked = !theme.planAllowed;
   return (
@@ -121,7 +144,7 @@ export const StoreBuilder = () => {
     catalogMode: "retail",
     catalogVisibilityJson: "[]",
   });
-  const [sections, setSections] = useState(FALLBACK_SECTIONS);
+  const [sections, setSections] = useState(normalizeNodes(FALLBACK_SECTIONS));
   const [pastSections, setPastSections] = useState([]);
   const [futureSections, setFutureSections] = useState([]);
   const [layoutVersions, setLayoutVersions] = useState([]);
@@ -131,10 +154,13 @@ export const StoreBuilder = () => {
   const [editingPageId, setEditingPageId] = useState("");
   const [previewDevice, setPreviewDevice] = useState("desktop");
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(0);
+  const [selectedNodeId, setSelectedNodeId] = useState("");
+  const [draggingNodeId, setDraggingNodeId] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
   const activeTheme = useMemo(() => themes.find((x) => x.id === activeThemeId) || null, [themes, activeThemeId]);
+  const selectedNode = useMemo(() => findNodeByIdInTree(sections, selectedNodeId), [sections, selectedNodeId]);
 
   const loadData = async () => {
     if (!storeId) return;
@@ -165,7 +191,9 @@ export const StoreBuilder = () => {
         catalogMode: settingsRes.data?.catalogMode || "retail",
         catalogVisibilityJson: settingsRes.data?.catalogVisibilityJson || "[]",
       });
-      setSections(parseJsonArray(layoutRes.data?.sectionsJson, FALLBACK_SECTIONS));
+      const normalized = normalizeNodes(parseJsonArray(layoutRes.data?.sectionsJson, FALLBACK_SECTIONS));
+      setSections(normalized);
+      setSelectedNodeId(normalized[0]?.id || "");
       setMenuItems(parseJsonArray(navRes.data?.itemsJson, FALLBACK_MENU));
       setPages(Array.isArray(pagesRes.data) ? pagesRes.data : []);
       setLayoutVersions(Array.isArray(versionsRes.data) ? versionsRes.data : []);
@@ -179,6 +207,36 @@ export const StoreBuilder = () => {
   useEffect(() => {
     loadData();
   }, [storeId]);
+
+  const recordSectionsHistory = () => {
+    setPastSections((p) => [...p, cloneDeep(sections)]);
+    setFutureSections([]);
+  };
+
+  const updateNodeById = (nodes, id, updater) =>
+    nodes.map((n) => (n.id === id ? updater(n) : { ...n, children: updateNodeById(n.children || [], id, updater) }));
+
+  const removeNodeById = (nodes, id) => {
+    let removed = null;
+    const next = [];
+    for (const n of nodes) {
+      if (n.id === id) {
+        removed = n;
+        continue;
+      }
+      const childResult = removeNodeById(n.children || [], id);
+      if (childResult.removed) removed = childResult.removed;
+      next.push({ ...n, children: childResult.nodes });
+    }
+    return { nodes: next, removed };
+  };
+
+  const addChildToNode = (nodes, parentId, childNode) =>
+    nodes.map((n) =>
+      n.id === parentId
+        ? { ...n, children: [...(n.children || []), childNode] }
+        : { ...n, children: addChildToNode(n.children || [], parentId, childNode) }
+    );
 
   const applyTheme = async (themeId) => {
     if (!storeId || !themeId) return;
@@ -204,24 +262,24 @@ export const StoreBuilder = () => {
   };
 
   const addSection = () => {
-    setPastSections((p) => [...p, sections]);
-    setFutureSections([]);
-    setSections((prev) => [...prev, { type: "custom", title: `Section ${prev.length + 1}`, children: [] }]);
+    recordSectionsHistory();
+    const node = { id: newNodeId(), type: "custom", title: `Section ${sections.length + 1}`, settings: {}, children: [] };
+    setSections((prev) => [...prev, node]);
     setSelectedSectionIndex(sections.length);
+    setSelectedNodeId(node.id);
   };
 
   const removeSection = (idx) => {
-    setPastSections((p) => [...p, sections]);
-    setFutureSections([]);
+    recordSectionsHistory();
     setSections((prev) => prev.filter((_, i) => i !== idx));
     setSelectedSectionIndex(0);
+    setSelectedNodeId("");
   };
 
   const moveSection = (idx, direction) => {
     const target = idx + direction;
     if (target < 0 || target >= sections.length) return;
-    setPastSections((p) => [...p, sections]);
-    setFutureSections([]);
+    recordSectionsHistory();
     const next = [...sections];
     const temp = next[idx];
     next[idx] = next[target];
@@ -231,8 +289,7 @@ export const StoreBuilder = () => {
   };
 
   const patchSection = (idx, patch) => {
-    setPastSections((p) => [...p, sections]);
-    setFutureSections([]);
+    recordSectionsHistory();
     setSections((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
   };
 
@@ -240,7 +297,7 @@ export const StoreBuilder = () => {
     if (pastSections.length === 0) return;
     const prev = pastSections[pastSections.length - 1];
     setPastSections((p) => p.slice(0, -1));
-    setFutureSections((f) => [sections, ...f]);
+    setFutureSections((f) => [cloneDeep(sections), ...f]);
     setSections(prev);
   };
 
@@ -248,20 +305,36 @@ export const StoreBuilder = () => {
     if (futureSections.length === 0) return;
     const next = futureSections[0];
     setFutureSections((f) => f.slice(1));
-    setPastSections((p) => [...p, sections]);
+    setPastSections((p) => [...p, cloneDeep(sections)]);
     setSections(next);
   };
 
   const addChildBlock = (idx) => {
-    setPastSections((p) => [...p, sections]);
-    setFutureSections([]);
-    setSections((prev) =>
-      prev.map((s, i) =>
-        i === idx
-          ? { ...s, children: [...(Array.isArray(s.children) ? s.children : []), { type: "block", title: "Nested Block" }] }
-          : s
-      )
-    );
+    recordSectionsHistory();
+    const childNode = { id: newNodeId(), type: "block", title: "Nested Block", settings: {}, children: [] };
+    const targetId = sections[idx]?.id;
+    if (!targetId) return;
+    setSections((prev) => addChildToNode(prev, targetId, childNode));
+    setSelectedNodeId(childNode.id);
+  };
+
+  const patchSelectedNode = (patch) => {
+    if (!selectedNodeId) return;
+    recordSectionsHistory();
+    setSections((prev) => updateNodeById(prev, selectedNodeId, (node) => ({ ...node, ...patch })));
+  };
+
+  const moveNodeAsChild = (sourceId, targetId) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const targetNode = findNodeByIdInTree(sections, targetId);
+    if (!targetNode) return;
+    const isInvalidDrop = findNodeByIdInTree(targetNode.children || [], sourceId);
+    if (isInvalidDrop) return;
+    recordSectionsHistory();
+    const removed = removeNodeById(sections, sourceId);
+    if (!removed.removed) return;
+    const inserted = addChildToNode(removed.nodes, targetId, removed.removed);
+    setSections(inserted);
   };
 
   const saveLayout = async () => {
@@ -386,6 +459,35 @@ export const StoreBuilder = () => {
     }
   };
 
+  const renderCanvasNode = (node, depth = 0) => (
+    <div
+      key={node.id}
+      className={`rounded-lg border p-3 ${selectedNodeId === node.id ? "border-blue-500 bg-blue-50/40 dark:bg-blue-900/10" : "border-slate-200 dark:border-slate-700"} ${draggingNodeId === node.id ? "opacity-60" : ""}`}
+      style={{ marginLeft: `${Math.min(depth, 6) * 14}px` }}
+      draggable
+      onDragStart={() => setDraggingNodeId(node.id)}
+      onDragEnd={() => setDraggingNodeId("")}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        const sourceId = draggingNodeId;
+        setDraggingNodeId("");
+        moveNodeAsChild(sourceId, node.id);
+      }}
+      onClick={() => setSelectedNodeId(node.id)}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-medium">{node.title || node.type}</div>
+        <div className="text-xs text-slate-500">{node.type}</div>
+      </div>
+      {(node.children || []).length > 0 ? (
+        <div className="mt-2 space-y-2">
+          {node.children.map((child) => renderCanvasNode(child, depth + 1))}
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className="space-y-6" data-testid="store-builder-page">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -496,7 +598,7 @@ export const StoreBuilder = () => {
                   <Button variant="outline" onClick={redoSections} disabled={futureSections.length === 0}><Redo2 className="w-4 h-4 mr-2" />Redo</Button>
                 </div>
                 {sections.map((section, idx) => (
-                  <div key={`${section.type}-${idx}`} className={`flex items-center gap-3 p-3 border rounded-lg ${idx === selectedSectionIndex ? "border-blue-500" : "border-slate-200 dark:border-slate-700"}`} onClick={() => setSelectedSectionIndex(idx)}>
+                  <div key={`${section.type}-${idx}`} className={`flex items-center gap-3 p-3 border rounded-lg ${idx === selectedSectionIndex ? "border-blue-500" : "border-slate-200 dark:border-slate-700"}`} onClick={() => { setSelectedSectionIndex(idx); setSelectedNodeId(section.id); }}>
                     <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                       {section.type === "hero" ? <Image className="w-4 h-4 text-slate-500" /> : section.type === "products" ? <Layers className="w-4 h-4 text-slate-500" /> : <Type className="w-4 h-4 text-slate-500" />}
                     </div>
@@ -509,22 +611,26 @@ export const StoreBuilder = () => {
                   </div>
                 ))}
                 <Button variant="outline" className="w-full rounded-xl" onClick={addSection}><Plus className="w-4 h-4 mr-2" />Add Section</Button>
-                {sections[selectedSectionIndex] ? (
+                {selectedNode ? (
                   <div className="space-y-2 p-3 border rounded-lg">
-                    <Label>Selected Section Title</Label>
-                    <Input value={sections[selectedSectionIndex]?.title || ""} onChange={(e) => patchSection(selectedSectionIndex, { title: e.target.value })} />
-                    <Label>Section Type</Label>
-                    <Input value={sections[selectedSectionIndex]?.type || ""} onChange={(e) => patchSection(selectedSectionIndex, { type: e.target.value })} />
+                    <Label>Inspector: Title</Label>
+                    <Input value={selectedNode?.title || ""} onChange={(e) => patchSelectedNode({ title: e.target.value })} />
+                    <Label>Inspector: Type</Label>
+                    <Input value={selectedNode?.type || ""} onChange={(e) => patchSelectedNode({ type: e.target.value })} />
+                    <Label>Inspector: CSS Class</Label>
+                    <Input value={selectedNode?.settings?.cssClass || ""} onChange={(e) => patchSelectedNode({ settings: { ...(selectedNode?.settings || {}), cssClass: e.target.value } })} />
+                    <Label>Inspector: Background</Label>
+                    <Input value={selectedNode?.settings?.background || ""} onChange={(e) => patchSelectedNode({ settings: { ...(selectedNode?.settings || {}), background: e.target.value } })} />
                     <Label>Nested Blocks</Label>
                     <div className="space-y-1">
-                      {(sections[selectedSectionIndex]?.children || []).map((c, i) => (
+                      {(selectedNode?.children || []).map((c, i) => (
                         <div key={`${c.type}-${i}`} className="text-xs p-2 rounded border bg-slate-50 dark:bg-slate-900">{c.title || c.type}</div>
                       ))}
                     </div>
                     <Label>Widget Settings JSON</Label>
-                    <Textarea rows={3} value={JSON.stringify(sections[selectedSectionIndex]?.settings || {}, null, 2)} onChange={(e) => {
+                    <Textarea rows={3} value={JSON.stringify(selectedNode?.settings || {}, null, 2)} onChange={(e) => {
                       try {
-                        patchSection(selectedSectionIndex, { settings: JSON.parse(e.target.value || "{}") });
+                        patchSelectedNode({ settings: JSON.parse(e.target.value || "{}") });
                       } catch {
                         // keep editor responsive while JSON is invalid
                       }
@@ -561,15 +667,8 @@ export const StoreBuilder = () => {
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className={`mx-auto bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden transition-all ${previewDevice === "desktop" ? "w-full" : previewDevice === "tablet" ? "w-[768px] max-w-full" : "w-[375px] max-w-full"}`}>
-                    <div className="h-96 p-6 space-y-3">
-                      {sections.map((section, idx) => (
-                        <div key={`${section.type}-preview-${idx}`} className="rounded-lg bg-white/70 dark:bg-slate-700/60 px-4 py-2 text-sm text-slate-600 dark:text-slate-200">
-                          <div>{section.title || section.type}</div>
-                          {(section.children || []).map((c, i) => (
-                            <div key={`${c.type}-child-${i}`} className="ml-4 mt-1 text-xs text-slate-500">- {c.title || c.type}</div>
-                          ))}
-                        </div>
-                      ))}
+                    <div className="h-96 overflow-auto p-6 space-y-3" onDragOver={(e) => e.preventDefault()}>
+                      {sections.map((section) => renderCanvasNode(section, 0))}
                     </div>
                   </div>
                 </CardContent>

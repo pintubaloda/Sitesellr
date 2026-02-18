@@ -95,3 +95,11 @@ Updated: 2026-02-18
 Module Name	Developed	Partial Developed	Need To Develop
 Visual Drag-Drop Canvas	Added layout schema validation API, version history table/API, publish + rollback APIs, Store Builder undo/redo timeline, nested block (children) editing in section tree, responsive preview now renders nested blocks	WYSIWYG freeform drag surface is still simplified (list/tree interactions), nesting depth tooling basic, no collaborative editing	Full canvas interaction engine with true drag-n-drop between containers, deep nesting UX, advanced inspector panels, multi-user editing controls
 Versioning & Governance	Draft versions auto-created on save, publish/rollback wired to version IDs, version list shown in UI	No release notes per version, no lock/freeze workflow, no scheduled publish	Full version governance (approval gates, scheduled publish, diff viewer, immutable release snapshots)
+
+---
+WYSIWYG Canvas Deep-Nesting Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Visual Drag-Drop Canvas	Added freeform nested canvas rendering with recursive drop targets, node-level drag/reparent as child, advanced inspector fields (type/title/style settings), and JSON-backed node identity model	Reparent currently supports drop-as-child (no before/after drop zones yet), no multi-select/group operations	Pixel-perfect freeform absolute positioning mode, container grid snapping, full drag handles by breakpoint
+Editor UX	Undo/redo timeline maintained with deep snapshots; selected-node inspector edits settings JSON + style fields in real time	No timeline scrubber UI and no collaborative conflict resolution	Operational transform/CRDT collaboration, timeline diff viewer, visual history playback

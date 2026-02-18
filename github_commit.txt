@@ -83,3 +83,33 @@ Update Entry: 2026-02-18 (Store Builder & Customization Expansion)
   - github_commit.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Update Entry: 2026-02-18 (Custom Domain + Free SSL utility)
+- Added domain SSL model and persistence: `StoreDomain`
+- Added SSL provider abstraction + free SSL shell provider:
+  - `backend-dotnet/Services/SslService.cs`
+  - `ISslProvider`, `ISslProviderFactory`, `LetsEncryptShellProvider`
+- Added store domain/SSL APIs:
+  - `GET/POST /api/stores/{storeId}/domains`
+  - `POST /api/stores/{storeId}/domains/{domainId}/verify`
+  - `POST /api/stores/{storeId}/domains/{domainId}/issue-ssl`
+- Added admin UI for domain + SSL operations: `/admin/domains-ssl`
+- Added migration: `backend-dotnet/Migrations/20260218175500_StoreDomainsFreeSsl.cs`
+- Runtime startup SQL updated for `store_domains` table/indexes
+- Note: actual Let's Encrypt issuance is command-driven and requires infra env setup:
+  - `SSL_ISSUER_COMMAND` (example acme/certbot command template with `{domain}` `{email}`)
+  - `SSL_CONTACT_EMAIL`
+- Files updated:
+  - backend-dotnet/Models/Storefront.cs
+  - backend-dotnet/Data/AppDbContext.cs
+  - backend-dotnet/Services/SslService.cs
+  - backend-dotnet/Controllers/DomainSslController.cs
+  - backend-dotnet/Migrations/20260218175500_StoreDomainsFreeSsl.cs
+  - backend-dotnet/Program.cs
+  - frontend/src/pages/admin/DomainsSsl.js
+  - frontend/src/App.js
+  - frontend/src/components/layouts/DashboardLayout.js
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

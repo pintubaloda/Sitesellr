@@ -25,6 +25,7 @@ import AuditLogs from "./pages/admin/AuditLogs";
 import MerchantOps from "./pages/admin/MerchantOps";
 import PlatformThemes from "./pages/admin/PlatformThemes";
 import StorefrontPublic from "./pages/storefront/StorefrontPublic";
+import DomainsSsl from "./pages/admin/DomainsSsl";
 import { getStoredAccessToken } from "./lib/session";
 
 const ProtectedRoute = ({ children }) => {
@@ -72,6 +73,7 @@ function App() {
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="merchant-ops" element={<MerchantOps />} />
             <Route path="platform-themes" element={<PlatformThemes />} />
+            <Route path="domains-ssl" element={<DomainsSsl />} />
           </Route>
 
           {/* Catch all - redirect to home */}

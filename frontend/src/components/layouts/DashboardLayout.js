@@ -40,6 +40,7 @@ import {
   ClipboardList,
   Network,
   Brush,
+  Shield,
   ChevronLeft,
   Menu,
   Moon,
@@ -120,6 +121,11 @@ const sidebarItems = [
     title: "Platform Themes",
     icon: Brush,
     path: "/admin/platform-themes",
+  },
+  {
+    title: "Domains & SSL",
+    icon: Shield,
+    path: "/admin/domains-ssl",
   },
 ];
 

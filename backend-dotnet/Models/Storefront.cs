@@ -68,6 +68,27 @@ public class StoreMediaAsset
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public class StoreDomain
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    [Required, MaxLength(255)]
+    public string Hostname { get; set; } = string.Empty;
+    [MaxLength(120)]
+    public string VerificationToken { get; set; } = string.Empty;
+    public bool IsVerified { get; set; }
+    [MaxLength(40)]
+    public string SslProvider { get; set; } = "letsencrypt";
+    [MaxLength(30)]
+    public string SslStatus { get; set; } = "pending";
+    [MaxLength(500)]
+    public string? LastError { get; set; }
+    public DateTimeOffset? SslExpiresAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public class StoreHomepageLayout
 {
     public Guid Id { get; set; } = Guid.NewGuid();

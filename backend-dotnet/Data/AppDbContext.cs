@@ -44,6 +44,7 @@ public class AppDbContext : DbContext
     public DbSet<StoreNavigationMenu> StoreNavigationMenus => Set<StoreNavigationMenu>();
     public DbSet<StoreStaticPage> StoreStaticPages => Set<StoreStaticPage>();
     public DbSet<StoreMediaAsset> StoreMediaAssets => Set<StoreMediaAsset>();
+    public DbSet<StoreDomain> StoreDomains => Set<StoreDomain>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -438,6 +439,23 @@ public class AppDbContext : DbContext
             b.Property(x => x.Kind).HasMaxLength(80);
             b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(x => new { x.StoreId, x.Kind });
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StoreDomain>(b =>
+        {
+            b.ToTable("store_domains");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Hostname).IsRequired().HasMaxLength(255);
+            b.Property(x => x.VerificationToken).HasMaxLength(120);
+            b.Property(x => x.SslProvider).HasMaxLength(40);
+            b.Property(x => x.SslStatus).HasMaxLength(30);
+            b.Property(x => x.LastError).HasMaxLength(500);
+            b.Property(x => x.SslExpiresAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => x.Hostname).IsUnique();
+            b.HasIndex(x => new { x.StoreId, x.IsVerified });
             b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
         });
 

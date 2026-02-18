@@ -87,6 +87,8 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHttpClient<ITurnstileService, TurnstileService>();
 builder.Services.AddScoped<IWebAuthnService, WebAuthnService>();
 builder.Services.AddScoped<ITenancyResolver, TenancyResolver>();
+builder.Services.AddSingleton<ISslProvider, LetsEncryptShellProvider>();
+builder.Services.AddSingleton<ISslProviderFactory, SslProviderFactory>();
 builder.Services.AddSingleton<IPaymentPlugin, DummyPaymentPlugin>();
 builder.Services.AddSingleton<IPaymentPluginFactory, PaymentPluginFactory>();
 builder.Services.AddSingleton<IFido2>(sp =>
@@ -345,6 +347,22 @@ CREATE TABLE IF NOT EXISTS store_media_assets (
   ""CreatedAt"" timestamp with time zone NOT NULL
 );");
     await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_store_media_assets_StoreId_Kind ON store_media_assets (""StoreId"", ""Kind"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS store_domains (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""Hostname"" character varying(255) NOT NULL,
+  ""VerificationToken"" character varying(120) NOT NULL,
+  ""IsVerified"" boolean NOT NULL,
+  ""SslProvider"" character varying(40) NOT NULL,
+  ""SslStatus"" character varying(30) NOT NULL,
+  ""LastError"" character varying(500) NULL,
+  ""SslExpiresAt"" timestamp with time zone NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL,
+  ""UpdatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_domains_Hostname ON store_domains (""Hostname"");");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_store_domains_StoreId_IsVerified ON store_domains (""StoreId"", ""IsVerified"");");
 }
 
 var platformOwnerEmail = builder.Configuration["PLATFORM_OWNER_EMAIL"];

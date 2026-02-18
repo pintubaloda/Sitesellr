@@ -32,3 +32,12 @@ Security & Compliance	Opaque tokens, Turnstile verify wiring, rate-limit hooks, 
 Advanced / Competitive Features	Architecture allows future extensibility	No AI/multi-channel modules yet	AI assistants, smart pricing/fraud/catalog, WhatsApp/POS/marketplace channel connectors
 SaaS Business Engine	Billing plan/subscription base models + some admin endpoints	Usage metering and feature gating partial	Trial automation, usage limits, upgrade/downgrade, add-on monetization, subscription ops dashboard
 Technical Architecture	Backend .NET + PostgreSQL + React frontend wired; Docker/Render deployment files present	Read/write split, replication strategy, infra automation partial	Production cloud architecture (AWS/Azure), HA, observability, backups, scaling playbooks
+
+---
+Storefront CMS & Theme Engine Update
+Updated: 2026-02-18
+
+Module Name	Developed	Partial Developed	Need To Develop
+Storefront System (Retail + Wholesale)	Theme catalog API + store theme apply with plan eligibility checks; store design settings API (logo, favicon, header/footer/banner/design tokens); homepage layout API (sections JSON); navigation menu API; static pages CRUD API; Store Builder UI fully wired to real backend endpoints	Drag-and-drop behavior is section-list based (not full visual DnD canvas), media upload is URL-based for now, no public storefront renderer yet	Public storefront rendering engine, visual DnD editor, menu nesting UI, file asset upload pipeline/CDN, B2B mode controls (hide price/login-to-view/customer-specific catalog)
+Store Builder & Customization	Admin `/admin/store-builder` now works with real APIs for themes, customization, homepage sections, navigation, and static pages	Advanced theme live preview and granular widget setting forms are partial	Theme marketplace billing automation, advanced section widgets, reusable layout templates, localization controls
+Plugin / App Ecosystem	Theme catalog supports free/paid + allowed plan code gates at platform level	No platform owner UI for theme CRUD yet (API available)	Full app marketplace UX, install/uninstall lifecycle, plugin billing and review workflow

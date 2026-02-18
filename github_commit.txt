@@ -30,3 +30,27 @@ Update Entry: 2026-02-18 (Cumulative status format correction)
   - Requirestatus.txt
   - masterrequirement.txt
   - masterrequirement.docx
+
+Update Entry: 2026-02-18 (Storefront CMS + Theme Engine)
+- Added backend storefront domain models: theme catalog, store theme config, homepage layout, navigation menu, static pages
+- Added Storefront APIs under `/api/stores/{storeId}/storefront/*`:
+  - Theme list + apply with subscription plan gating for paid themes
+  - Design settings upsert (logo/fav/header/footer/banner/tokens)
+  - Homepage layout upsert (sections)
+  - Navigation upsert (menu items)
+  - Static pages CRUD (About/Contact/Policy/custom)
+- Added platform owner theme catalog endpoints: `/api/platform/themes` (list/create)
+- Added idempotent migration: `backend-dotnet/Migrations/20260218162000_StorefrontCmsThemeEngine.cs`
+- Wired admin UI `/admin/store-builder` to real APIs (replaced mock theme/pages/navigation behavior)
+- Added runtime seed for initial theme catalog if empty
+- Files updated:
+  - backend-dotnet/Models/Storefront.cs
+  - backend-dotnet/Data/AppDbContext.cs
+  - backend-dotnet/Controllers/StorefrontController.cs
+  - backend-dotnet/Migrations/20260218162000_StorefrontCmsThemeEngine.cs
+  - backend-dotnet/Program.cs
+  - frontend/src/pages/admin/StoreBuilder.js
+  - Requirestatus.txt
+  - github_commit.txt
+  - masterrequirement.txt
+  - masterrequirement.docx

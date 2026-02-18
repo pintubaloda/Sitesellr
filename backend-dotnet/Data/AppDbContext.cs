@@ -38,6 +38,11 @@ public class AppDbContext : DbContext
     public DbSet<FranchiseUnit> FranchiseUnits => Set<FranchiseUnit>();
     public DbSet<FranchiseStore> FranchiseStores => Set<FranchiseStore>();
     public DbSet<BackofficeAssignment> BackofficeAssignments => Set<BackofficeAssignment>();
+    public DbSet<ThemeCatalogItem> ThemeCatalogItems => Set<ThemeCatalogItem>();
+    public DbSet<StoreThemeConfig> StoreThemeConfigs => Set<StoreThemeConfig>();
+    public DbSet<StoreHomepageLayout> StoreHomepageLayouts => Set<StoreHomepageLayout>();
+    public DbSet<StoreNavigationMenu> StoreNavigationMenus => Set<StoreNavigationMenu>();
+    public DbSet<StoreStaticPage> StoreStaticPages => Set<StoreStaticPage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -352,6 +357,72 @@ public class AppDbContext : DbContext
             b.HasOne(x => x.Merchant).WithMany().HasForeignKey(x => x.MerchantId).OnDelete(DeleteBehavior.Cascade);
             b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             b.HasOne(x => x.StoreScope).WithMany().HasForeignKey(x => x.StoreScopeId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ThemeCatalogItem>(b =>
+        {
+            b.ToTable("theme_catalog_items");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(120);
+            b.Property(x => x.Slug).IsRequired().HasMaxLength(120);
+            b.Property(x => x.Category).HasMaxLength(80);
+            b.Property(x => x.Description).HasMaxLength(800);
+            b.Property(x => x.PreviewUrl).HasMaxLength(1000);
+            b.Property(x => x.Price).HasColumnType("numeric(18,2)");
+            b.Property(x => x.AllowedPlanCodesCsv).HasMaxLength(500);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => x.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<StoreThemeConfig>(b =>
+        {
+            b.ToTable("store_theme_configs");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.LogoUrl).HasMaxLength(1000);
+            b.Property(x => x.FaviconUrl).HasMaxLength(1000);
+            b.Property(x => x.HeaderJson).HasMaxLength(4000);
+            b.Property(x => x.FooterJson).HasMaxLength(4000);
+            b.Property(x => x.BannerJson).HasMaxLength(4000);
+            b.Property(x => x.DesignTokensJson).HasMaxLength(4000);
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => x.StoreId).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.ActiveTheme).WithMany().HasForeignKey(x => x.ActiveThemeId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<StoreHomepageLayout>(b =>
+        {
+            b.ToTable("store_homepage_layouts");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SectionsJson).HasMaxLength(4000);
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => x.StoreId).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StoreNavigationMenu>(b =>
+        {
+            b.ToTable("store_navigation_menus");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).HasMaxLength(120);
+            b.Property(x => x.ItemsJson).HasMaxLength(4000);
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.Name }).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StoreStaticPage>(b =>
+        {
+            b.ToTable("store_static_pages");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Title).IsRequired().HasMaxLength(160);
+            b.Property(x => x.Slug).IsRequired().HasMaxLength(200);
+            b.Property(x => x.Content).HasMaxLength(10000);
+            b.Property(x => x.SeoTitle).HasMaxLength(160);
+            b.Property(x => x.SeoDescription).HasMaxLength(400);
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.Slug }).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<AccessToken>(b =>

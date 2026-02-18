@@ -15,6 +15,9 @@ using Microsoft.AspNetCore.Antiforgery;
 using OtpNet;
 using Npgsql;
 using System.Collections.Concurrent;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
+using System.IO;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -110,6 +113,20 @@ builder.Services.AddAntiforgery(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("Sitesellr");
+var dataProtectionKeysPath = builder.Configuration["DATA_PROTECTION_KEYS_PATH"];
+if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+{
+    Directory.CreateDirectory(dataProtectionKeysPath);
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+}
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(Policies.PlatformOwner, policy =>
@@ -168,7 +185,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+app.UseForwardedHeaders();
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue("FORCE_HTTPS_REDIRECT", false))
+{
+    app.UseHttpsRedirection();
+}
 app.UseCors("ApiCorsPolicy");
 app.UseIpRateLimiting();
 app.UseTightSecurityHeaders();

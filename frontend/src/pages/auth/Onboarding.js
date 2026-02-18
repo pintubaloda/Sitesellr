@@ -123,12 +123,12 @@ export const Onboarding = ({ showHeaderMenu = true }) => {
               <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur">
                 <Store className="w-6 h-6" />
               </div>
-              <span className="text-2xl font-bold">Sitesellr</span>
+              <span className="text-xl font-bold">Sitesellr</span>
             </Link>
 
             <div className="mt-36">
-              <h1 className="text-5xl font-bold mb-4">Welcome back!</h1>
-              <p className="text-2xl text-blue-100 max-w-xl">Start your free trial in a few guided steps.</p>
+              <h1 className="text-4xl font-bold mb-3">Welcome back!</h1>
+              <p className="text-xl text-blue-100 max-w-xl">Start your free trial in a few guided steps.</p>
             </div>
 
             <div className="mt-10 rounded-3xl border border-white/20 bg-white/10 p-7 backdrop-blur-sm">
@@ -143,8 +143,8 @@ export const Onboarding = ({ showHeaderMenu = true }) => {
                         {idx + 1}
                       </div>
                       <div>
-                        <div className={`text-2xl leading-none ${active ? "font-semibold text-white" : "text-blue-100/90"}`}>{s.title}</div>
-                        <div className="mt-1 text-lg text-blue-100/75">{s.subtitle}</div>
+                        <div className={`text-xl leading-none ${active ? "font-semibold text-white" : "text-blue-100/90"}`}>{s.title}</div>
+                        <div className="mt-1 text-base text-blue-100/75">{s.subtitle}</div>
                       </div>
                     </div>
                   );
@@ -184,8 +184,8 @@ export const Onboarding = ({ showHeaderMenu = true }) => {
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-xl">
             <div className="mb-7">
-              <h2 className="text-[68px] leading-[1.02] font-bold text-slate-900 mb-2">Create your account</h2>
-              <p className="text-[28px] text-slate-500">Enter your details to get started</p>
+              <h2 className="text-[56px] leading-[1.05] font-bold text-slate-900 mb-2">Create your account</h2>
+              <p className="text-[22px] text-slate-500">Enter your details to get started</p>
             </div>
 
             <form
@@ -198,19 +198,19 @@ export const Onboarding = ({ showHeaderMenu = true }) => {
               {step === "register" && (
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-[20px] font-semibold text-slate-700">Name</Label>
+                    <Label className="text-[18px] font-semibold text-slate-700">Name</Label>
                     <Input className="mt-1.5 h-[54px] rounded-xl" value={form.name} onChange={(e) => setField("name", e.target.value)} />
                   </div>
                   <div>
-                    <Label className="text-[20px] font-semibold text-slate-700">Email Address</Label>
+                    <Label className="text-[18px] font-semibold text-slate-700">Email Address</Label>
                     <Input className="mt-1.5 h-[54px] rounded-xl" value={form.email} onChange={(e) => setField("email", e.target.value)} />
                   </div>
                   <div>
-                    <Label className="text-[20px] font-semibold text-slate-700">Mobile Number</Label>
+                    <Label className="text-[18px] font-semibold text-slate-700">Mobile Number</Label>
                     <Input className="mt-1.5 h-[54px] rounded-xl" value={form.mobile} onChange={(e) => setField("mobile", e.target.value)} />
                   </div>
                   <div>
-                    <Label className="text-[20px] font-semibold text-slate-700">Password</Label>
+                    <Label className="text-[18px] font-semibold text-slate-700">Password</Label>
                     <Input className="mt-1.5 h-[54px] rounded-xl" type="password" value={form.password} onChange={(e) => setField("password", e.target.value)} />
                   </div>
                   <label className="flex items-start gap-2 text-sm text-slate-600">
@@ -226,11 +226,11 @@ export const Onboarding = ({ showHeaderMenu = true }) => {
                     On-screen OTP (dev): Email OTP <b>{otpHints.emailOtp}</b>, Mobile OTP <b>{otpHints.mobileOtp}</b>
                   </div>
                   <div>
-                    <Label className="text-[20px] font-semibold text-slate-700">Email OTP</Label>
+                    <Label className="text-[18px] font-semibold text-slate-700">Email OTP</Label>
                     <Input className="mt-1.5 h-[54px] rounded-xl" value={form.emailOtp} onChange={(e) => setField("emailOtp", e.target.value)} />
                   </div>
                   <div>
-                    <Label className="text-[20px] font-semibold text-slate-700">Mobile OTP</Label>
+                    <Label className="text-[18px] font-semibold text-slate-700">Mobile OTP</Label>
                     <Input className="mt-1.5 h-[54px] rounded-xl" value={form.mobileOtp} onChange={(e) => setField("mobileOtp", e.target.value)} />
                   </div>
                 </div>
@@ -238,7 +238,7 @@ export const Onboarding = ({ showHeaderMenu = true }) => {
 
               {step === "plan" && (
                 <div className="space-y-3">
-                  <Label className="text-[20px] font-semibold text-slate-700">Choose Plan</Label>
+                  <Label className="text-[18px] font-semibold text-slate-700">Choose Plan</Label>
                   <Select value={form.planCode} onValueChange={(value) => setField("planCode", value)}>
                     <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -262,11 +262,11 @@ export const Onboarding = ({ showHeaderMenu = true }) => {
               {step === "store" && (
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-[20px] font-semibold text-slate-700">Store Name</Label>
+                    <Label className="text-[18px] font-semibold text-slate-700">Store Name</Label>
                     <Input className="mt-1.5 h-[54px] rounded-xl" value={form.storeName} onChange={(e) => setField("storeName", e.target.value)} />
                   </div>
                   <div>
-                    <Label className="text-[20px] font-semibold text-slate-700">Subdomain</Label>
+                    <Label className="text-[18px] font-semibold text-slate-700">Subdomain</Label>
                     <Input className="mt-1.5 h-[54px] rounded-xl" value={form.subdomain} onChange={(e) => setField("subdomain", e.target.value.toLowerCase())} />
                   </div>
                 </div>
@@ -274,7 +274,7 @@ export const Onboarding = ({ showHeaderMenu = true }) => {
 
               {message ? <p className="text-sm text-red-600">{message}</p> : null}
 
-              <Button className="w-full h-[54px] rounded-xl bg-blue-600 hover:bg-blue-700 text-[30px] font-medium" disabled={loading} type="submit">
+              <Button className="w-full h-[52px] rounded-xl bg-blue-600 hover:bg-blue-700 text-[22px] font-medium" disabled={loading} type="submit">
                 <span className="flex items-center gap-2">
                   {loading ? "Please wait..." : step === "store" ? "Activate Store" : "Continue"}
                   {!loading ? <ArrowRight className="w-4 h-4" /> : null}

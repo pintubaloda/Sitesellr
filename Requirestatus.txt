@@ -2,10 +2,9 @@ Sitesellr Requirement Status
 Updated: 2026-02-18 (local)
 
 Module	Status	What's Done	What's Pending / Partial
-Register Page Wizard	Developed	`/auth/register` now uses the onboarding wizard layout and flow (same color/font style as latest wizard pass), matching your requested 5-step experience on the register URL.	Can still fine-tune tiny spacing per your next screenshot if needed.
-Header Menu	Developed	Removed header menu on register wizard by disabling menu links for the register route while keeping clean auth header actions.	None.
-Onboarding Flow Logic	Developed	Flow unchanged: Register -> Verify OTP(email+mobile) -> Choose Plan -> Payment(if paid) -> Setup Store -> Activate -> redirect admin.	Real payment gateway integration still pending.
+Register Wizard Typography	Developed	Reduced oversized typography across `/auth/register` wizard (left hero, step rail, main title/subtitle, labels, and CTA button) for a more balanced professional scale.	If needed, we can reduce one more step after reviewing latest live screenshot.
+Onboarding Flow Logic	Developed	No logic change; full 5-step flow remains intact.	Real payment gateway integration still pending.
 
 Git state
-- Last pushed commit: 75bfc21
-- Current register wizard mapping + header-menu removal is local and pending push.
+- Last pushed commit: 11c9568
+- Current font-size reduction pass is local and pending push.

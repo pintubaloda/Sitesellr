@@ -9,12 +9,12 @@ Developed (latest working tree)
 - Turnstile widget integrated on Login/Register and enforced via backend verification.
 - Settings General save updates store via backend API.
 
-New in this update (Railway Docker fix)
-- Fixed backend Dockerfile build context issue for Railway service root `backend-dotnet`.
-- Updated Dockerfile COPY commands to use local project context:
-  - `COPY *.csproj ./`
+New in this update (Railway frontend Docker fix)
+- Fixed frontend Dockerfile build context issue for Railway service root `frontend`.
+- Updated Dockerfile COPY commands to use local context:
+  - `COPY package.json ./`
   - `COPY . ./`
-- This resolves error: `"/backend-dotnet": not found`.
+- This resolves error: `"/frontend/package.json": not found`.
 
 Pending / Partial
 - Store email/phone/address fields are currently UI-only placeholders (not persisted in current store model).
@@ -23,5 +23,5 @@ Pending / Partial
 - Full Shopify-level modules (theme marketplace, logistics integrations, plugin ecosystem, SaaS metering, etc.) remain pending.
 
 Git state
-- Last pushed commit: 8642aca
-- Current Railway Dockerfile fix is local and not pushed yet.
+- Last pushed commit: b90292a
+- Current frontend Dockerfile fix is local and not pushed yet.

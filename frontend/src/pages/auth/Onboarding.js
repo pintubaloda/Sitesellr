@@ -181,11 +181,11 @@ export const Onboarding = ({ showHeaderMenu = false }) => {
           </div>
         </div>
 
-        <div className="flex-1 flex items-center justify-center p-6">
+        <div className="flex-1 flex items-center justify-center px-6 py-4">
           <div className="w-full max-w-xl">
-            <div className="mb-6">
-              <h2 className="text-[46px] leading-[1.08] font-bold text-slate-900 mb-1.5">Create your account</h2>
-              <p className="text-[18px] text-slate-500">Enter your details to get started</p>
+            <div className="mb-5">
+              <h2 className="text-[34px] leading-[1.2] font-semibold tracking-[-0.01em] text-slate-900">Create your account</h2>
+              <p className="mt-1 text-[15px] text-slate-500">Enter your details to get started</p>
             </div>
 
             <form
@@ -193,25 +193,25 @@ export const Onboarding = ({ showHeaderMenu = false }) => {
                 e.preventDefault();
                 runStep();
               }}
-              className="space-y-[18px]"
+              className="space-y-4"
             >
               {step === "register" && (
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-[18px] font-semibold text-slate-700">Name</Label>
-                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.name} onChange={(e) => setField("name", e.target.value)} />
+                    <Label className="text-[16px] font-semibold text-slate-700">Name</Label>
+                    <Input className="mt-1 h-[48px] rounded-xl text-[15px]" value={form.name} onChange={(e) => setField("name", e.target.value)} />
                   </div>
                   <div>
-                    <Label className="text-[18px] font-semibold text-slate-700">Email Address</Label>
-                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.email} onChange={(e) => setField("email", e.target.value)} />
+                    <Label className="text-[16px] font-semibold text-slate-700">Email Address</Label>
+                    <Input className="mt-1 h-[48px] rounded-xl text-[15px]" value={form.email} onChange={(e) => setField("email", e.target.value)} />
                   </div>
                   <div>
-                    <Label className="text-[18px] font-semibold text-slate-700">Mobile Number</Label>
-                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.mobile} onChange={(e) => setField("mobile", e.target.value)} />
+                    <Label className="text-[16px] font-semibold text-slate-700">Mobile Number</Label>
+                    <Input className="mt-1 h-[48px] rounded-xl text-[15px]" value={form.mobile} onChange={(e) => setField("mobile", e.target.value)} />
                   </div>
                   <div>
-                    <Label className="text-[18px] font-semibold text-slate-700">Password</Label>
-                    <Input className="mt-1.5 h-[54px] rounded-xl" type="password" value={form.password} onChange={(e) => setField("password", e.target.value)} />
+                    <Label className="text-[16px] font-semibold text-slate-700">Password</Label>
+                    <Input className="mt-1 h-[48px] rounded-xl text-[15px]" type="password" value={form.password} onChange={(e) => setField("password", e.target.value)} />
                   </div>
                   <label className="flex items-start gap-2 text-sm text-slate-600">
                     <input className="mt-1" type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />
@@ -226,21 +226,21 @@ export const Onboarding = ({ showHeaderMenu = false }) => {
                     On-screen OTP (dev): Email OTP <b>{otpHints.emailOtp}</b>, Mobile OTP <b>{otpHints.mobileOtp}</b>
                   </div>
                   <div>
-                    <Label className="text-[18px] font-semibold text-slate-700">Email OTP</Label>
-                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.emailOtp} onChange={(e) => setField("emailOtp", e.target.value)} />
+                    <Label className="text-[16px] font-semibold text-slate-700">Email OTP</Label>
+                    <Input className="mt-1 h-[48px] rounded-xl text-[15px]" value={form.emailOtp} onChange={(e) => setField("emailOtp", e.target.value)} />
                   </div>
                   <div>
-                    <Label className="text-[18px] font-semibold text-slate-700">Mobile OTP</Label>
-                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.mobileOtp} onChange={(e) => setField("mobileOtp", e.target.value)} />
+                    <Label className="text-[16px] font-semibold text-slate-700">Mobile OTP</Label>
+                    <Input className="mt-1 h-[48px] rounded-xl text-[15px]" value={form.mobileOtp} onChange={(e) => setField("mobileOtp", e.target.value)} />
                   </div>
                 </div>
               )}
 
               {step === "plan" && (
                 <div className="space-y-3">
-                  <Label className="text-[18px] font-semibold text-slate-700">Choose Plan</Label>
+                  <Label className="text-[16px] font-semibold text-slate-700">Choose Plan</Label>
                   <Select value={form.planCode} onValueChange={(value) => setField("planCode", value)}>
-                    <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-[48px] rounded-xl text-[15px]"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {plans.map((p) => (
                         <SelectItem key={p.code} value={p.code}>
@@ -262,19 +262,19 @@ export const Onboarding = ({ showHeaderMenu = false }) => {
               {step === "store" && (
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-[18px] font-semibold text-slate-700">Store Name</Label>
-                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.storeName} onChange={(e) => setField("storeName", e.target.value)} />
+                    <Label className="text-[16px] font-semibold text-slate-700">Store Name</Label>
+                    <Input className="mt-1 h-[48px] rounded-xl text-[15px]" value={form.storeName} onChange={(e) => setField("storeName", e.target.value)} />
                   </div>
                   <div>
-                    <Label className="text-[18px] font-semibold text-slate-700">Subdomain</Label>
-                    <Input className="mt-1.5 h-[54px] rounded-xl" value={form.subdomain} onChange={(e) => setField("subdomain", e.target.value.toLowerCase())} />
+                    <Label className="text-[16px] font-semibold text-slate-700">Subdomain</Label>
+                    <Input className="mt-1 h-[48px] rounded-xl text-[15px]" value={form.subdomain} onChange={(e) => setField("subdomain", e.target.value.toLowerCase())} />
                   </div>
                 </div>
               )}
 
               {message ? <p className="text-sm text-red-600">{message}</p> : null}
 
-              <Button className="w-full h-[52px] rounded-xl bg-blue-600 hover:bg-blue-700 text-[22px] font-medium" disabled={loading} type="submit">
+              <Button className="w-full h-[48px] rounded-xl bg-blue-600 hover:bg-blue-700 text-[18px] font-medium" disabled={loading} type="submit">
                 <span className="flex items-center gap-2">
                   {loading ? "Please wait..." : step === "store" ? "Activate Store" : "Continue"}
                   {!loading ? <ArrowRight className="w-4 h-4" /> : null}

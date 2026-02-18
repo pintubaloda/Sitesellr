@@ -1,15 +1,9 @@
 Sitesellr Requirement Status
 Updated: 2026-02-18 (local)
 
-Issue	Status	What's Done	What You Must Do on Render
-SPA refresh shows Not Found	Fixed in config	Added static route rewrite in `render.yaml` for `sitesellr-web`: `/* -> /index.html` so React Router URLs work on refresh/direct hit.	Redeploy the Blueprint/static service so new `routes` config is applied.
-
-Notes
-- If service was created manually (not blueprint-managed), add this in Render Static Site settings:
-  - Source: `/*`
-  - Destination: `/index.html`
-  - Action: `Rewrite`
+Module	Status	What's Done	What's Pending / Partial
+Register Right Panel Heading	Developed	Refined main heading style for better visual quality: reduced size/weight and improved line-height/tracking for cleaner look.	Can still tweak copy text if you want alternative wording.
 
 Git state
-- Last pushed commit: 3a4b4be
-- Current SPA rewrite fix is local and pending push.
+- Last pushed commit: 8743d65
+- Current heading polish is local and pending push.

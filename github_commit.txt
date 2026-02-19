@@ -333,3 +333,12 @@ Notes:
 - Updated UI to pass reason and step-up headers and to avoid showing store-only menus to platform owner by default.
 [Committed] db9fff8 pushed to origin/main
 [Committed] db9fff8 pushed to origin/main
+
+[Pending Commit] 2026-02-19 08:48 IST
+Title: Expand storefront theme marketplace with 10 category themes and selection filters
+Files:
+- backend-dotnet/Program.cs
+- frontend/src/pages/admin/StoreBuilder.js
+Notes:
+- Added category-wise free/paid theme catalog seed data and idempotent slug-based insert logic.
+- Added storefront builder category dropdown + search + filtered grid for theme selection UX.

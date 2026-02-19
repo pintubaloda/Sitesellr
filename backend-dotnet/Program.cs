@@ -476,47 +476,123 @@ if (!string.IsNullOrWhiteSpace(platformOwnerEmail))
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (!await db.ThemeCatalogItems.AnyAsync())
+    async Task EnsureThemeAsync(
+        string name,
+        string slug,
+        string category,
+        string description,
+        string previewUrl,
+        bool isPaid,
+        decimal price,
+        string allowedPlanCodesCsv)
     {
-        db.ThemeCatalogItems.AddRange(
-            new ThemeCatalogItem
-            {
-                Name = "Starter Minimal",
-                Slug = "starter-minimal",
-                Category = "General",
-                Description = "Simple conversion-focused starter storefront.",
-                PreviewUrl = "https://placehold.co/800x500/2563EB/FFFFFF?text=Starter+Minimal",
-                IsPaid = false,
-                Price = 0,
-                AllowedPlanCodesCsv = "",
-                IsActive = true
-            },
-            new ThemeCatalogItem
-            {
-                Name = "Fashion Nova",
-                Slug = "fashion-nova",
-                Category = "Fashion",
-                Description = "Visual-first layout for lifestyle and fashion catalogs.",
-                PreviewUrl = "https://placehold.co/800x500/0F172A/FFFFFF?text=Fashion+Nova",
-                IsPaid = true,
-                Price = 1999,
-                AllowedPlanCodesCsv = "growth,pro,enterprise",
-                IsActive = true
-            },
-            new ThemeCatalogItem
-            {
-                Name = "Electro Grid",
-                Slug = "electro-grid",
-                Category = "Electronics",
-                Description = "Tech-heavy product grid optimized for specs comparison.",
-                PreviewUrl = "https://placehold.co/800x500/0EA5E9/FFFFFF?text=Electro+Grid",
-                IsPaid = true,
-                Price = 2999,
-                AllowedPlanCodesCsv = "pro,enterprise",
-                IsActive = true
-            });
-        await db.SaveChangesAsync();
+        if (await db.ThemeCatalogItems.AnyAsync(x => x.Slug == slug)) return;
+        db.ThemeCatalogItems.Add(new ThemeCatalogItem
+        {
+            Name = name,
+            Slug = slug,
+            Category = category,
+            Description = description,
+            PreviewUrl = previewUrl,
+            IsPaid = isPaid,
+            Price = price,
+            AllowedPlanCodesCsv = allowedPlanCodesCsv,
+            IsActive = true
+        });
     }
+
+    await EnsureThemeAsync(
+        "Starter Minimal",
+        "starter-minimal",
+        "General",
+        "Simple conversion-focused starter storefront.",
+        "https://placehold.co/800x500/2563EB/FFFFFF?text=Starter+Minimal",
+        false,
+        0,
+        "");
+    await EnsureThemeAsync(
+        "Fashion Pro",
+        "fashion-pro",
+        "Fashion / Apparel",
+        "Editorial-first catalog with rich hero and lookbook sections.",
+        "https://placehold.co/800x500/1D4ED8/FFFFFF?text=Fashion+Pro",
+        false,
+        0,
+        "");
+    await EnsureThemeAsync(
+        "Electronics Mega Store",
+        "electronics-mega-store",
+        "Electronics",
+        "Spec-forward grid, comparison cards, and promo shelves.",
+        "https://placehold.co/800x500/0EA5E9/FFFFFF?text=Electronics+Mega+Store",
+        true,
+        2999,
+        "pro,enterprise");
+    await EnsureThemeAsync(
+        "Grocery FastCart",
+        "grocery-fastcart",
+        "Grocery / FMCG",
+        "Fast browse layout tuned for repeat basket orders.",
+        "https://placehold.co/800x500/16A34A/FFFFFF?text=Grocery+FastCart",
+        false,
+        0,
+        "");
+    await EnsureThemeAsync(
+        "Pharmacy Care",
+        "pharmacy-care",
+        "Pharmacy",
+        "Trust-first pharmacy storefront with compliance-focused blocks.",
+        "https://placehold.co/800x500/0F766E/FFFFFF?text=Pharmacy+Care",
+        true,
+        1499,
+        "growth,pro,enterprise");
+    await EnsureThemeAsync(
+        "Wholesale Distributor",
+        "wholesale-distributor",
+        "B2B Wholesale",
+        "Bulk catalog experience with MOQ and pack-size messaging.",
+        "https://placehold.co/800x500/334155/FFFFFF?text=Wholesale+Distributor",
+        true,
+        3999,
+        "pro,enterprise");
+    await EnsureThemeAsync(
+        "Restaurant Ordering",
+        "restaurant-ordering",
+        "Restaurant / Food",
+        "Menu-first ordering theme optimized for quick checkout.",
+        "https://placehold.co/800x500/B45309/FFFFFF?text=Restaurant+Ordering",
+        false,
+        0,
+        "");
+    await EnsureThemeAsync(
+        "Single Product Launch",
+        "single-product-launch",
+        "Single Product",
+        "Long-form launch page for one flagship product.",
+        "https://placehold.co/800x500/7C3AED/FFFFFF?text=Single+Product+Launch",
+        true,
+        1299,
+        "growth,pro,enterprise");
+    await EnsureThemeAsync(
+        "Minimal Catalog Lite",
+        "minimal-catalog-lite",
+        "Minimal Catalog",
+        "Clean and light storefront for compact catalogs.",
+        "https://placehold.co/800x500/475569/FFFFFF?text=Minimal+Catalog+Lite",
+        false,
+        0,
+        "");
+    await EnsureThemeAsync(
+        "Luxury Signature",
+        "luxury-signature",
+        "Premium Luxury",
+        "Premium high-contrast visual system for luxury brands.",
+        "https://placehold.co/800x500/111827/FFFFFF?text=Luxury+Signature",
+        true,
+        4999,
+        "enterprise");
+
+    await db.SaveChangesAsync();
 }
 
 if (builder.Configuration.GetValue("SEED_TEST_USERS", false))

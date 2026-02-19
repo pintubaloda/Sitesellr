@@ -182,3 +182,11 @@ Module | Developed | Partial Developed | Need To Develop
 Platform Owner Permission Matrix | Explicit permission catalog added across governance/finance/security/plugin/API/webhook domains | Role-derived template only; no separate per-user platform permission grants yet | Full per-user platform permission assignment UX + storage + conflict resolution
 High-Risk Action Protection | Reason capture enforced on sensitive RBAC/lifecycle writes; optional step-up enforcement via config/header; audit log writes added | Header-based step-up only (no real 2FA challenge chain) | End-to-end 2FA step-up flow, dual control approval, signed/immutable audit ledger
 Platform/Admin UI Scope Isolation | Sidebar now scope-filters so platform owner does not auto-see store-only menus unless store context exists | Existing pages still mixed in some routes depending on user mapping | Dedicated platform console IA split from store console with explicit impersonation mode
+
+Update 2026-02-19 08:48 IST - Storefront System Theme Marketplace
+Module name | developed | partial developed | need to develop
+Customizable themes/templates | 10 category themes (free + paid) seeded, plan-eligibility apply flow active, merchant-side theme filter/search in Store Builder UI | Theme previews are image/card-based; runtime rendering still section-json centric | Full packaged theme runtime engine with deeper template inheritance and advanced live preview
+Mobile responsive design | Store builder and theme catalog UI supports responsive grid behavior | Per-theme mobile QA matrix not automated | Dedicated performance budgets + Lighthouse gates per theme variant
+Homepage builder (drag & drop sections) | Existing section-based builder + reorder + validation + versions already available | Full visual freeform canvas still partial | Advanced WYSIWYG constraints and reusable section presets per theme
+Navigation / menus | Existing primary menu JSON editor is available | No visual nested menu designer yet | Full multi-level visual menu editor with visibility rules by customer type/device
+Static pages (About, Contact, Policy) | CRUD + SEO fields already available | Rich block templates for policy/legal pages not yet | Template library + compliance presets per category

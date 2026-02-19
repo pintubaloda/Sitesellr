@@ -194,3 +194,16 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - Dual approval workflow for high-risk actions.
   - Dedicated financial intervention endpoints with enforced policy-per-action + re-auth screens.
   - Immutable audit export/signing pipeline and approval reason taxonomy.
+
+[2026-02-19 08:48 IST] Storefront Theme Marketplace Expansion + Category Selection
+- Developed:
+  - Seeded 10 category-oriented storefront themes (free + paid mix) for: General, Fashion/Apparel, Electronics, Grocery/FMCG, Pharmacy, B2B Wholesale, Restaurant/Food, Single Product, Minimal Catalog, Premium Luxury.
+  - Theme seeding logic now upserts by slug (adds missing themes without duplicating existing catalog).
+  - Store Builder UI now supports theme category filter + text search for easier merchant selection.
+  - Theme marketplace now shows filtered count and empty-state messaging.
+- Partial:
+  - Public storefront rendering runtime remains template/section-json based (no full theme runtime packages yet).
+  - Paid theme purchase flow still plan-eligibility gated (no separate one-click theme checkout yet).
+- Pending:
+  - Full visual theme preview sandbox with per-device live preview snapshots.
+  - Theme plan assignment management UI for platform owner (bulk pricing/category management).

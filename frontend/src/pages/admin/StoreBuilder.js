@@ -154,6 +154,8 @@ const ThemeCard = ({ theme, isActive, onSelect }) => {
 export const StoreBuilder = () => {
   const { storeId, loadingStores } = useActiveStore();
   const [themes, setThemes] = useState([]);
+  const [themeCategoryFilter, setThemeCategoryFilter] = useState("All");
+  const [themeSearch, setThemeSearch] = useState("");
   const [activeThemeId, setActiveThemeId] = useState("");
   const [themeSettings, setThemeSettings] = useState({
     logoUrl: "",
@@ -198,6 +200,25 @@ export const StoreBuilder = () => {
   const revisionRef = useRef(0);
 
   const activeTheme = useMemo(() => themes.find((x) => x.id === activeThemeId) || null, [themes, activeThemeId]);
+  const themeCategories = useMemo(() => {
+    const rows = themes
+      .map((x) => (x.category || "General").trim())
+      .filter(Boolean);
+    return ["All", ...Array.from(new Set(rows)).sort((a, b) => a.localeCompare(b))];
+  }, [themes]);
+  const filteredThemes = useMemo(() => {
+    const q = themeSearch.trim().toLowerCase();
+    return themes.filter((x) => {
+      const category = (x.category || "General").trim();
+      if (themeCategoryFilter !== "All" && category !== themeCategoryFilter) return false;
+      if (!q) return true;
+      return (
+        (x.name || "").toLowerCase().includes(q) ||
+        (x.category || "").toLowerCase().includes(q) ||
+        (x.description || "").toLowerCase().includes(q)
+      );
+    });
+  }, [themes, themeCategoryFilter, themeSearch]);
   const selectedNode = useMemo(() => findNodeByIdInTree(sections, selectedNodeId), [sections, selectedNodeId]);
   const historyFrames = useMemo(() => [...pastSections, sections], [pastSections, sections]);
 
@@ -750,12 +771,36 @@ export const StoreBuilder = () => {
               <CardTitle>Theme Marketplace</CardTitle>
               <CardDescription>Choose free or paid category-based themes mapped to your subscription plan.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label>Category</Label>
+                  <select
+                    className="h-10 rounded-md border px-2 bg-transparent w-full"
+                    value={themeCategoryFilter}
+                    onChange={(e) => setThemeCategoryFilter(e.target.value)}
+                  >
+                    {themeCategories.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1 md:col-span-2">
+                  <Label>Search Themes</Label>
+                  <Input
+                    value={themeSearch}
+                    onChange={(e) => setThemeSearch(e.target.value)}
+                    placeholder="Search by theme name, category, or description"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">{filteredThemes.length} theme(s) available</p>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {themes.map((theme) => (
+                {filteredThemes.map((theme) => (
                   <ThemeCard key={theme.id} theme={theme} isActive={activeThemeId === theme.id} onSelect={applyTheme} />
                 ))}
               </div>
+              {filteredThemes.length === 0 ? <p className="text-sm text-slate-500">No themes match current filters.</p> : null}
             </CardContent>
           </Card>
 

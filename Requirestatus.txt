@@ -339,3 +339,11 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Developed:
   - Added `GET /api/auth/permissions` for production/debug verification of logged-in user's effective permissions.
   - Response includes: platform roles, store role, platform permissions, store permissions, and merged effective permissions.
+
+[2026-02-19 10:43 IST] Strict permission-by-permission menu gating
+- Developed:
+  - Frontend dashboard menu rendering now enforces strict permission checks using `/api/auth/permissions` effective permission list.
+  - Each sidebar item now maps to required permission set (`requiredAny`) and is shown only when user has matching permission(s) + valid scope.
+  - Replaced scope-only visibility behavior with permission-aware + scope-aware combined gate.
+- Impact:
+  - Users now see menu/modules aligned to granted permissions, not just broad role type.

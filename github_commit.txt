@@ -462,3 +462,10 @@ Files:
 Notes:
 - New endpoint: `/api/auth/permissions`.
 [Committed] d77fa77 pushed to origin/main
+
+[Pending Commit] 2026-02-19 10:43 IST
+Title: Enforce strict frontend menu gating from /api/auth/permissions
+Files:
+- frontend/src/components/layouts/DashboardLayout.js
+Notes:
+- Menu visibility now permission-by-permission for every sidebar item.

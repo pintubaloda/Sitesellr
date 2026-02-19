@@ -62,84 +62,98 @@ const sidebarItems = [
     icon: LayoutDashboard,
     path: "/admin",
     scope: "store",
+    requiredAny: ["orders.read", "products.read", "customers.read", "store.settings.manage", "store.settings.read"],
   },
   {
     title: "Products",
     icon: Package,
     path: "/admin/products",
     scope: "store",
+    requiredAny: ["products.read", "products.create", "products.update", "products.delete"],
   },
   {
     title: "Orders",
     icon: ShoppingCart,
     path: "/admin/orders",
     scope: "store",
+    requiredAny: ["orders.read", "orders.update", "orders.create_manual"],
   },
   {
     title: "Customers",
     icon: Users,
     path: "/admin/customers",
     scope: "store",
+    requiredAny: ["customers.read", "customers.update", "customer_groups.manage"],
   },
   {
     title: "Store Builder",
     icon: Palette,
     path: "/admin/store-builder",
     scope: "store",
+    requiredAny: ["store.branding.manage", "store.settings.manage", "store.settings.write", "store.settings.read"],
   },
   {
     title: "Marketing",
     icon: Percent,
     path: "/admin/marketing",
     scope: "store",
+    requiredAny: ["discounts.manage", "coupons.manage", "campaigns.manage"],
   },
   {
     title: "Analytics",
     icon: BarChart3,
     path: "/admin/analytics",
     scope: "store",
+    requiredAny: ["orders.read", "payments.read", "transactions.read", "transactions.read_all"],
   },
   {
     title: "Settings",
     icon: Settings,
     path: "/admin/settings",
     scope: "store",
+    requiredAny: ["store.settings.manage", "store.settings.write", "store.settings.read"],
   },
   {
     title: "Merchants",
     icon: Building2,
     path: "/admin/merchants",
     scope: "platform-staff",
+    requiredAny: ["merchants.read_all", "merchants.read", "merchants.manage"],
   },
   {
     title: "Platform RBAC",
     icon: ShieldCheck,
     path: "/admin/platform-rbac",
     scope: "platform-owner",
+    requiredAny: ["security.policies.manage", "platform.settings.manage"],
   },
   {
     title: "Audit Logs",
     icon: ClipboardList,
     path: "/admin/audit-logs",
     scope: "platform-staff-or-store",
+    requiredAny: ["security.audit_logs.read_all", "security.audit_logs.read", "orders.read"],
   },
   {
     title: "Merchant Ops",
     icon: Network,
     path: "/admin/merchant-ops",
     scope: "platform-staff",
+    requiredAny: ["merchants.suspend", "merchants.manage", "fraud.monitor", "merchants.read"],
   },
   {
     title: "Platform Themes",
     icon: Brush,
     path: "/admin/platform-themes",
     scope: "platform-owner",
+    requiredAny: ["platform.features.manage", "platform.settings.manage", "plugins.feature"],
   },
   {
     title: "Domains & SSL",
     icon: Shield,
     path: "/admin/domains-ssl",
     scope: "store",
+    requiredAny: ["store.domains.manage", "store.settings.manage", "store.settings.write"],
   },
 ];
 
@@ -254,6 +268,7 @@ export const DashboardLayout = () => {
     isPlatformOwner: false,
     isPlatformStaff: false,
     isStoreUser: false,
+    effectivePermissions: [],
   });
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -261,23 +276,37 @@ export const DashboardLayout = () => {
     const loadAccess = async () => {
       try
       {
-        const res = await api.get("/auth/access");
+        const [accessRes, permsRes] = await Promise.all([
+          api.get("/auth/access"),
+          api.get("/auth/permissions"),
+        ]);
+        const effectivePermissions = Array.isArray(permsRes.data?.effectivePermissions)
+          ? permsRes.data.effectivePermissions
+          : [];
         setAccess({
-          isPlatformOwner: !!res.data?.isPlatformOwner,
-          isPlatformStaff: !!res.data?.isPlatformStaff,
-          isStoreUser: !!res.data?.storeRole || (res.data?.storePermissions || []).length > 0,
+          isPlatformOwner: !!accessRes.data?.isPlatformOwner,
+          isPlatformStaff: !!accessRes.data?.isPlatformStaff,
+          isStoreUser: !!accessRes.data?.storeRole || (accessRes.data?.storePermissions || []).length > 0,
+          effectivePermissions,
         });
       }
       catch
       {
-        setAccess({ isPlatformOwner: false, isPlatformStaff: false, isStoreUser: false });
+        setAccess({ isPlatformOwner: false, isPlatformStaff: false, isStoreUser: false, effectivePermissions: [] });
       }
     };
     loadAccess();
   }, [storeId]);
 
   const visibleSidebarItems = useMemo(() => {
+    const perms = new Set((access.effectivePermissions || []).map((x) => String(x).toLowerCase()));
+    const hasAnyPermission = (requiredAny) => {
+      if (!Array.isArray(requiredAny) || requiredAny.length === 0) return true;
+      return requiredAny.some((p) => perms.has(String(p).toLowerCase()));
+    };
+
     return sidebarItems.filter((item) => {
+      if (!hasAnyPermission(item.requiredAny)) return false;
       switch (item.scope) {
         case "platform-owner":
           return access.isPlatformOwner;

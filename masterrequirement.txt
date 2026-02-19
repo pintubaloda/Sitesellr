@@ -252,3 +252,7 @@ Platform staff scoped permissions | Staff role now resolves scoped template perm
 Update 2026-02-19 10:27 IST - Permission verification observability
 Module name | developed | partial developed | need to develop
 Permission verification tooling | Added `/api/auth/permissions` endpoint for effective permission introspection by logged-in user | Debug endpoint is read-only API view | Add admin UI page to compare expected-vs-effective role bundles
+
+Update 2026-02-19 10:43 IST - Frontend permission gating hardening
+Module name | developed | partial developed | need to develop
+Permission-based menu rendering | Sidebar now gated by effective permission mappings from `/api/auth/permissions` for each menu item | Current mapping uses `requiredAny` pattern; some modules may need stricter `requiredAll` semantics later | Add central permission map registry + automated menu-permission consistency tests

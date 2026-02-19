@@ -442,3 +442,4 @@ Files:
 - frontend/src/pages/storefront/StorefrontPublic.js
 Notes:
 - Added store-level quote alert settings, owner bootstrap password support, visual menu condition builder, and checkout payment callback API.
+[Committed] d09349a pushed to origin/main

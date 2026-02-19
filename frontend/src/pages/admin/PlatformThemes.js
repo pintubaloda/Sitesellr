@@ -16,11 +16,15 @@ const initialForm = {
   price: 0,
   allowedPlanCodesCsv: "",
   isActive: true,
+  isFeatured: false,
+  featuredRank: 0,
 };
 
 export default function PlatformThemes() {
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState(initialForm);
+  const [editingId, setEditingId] = useState("");
+  const [editForm, setEditForm] = useState(initialForm);
   const [message, setMessage] = useState("");
 
   const load = async () => {
@@ -48,6 +52,65 @@ export default function PlatformThemes() {
     }
   };
 
+  const startEdit = (row) => {
+    setEditingId(row.id);
+    setEditForm({
+      name: row.name || "",
+      slug: row.slug || "",
+      category: row.category || "General",
+      description: row.description || "",
+      previewUrl: row.previewUrl || "",
+      isPaid: !!row.isPaid,
+      price: Number(row.price || 0),
+      allowedPlanCodesCsv: row.allowedPlanCodesCsv || "",
+      isActive: !!row.isActive,
+      isFeatured: !!row.isFeatured,
+      featuredRank: Number(row.featuredRank || 0),
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    setMessage("");
+    try {
+      await api.put(`/platform/themes/${editingId}`, {
+        ...editForm,
+        price: Number(editForm.price || 0),
+        featuredRank: Number(editForm.featuredRank || 0),
+      });
+      setEditingId("");
+      await load();
+      setMessage("Theme updated.");
+    } catch (err) {
+      setMessage(err?.response?.data?.error || "Could not update theme.");
+    }
+  };
+
+  const runLifecycle = async (id, action) => {
+    setMessage("");
+    try {
+      await api.post(`/platform/themes/${id}/${action}`);
+      await load();
+      setMessage(`Theme ${action} done.`);
+    } catch (err) {
+      setMessage(err?.response?.data?.error || `Could not ${action} theme.`);
+    }
+  };
+
+  const saveFeatured = async (id, isFeatured, featuredRank) => {
+    setMessage("");
+    try {
+      await api.post(`/platform/themes/${id}/feature`, {
+        isFeatured,
+        featuredRank: Number(featuredRank || 0),
+      });
+      await load();
+      setMessage("Featured ranking updated.");
+    } catch (err) {
+      setMessage(err?.response?.data?.error || "Could not update featured ranking.");
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="platform-themes-page">
       <div>
@@ -70,24 +133,86 @@ export default function PlatformThemes() {
           <div className="space-y-2 md:col-span-2"><Label>Description</Label><Input value={form.description} onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} /></div>
           <div className="space-y-2"><Label>Price</Label><Input type="number" value={form.price} onChange={(e) => setForm((s) => ({ ...s, price: e.target.value }))} /></div>
           <div className="space-y-2"><Label>Allowed plan codes CSV</Label><Input value={form.allowedPlanCodesCsv} onChange={(e) => setForm((s) => ({ ...s, allowedPlanCodesCsv: e.target.value }))} placeholder="growth,pro,enterprise" /></div>
+          <div className="space-y-2"><Label>Featured rank</Label><Input type="number" value={form.featuredRank} onChange={(e) => setForm((s) => ({ ...s, featuredRank: e.target.value }))} /></div>
           <div className="flex items-center gap-2"><Switch checked={form.isPaid} onCheckedChange={(v) => setForm((s) => ({ ...s, isPaid: v }))} /><Label>Paid theme</Label></div>
           <div className="flex items-center gap-2"><Switch checked={form.isActive} onCheckedChange={(v) => setForm((s) => ({ ...s, isActive: v }))} /><Label>Active</Label></div>
+          <div className="flex items-center gap-2"><Switch checked={form.isFeatured} onCheckedChange={(v) => setForm((s) => ({ ...s, isFeatured: v }))} /><Label>Featured</Label></div>
           <Button onClick={create} className="md:col-span-2">Create Theme</Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Theme Catalog</CardTitle>
+          <CardTitle>Theme Catalog Lifecycle</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {rows.map((x) => (
-            <div key={x.id} className="p-3 border rounded-lg flex items-center justify-between gap-3">
-              <div>
-                <p className="font-medium">{x.name}</p>
-                <p className="text-xs text-slate-500">{x.slug} · {x.category} · {x.isPaid ? `INR ${Number(x.price || 0).toLocaleString()}` : "Free"}</p>
+            <div key={x.id} className="p-3 border rounded-lg space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">{x.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {x.slug} · {x.category} · {x.isPaid ? `INR ${Number(x.price || 0).toLocaleString()}` : "Free"} · {x.isActive ? "Published" : "Unpublished"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => runLifecycle(x.id, "publish")}>Publish</Button>
+                  <Button size="sm" variant="outline" onClick={() => runLifecycle(x.id, "unpublish")}>Unpublish</Button>
+                  <Button size="sm" onClick={() => startEdit(x)}>Edit</Button>
+                </div>
               </div>
-              <p className="text-xs text-slate-500">plans: {x.allowedPlanCodesCsv || "all"}</p>
+              <div className="grid md:grid-cols-4 gap-2 items-end">
+                <div className="space-y-1 md:col-span-2">
+                  <Label className="text-xs">Plan mapping</Label>
+                  <Input
+                    value={editingId === x.id ? editForm.allowedPlanCodesCsv : (x.allowedPlanCodesCsv || "")}
+                    onChange={(e) => {
+                      if (editingId !== x.id) startEdit(x);
+                      setEditForm((s) => ({ ...s, allowedPlanCodesCsv: e.target.value }));
+                    }}
+                    placeholder="growth,pro,enterprise"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Featured rank</Label>
+                  <Input
+                    type="number"
+                    value={editingId === x.id ? editForm.featuredRank : Number(x.featuredRank || 0)}
+                    onChange={(e) => {
+                      if (editingId !== x.id) startEdit(x);
+                      setEditForm((s) => ({ ...s, featuredRank: e.target.value }));
+                    }}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={editingId === x.id ? !!editForm.isFeatured : !!x.isFeatured}
+                    onCheckedChange={(v) => {
+                      if (editingId !== x.id) startEdit(x);
+                      setEditForm((s) => ({ ...s, isFeatured: v }));
+                    }}
+                  />
+                  <Label className="text-xs">Featured</Label>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => saveFeatured(x.id, editingId === x.id ? !!editForm.isFeatured : !!x.isFeatured, editingId === x.id ? editForm.featuredRank : Number(x.featuredRank || 0))}
+                >
+                  Save Featured Rank
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={saveEdit}
+                  disabled={editingId !== x.id}
+                >
+                  Save Plan Mapping
+                </Button>
+                <p className="text-xs text-slate-500">plans: {x.allowedPlanCodesCsv || "all"}</p>
+              </div>
             </div>
           ))}
           {rows.length === 0 ? <p className="text-sm text-slate-500">No themes found.</p> : null}

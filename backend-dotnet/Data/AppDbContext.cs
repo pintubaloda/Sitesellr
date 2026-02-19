@@ -377,7 +377,9 @@ public class AppDbContext : DbContext
             b.Property(x => x.PreviewUrl).HasMaxLength(1000);
             b.Property(x => x.Price).HasColumnType("numeric(18,2)");
             b.Property(x => x.AllowedPlanCodesCsv).HasMaxLength(500);
+            b.Property(x => x.FeaturedRank).HasDefaultValue(0);
             b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(x => x.Slug).IsUnique();
         });
 

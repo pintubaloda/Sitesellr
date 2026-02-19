@@ -207,3 +207,17 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Pending:
   - Full visual theme preview sandbox with per-device live preview snapshots.
   - Theme plan assignment management UI for platform owner (bulk pricing/category management).
+
+[2026-02-19 08:52 IST] Platform Owner Theme Lifecycle UI + APIs
+- Developed:
+  - Platform theme lifecycle APIs added: update theme, publish, unpublish, feature/rank.
+  - Platform themes list ordering now prioritizes featured themes and featured rank.
+  - Theme model extended with lifecycle metadata: `IsFeatured`, `FeaturedRank`, `UpdatedAt`.
+  - Startup schema safety adds missing theme catalog columns for lifecycle/featured support.
+  - Platform owner UI now supports: publish/unpublish, pricing update, plan mapping updates, featured toggle/rank save.
+- Partial:
+  - Bulk actions (multi-select publish/rank/plan mapping) not implemented.
+  - No separate approval flow for theme unpublish/price changes.
+- Pending:
+  - Theme lifecycle audit timeline view (who changed price/rank/status).
+  - Advanced sorting presets and scheduled publish/unpublish windows.

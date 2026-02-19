@@ -305,8 +305,14 @@ CREATE TABLE IF NOT EXISTS theme_catalog_items (
   ""Price"" numeric(18,2) NOT NULL,
   ""AllowedPlanCodesCsv"" character varying(500),
   ""IsActive"" boolean NOT NULL,
-  ""CreatedAt"" timestamp with time zone NOT NULL
+  ""IsFeatured"" boolean NOT NULL DEFAULT false,
+  ""FeaturedRank"" integer NOT NULL DEFAULT 0,
+  ""CreatedAt"" timestamp with time zone NOT NULL,
+  ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT now()
 );");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""IsFeatured"" boolean NOT NULL DEFAULT false;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""FeaturedRank"" integer NOT NULL DEFAULT 0;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT now();");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_theme_catalog_items_Slug ON theme_catalog_items (""Slug"");");
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS store_theme_configs (
@@ -484,7 +490,9 @@ using (var scope = app.Services.CreateScope())
         string previewUrl,
         bool isPaid,
         decimal price,
-        string allowedPlanCodesCsv)
+        string allowedPlanCodesCsv,
+        bool isFeatured,
+        int featuredRank)
     {
         if (await db.ThemeCatalogItems.AnyAsync(x => x.Slug == slug)) return;
         db.ThemeCatalogItems.Add(new ThemeCatalogItem
@@ -497,7 +505,10 @@ using (var scope = app.Services.CreateScope())
             IsPaid = isPaid,
             Price = price,
             AllowedPlanCodesCsv = allowedPlanCodesCsv,
-            IsActive = true
+            IsActive = true,
+            IsFeatured = isFeatured,
+            FeaturedRank = featuredRank,
+            UpdatedAt = DateTimeOffset.UtcNow
         });
     }
 
@@ -509,7 +520,9 @@ using (var scope = app.Services.CreateScope())
         "https://placehold.co/800x500/2563EB/FFFFFF?text=Starter+Minimal",
         false,
         0,
-        "");
+        "",
+        true,
+        10);
     await EnsureThemeAsync(
         "Fashion Pro",
         "fashion-pro",
@@ -518,7 +531,9 @@ using (var scope = app.Services.CreateScope())
         "https://placehold.co/800x500/1D4ED8/FFFFFF?text=Fashion+Pro",
         false,
         0,
-        "");
+        "",
+        true,
+        9);
     await EnsureThemeAsync(
         "Electronics Mega Store",
         "electronics-mega-store",
@@ -527,7 +542,9 @@ using (var scope = app.Services.CreateScope())
         "https://placehold.co/800x500/0EA5E9/FFFFFF?text=Electronics+Mega+Store",
         true,
         2999,
-        "pro,enterprise");
+        "pro,enterprise",
+        true,
+        8);
     await EnsureThemeAsync(
         "Grocery FastCart",
         "grocery-fastcart",
@@ -536,7 +553,9 @@ using (var scope = app.Services.CreateScope())
         "https://placehold.co/800x500/16A34A/FFFFFF?text=Grocery+FastCart",
         false,
         0,
-        "");
+        "",
+        false,
+        0);
     await EnsureThemeAsync(
         "Pharmacy Care",
         "pharmacy-care",
@@ -545,7 +564,9 @@ using (var scope = app.Services.CreateScope())
         "https://placehold.co/800x500/0F766E/FFFFFF?text=Pharmacy+Care",
         true,
         1499,
-        "growth,pro,enterprise");
+        "growth,pro,enterprise",
+        false,
+        0);
     await EnsureThemeAsync(
         "Wholesale Distributor",
         "wholesale-distributor",
@@ -554,7 +575,9 @@ using (var scope = app.Services.CreateScope())
         "https://placehold.co/800x500/334155/FFFFFF?text=Wholesale+Distributor",
         true,
         3999,
-        "pro,enterprise");
+        "pro,enterprise",
+        true,
+        7);
     await EnsureThemeAsync(
         "Restaurant Ordering",
         "restaurant-ordering",
@@ -563,7 +586,9 @@ using (var scope = app.Services.CreateScope())
         "https://placehold.co/800x500/B45309/FFFFFF?text=Restaurant+Ordering",
         false,
         0,
-        "");
+        "",
+        false,
+        0);
     await EnsureThemeAsync(
         "Single Product Launch",
         "single-product-launch",
@@ -572,7 +597,9 @@ using (var scope = app.Services.CreateScope())
         "https://placehold.co/800x500/7C3AED/FFFFFF?text=Single+Product+Launch",
         true,
         1299,
-        "growth,pro,enterprise");
+        "growth,pro,enterprise",
+        false,
+        0);
     await EnsureThemeAsync(
         "Minimal Catalog Lite",
         "minimal-catalog-lite",
@@ -581,7 +608,9 @@ using (var scope = app.Services.CreateScope())
         "https://placehold.co/800x500/475569/FFFFFF?text=Minimal+Catalog+Lite",
         false,
         0,
-        "");
+        "",
+        false,
+        0);
     await EnsureThemeAsync(
         "Luxury Signature",
         "luxury-signature",
@@ -590,7 +619,9 @@ using (var scope = app.Services.CreateScope())
         "https://placehold.co/800x500/111827/FFFFFF?text=Luxury+Signature",
         true,
         4999,
-        "enterprise");
+        "enterprise",
+        true,
+        6);
 
     await db.SaveChangesAsync();
 }

@@ -42,7 +42,9 @@ public class StorefrontController : ControllerBase
 
         var items = await _db.ThemeCatalogItems.AsNoTracking()
             .Where(x => x.IsActive)
-            .OrderBy(x => x.Name)
+            .OrderByDescending(x => x.IsFeatured)
+            .ThenByDescending(x => x.FeaturedRank)
+            .ThenBy(x => x.Name)
             .ToListAsync(ct);
 
         var data = items.Select(t =>
@@ -620,7 +622,11 @@ public class PlatformThemesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken ct)
     {
-        var rows = await _db.ThemeCatalogItems.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct);
+        var rows = await _db.ThemeCatalogItems.AsNoTracking()
+            .OrderByDescending(x => x.IsFeatured)
+            .ThenByDescending(x => x.FeaturedRank)
+            .ThenBy(x => x.Name)
+            .ToListAsync(ct);
         return Ok(rows);
     }
 
@@ -641,11 +647,75 @@ public class PlatformThemesController : ControllerBase
             Price = req.Price,
             AllowedPlanCodesCsv = req.AllowedPlanCodesCsv?.Trim().ToLowerInvariant() ?? string.Empty,
             IsActive = req.IsActive,
-            CreatedAt = DateTimeOffset.UtcNow
+            IsFeatured = req.IsFeatured,
+            FeaturedRank = req.FeaturedRank,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
         };
         _db.ThemeCatalogItems.Add(row);
         await _db.SaveChangesAsync(ct);
         return Ok(row);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] ThemeCatalogUpdateRequest req, CancellationToken ct)
+    {
+        var row = await _db.ThemeCatalogItems.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (row == null) return NotFound(new { error = "theme_not_found" });
+
+        var slug = req.Slug.Trim().ToLowerInvariant();
+        var slugExists = await _db.ThemeCatalogItems.AsNoTracking().AnyAsync(x => x.Slug == slug && x.Id != id, ct);
+        if (slugExists) return Conflict(new { error = "slug_exists" });
+
+        row.Name = req.Name.Trim();
+        row.Slug = slug;
+        row.Category = req.Category?.Trim() ?? "General";
+        row.Description = req.Description?.Trim() ?? string.Empty;
+        row.PreviewUrl = req.PreviewUrl?.Trim() ?? string.Empty;
+        row.IsPaid = req.IsPaid;
+        row.Price = req.Price;
+        row.AllowedPlanCodesCsv = req.AllowedPlanCodesCsv?.Trim().ToLowerInvariant() ?? string.Empty;
+        row.IsActive = req.IsActive;
+        row.IsFeatured = req.IsFeatured;
+        row.FeaturedRank = req.FeaturedRank;
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(row);
+    }
+
+    [HttpPost("{id:guid}/publish")]
+    public async Task<IActionResult> Publish(Guid id, CancellationToken ct)
+    {
+        var row = await _db.ThemeCatalogItems.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (row == null) return NotFound(new { error = "theme_not_found" });
+        row.IsActive = true;
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { updated = true, row.Id, row.IsActive });
+    }
+
+    [HttpPost("{id:guid}/unpublish")]
+    public async Task<IActionResult> Unpublish(Guid id, CancellationToken ct)
+    {
+        var row = await _db.ThemeCatalogItems.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (row == null) return NotFound(new { error = "theme_not_found" });
+        row.IsActive = false;
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { updated = true, row.Id, row.IsActive });
+    }
+
+    [HttpPost("{id:guid}/feature")]
+    public async Task<IActionResult> Feature(Guid id, [FromBody] ThemeFeatureRequest req, CancellationToken ct)
+    {
+        var row = await _db.ThemeCatalogItems.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (row == null) return NotFound(new { error = "theme_not_found" });
+        row.IsFeatured = req.IsFeatured;
+        row.FeaturedRank = req.FeaturedRank;
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { updated = true, row.Id, row.IsFeatured, row.FeaturedRank });
     }
 }
 
@@ -716,6 +786,39 @@ public class ThemeCatalogCreateRequest
     [StringLength(500)]
     public string? AllowedPlanCodesCsv { get; set; }
     public bool IsActive { get; set; } = true;
+    public bool IsFeatured { get; set; }
+    [Range(0, 9999)]
+    public int FeaturedRank { get; set; }
+}
+
+public class ThemeCatalogUpdateRequest
+{
+    [Required, StringLength(120, MinimumLength = 2)]
+    public string Name { get; set; } = string.Empty;
+    [Required, RegularExpression("^[a-z0-9-]+$", ErrorMessage = "Slug allows a-z, 0-9 and -.")]
+    public string Slug { get; set; } = string.Empty;
+    [StringLength(80)]
+    public string? Category { get; set; }
+    [StringLength(800)]
+    public string? Description { get; set; }
+    [StringLength(1000)]
+    public string? PreviewUrl { get; set; }
+    public bool IsPaid { get; set; }
+    [Range(0, 999999)]
+    public decimal Price { get; set; }
+    [StringLength(500)]
+    public string? AllowedPlanCodesCsv { get; set; }
+    public bool IsActive { get; set; } = true;
+    public bool IsFeatured { get; set; }
+    [Range(0, 9999)]
+    public int FeaturedRank { get; set; }
+}
+
+public class ThemeFeatureRequest
+{
+    public bool IsFeatured { get; set; }
+    [Range(0, 9999)]
+    public int FeaturedRank { get; set; }
 }
 
 public class PublishLayoutRequest

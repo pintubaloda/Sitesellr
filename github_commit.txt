@@ -344,3 +344,14 @@ Notes:
 - Added storefront builder category dropdown + search + filtered grid for theme selection UX.
 [Committed] 7c5636b pushed to origin/main
 [Committed] 7c5636b pushed to origin/main
+
+[Pending Commit] 2026-02-19 08:52 IST
+Title: Implement platform-owner theme lifecycle management (publish/pricing/plan mapping/featured rank)
+Files:
+- backend-dotnet/Models/Storefront.cs
+- backend-dotnet/Data/AppDbContext.cs
+- backend-dotnet/Program.cs
+- backend-dotnet/Controllers/StorefrontController.cs
+- frontend/src/pages/admin/PlatformThemes.js
+Notes:
+- Added full platform theme lifecycle endpoints and UI controls for publish/unpublish, pricing, plan codes, and featured rank.

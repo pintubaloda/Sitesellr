@@ -20,7 +20,10 @@ public class ThemeCatalogItem
     [MaxLength(500)]
     public string AllowedPlanCodesCsv { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
+    public bool IsFeatured { get; set; }
+    public int FeaturedRank { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 public class StoreThemeConfig

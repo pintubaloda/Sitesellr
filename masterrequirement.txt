@@ -190,3 +190,9 @@ Mobile responsive design | Store builder and theme catalog UI supports responsiv
 Homepage builder (drag & drop sections) | Existing section-based builder + reorder + validation + versions already available | Full visual freeform canvas still partial | Advanced WYSIWYG constraints and reusable section presets per theme
 Navigation / menus | Existing primary menu JSON editor is available | No visual nested menu designer yet | Full multi-level visual menu editor with visibility rules by customer type/device
 Static pages (About, Contact, Policy) | CRUD + SEO fields already available | Rich block templates for policy/legal pages not yet | Template library + compliance presets per category
+
+Update 2026-02-19 08:52 IST - Theme lifecycle management (Platform Owner)
+Module name | developed | partial developed | need to develop
+Theme marketplace governance | Platform owner can publish/unpublish themes, edit pricing, update plan mapping CSV, set featured flag + featured rank, with sorted catalog exposure | Single-row editing flow, no bulk operations | Bulk lifecycle operations + guarded approvals for high-risk catalog changes
+Theme monetization controls | Free/paid theme setup and plan eligibility enforcement is active end-to-end | No promotional pricing windows/coupon linkage | Time-bound pricing, campaign bundles, and upsell funnels
+Theme ranking controls | Featured ranking is now persisted and used in platform/store ordering | No strategy presets (new/seasonal/top conversion) | Ranking strategy automation and analytics-driven reorder suggestions

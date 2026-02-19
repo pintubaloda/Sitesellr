@@ -712,6 +712,7 @@ public class StorefrontController : ControllerBase
     private static bool ContainsBlockedPremiumSection(string sectionsJson, IEnumerable<string> allowedKeys, out string blockedKey)
     {
         blockedKey = string.Empty;
+        var foundBlockedKey = string.Empty;
         var allowed = new HashSet<string>(allowedKeys, StringComparer.OrdinalIgnoreCase);
         var premiumKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -732,7 +733,7 @@ public class StorefrontController : ControllerBase
                 var key = keyEl.GetString() ?? string.Empty;
                 if (premiumKeys.Contains(key) && !allowed.Contains(key))
                 {
-                    blockedKey = key;
+                    foundBlockedKey = key;
                     return true;
                 }
             }
@@ -752,7 +753,11 @@ public class StorefrontController : ControllerBase
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return false;
             foreach (var item in doc.RootElement.EnumerateArray())
             {
-                if (Visit(item)) return true;
+                if (Visit(item))
+                {
+                    blockedKey = foundBlockedKey;
+                    return true;
+                }
             }
         }
         catch

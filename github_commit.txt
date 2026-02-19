@@ -413,3 +413,10 @@ Files:
 Notes:
 - Covers requested items 1-7 with full implementation where feasible and schema-level foundations for runtime theme packs.
 [Committed] 75afd72 pushed to origin/main
+
+[Pending Commit] 2026-02-19 09:38 IST
+Title: Fix StorefrontController out-parameter capture compile error
+Files:
+- backend-dotnet/Controllers/StorefrontController.cs
+Notes:
+- Prevented use of `out blockedKey` inside local function by introducing `foundBlockedKey` and delayed assignment.

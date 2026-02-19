@@ -224,3 +224,7 @@ Full storefront checkout UX | Public checkout endpoint and storefront checkout f
 Premium marketing blocks + campaigns | Premium block presets and campaign templates added and enforceable by entitlement | Premium marketplace billing not yet linked | Paid block entitlement purchase and lifecycle
 Theme runtime package + variants | Runtime schema fields (`TypographyPack`, `LayoutVariant`, `RuntimePackageJson`) added and surfaced in preview payload | Runtime is metadata-driven, not full isolated rendering engine | Full packaged runtime system per theme with component variant loading
 Theme preview before apply (platform/store owners) | Preview mode implemented with `previewThemeId` query in storefront, accessible from Store Builder and Platform Themes UI | Preview security is URL-param based for internal admin use | Signed preview sessions and explicit permission-guarded preview tokens
+
+Update 2026-02-19 09:38 IST - Build stabilization
+Module name | developed | partial developed | need to develop
+Backend compile stability | Fixed premium entitlement helper compile break in StorefrontController | N/A | Continue CI coverage for new controller helpers

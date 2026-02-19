@@ -461,3 +461,4 @@ Files:
 - backend-dotnet/Controllers/AuthAccessController.cs
 Notes:
 - New endpoint: `/api/auth/permissions`.
+[Committed] d77fa77 pushed to origin/main

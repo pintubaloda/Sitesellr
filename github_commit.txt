@@ -469,3 +469,4 @@ Files:
 - frontend/src/components/layouts/DashboardLayout.js
 Notes:
 - Menu visibility now permission-by-permission for every sidebar item.
+[Committed] 32a1438 pushed to origin/main

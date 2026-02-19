@@ -54,6 +54,17 @@ const SECTION_MARKETPLACE = [
   { key: "wholesale-cta-pro", title: "Wholesale CTA Block", type: "wholesale_cta", tier: "paid" },
 ];
 
+const BRANDING_PRESETS = [
+  { key: "classic-blue", name: "Classic Blue", tokens: { primary: "#2563eb", accent: "#0f172a", radius: "12px" }, typographyPack: "modern-sans" },
+  { key: "earthy-market", name: "Earthy Market", tokens: { primary: "#166534", accent: "#78350f", radius: "10px" }, typographyPack: "merchant-serif" },
+  { key: "luxury-night", name: "Luxury Night", tokens: { primary: "#111827", accent: "#c2410c", radius: "14px" }, typographyPack: "luxury-display" },
+];
+
+const CAMPAIGN_TEMPLATES = [
+  { key: "flash-sale", name: "Flash Sale", sections: ["announcement-bar-pro", "hero-banner-basic", "featured-products"] },
+  { key: "festival-launch", name: "Festival Launch", sections: ["hero-banner-basic", "video-story-pro", "featured-products", "testimonial-carousel-pro"] },
+];
+
 const parseJsonArray = (value, fallback) => {
   if (!value) return fallback;
   try {
@@ -124,7 +135,7 @@ const insertNodeRelative = (nodes, targetId, node, position) => {
 const countNodes = (nodes) =>
   nodes.reduce((acc, n) => acc + 1 + countNodes(n.children || []), 0);
 
-const ThemeCard = ({ theme, isActive, onSelect }) => {
+const ThemeCard = ({ theme, isActive, onSelect, onPreview }) => {
   const blocked = !theme.planAllowed;
   return (
     <Card
@@ -170,13 +181,25 @@ const ThemeCard = ({ theme, isActive, onSelect }) => {
         ) : (
           <p className="text-sm font-semibold text-emerald-600 mt-2">Free</p>
         )}
+        <div className="mt-3 flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPreview(theme.id);
+            }}
+          >
+            Preview
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
 };
 
 export const StoreBuilder = () => {
-  const { storeId, loadingStores } = useActiveStore();
+  const { stores, storeId, loadingStores } = useActiveStore();
   const [themes, setThemes] = useState([]);
   const [themeCategoryFilter, setThemeCategoryFilter] = useState("All");
   const [themeSearch, setThemeSearch] = useState("");
@@ -724,6 +747,46 @@ export const StoreBuilder = () => {
     setStatus(`Added section: ${template.title}`);
   };
 
+  const applyBrandingPreset = (preset) => {
+    let existing = {};
+    try {
+      existing = JSON.parse(themeSettings.designTokensJson || "{}");
+    } catch {
+      existing = {};
+    }
+    setThemeSettings((s) => ({
+      ...s,
+      designTokensJson: JSON.stringify({ ...existing, ...preset.tokens, typographyPack: preset.typographyPack }, null, 2),
+    }));
+    setStatus(`Applied branding preset: ${preset.name}`);
+  };
+
+  const applyCampaignTemplate = (tpl) => {
+    const allowed = new Set(sectionEntitlements.allowedPremiumKeys);
+    const keys = tpl.sections.filter((k) => !k.endsWith("-pro") || allowed.has(k));
+    const toAdd = SECTION_MARKETPLACE.filter((x) => keys.includes(x.key));
+    pushHistory();
+    setSections((prev) => [
+      ...prev,
+      ...toAdd.map((template) => ({
+        id: newNodeId(),
+        type: template.type,
+        title: template.title,
+        settings: { tier: template.tier, templateKey: template.key },
+        children: [],
+      })),
+    ]);
+    setStatus(`Applied campaign template: ${tpl.name}`);
+  };
+
+  const previewTheme = (themeId) => {
+    if (!storeId || !themeId) return;
+    const selectedStore = stores.find((x) => x.id === storeId);
+    const sub = selectedStore?.subdomain || selectedStore?.name?.toLowerCase().replace(/\s+/g, "-");
+    if (!sub) return;
+    window.open(`/s/${sub}?previewThemeId=${encodeURIComponent(themeId)}`, "_blank");
+  };
+
   const uploadMedia = async (e, kind = "generic") => {
     if (!storeId) return;
     const file = e.target.files?.[0];
@@ -1028,10 +1091,26 @@ export const StoreBuilder = () => {
               <p className="text-xs text-slate-500">{filteredThemes.length} theme(s) available</p>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredThemes.map((theme) => (
-                  <ThemeCard key={theme.id} theme={theme} isActive={activeThemeId === theme.id} onSelect={applyTheme} />
+                  <ThemeCard key={theme.id} theme={theme} isActive={activeThemeId === theme.id} onSelect={applyTheme} onPreview={previewTheme} />
                 ))}
               </div>
               {filteredThemes.length === 0 ? <p className="text-sm text-slate-500">No themes match current filters.</p> : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Branding Presets & Typography Packs</CardTitle>
+              <CardDescription>Apply ready visual presets and theme typography quickly.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-3 gap-3">
+              {BRANDING_PRESETS.map((preset) => (
+                <div key={preset.key} className="p-3 border rounded-lg">
+                  <p className="text-sm font-medium">{preset.name}</p>
+                  <p className="text-xs text-slate-500 mt-1">Typography: {preset.typographyPack}</p>
+                  <Button className="mt-2" size="sm" variant="outline" onClick={() => applyBrandingPreset(preset)}>Apply</Button>
+                </div>
+              ))}
             </CardContent>
           </Card>
 
@@ -1246,6 +1325,24 @@ export const StoreBuilder = () => {
                   >
                     Add
                   </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Campaign Templates</CardTitle>
+              <CardDescription>Quickly apply prebuilt marketing block combinations.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-3">
+              {CAMPAIGN_TEMPLATES.map((tpl) => (
+                <div key={tpl.key} className="p-3 border rounded-lg flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium">{tpl.name}</p>
+                    <p className="text-xs text-slate-500">{tpl.sections.join(", ")}</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => applyCampaignTemplate(tpl)}>Apply</Button>
                 </div>
               ))}
             </CardContent>

@@ -18,6 +18,9 @@ const initialForm = {
   isActive: true,
   isFeatured: false,
   featuredRank: 0,
+  typographyPack: "modern-sans",
+  layoutVariant: "default",
+  runtimePackageJson: "{}",
 };
 
 export default function PlatformThemes() {
@@ -26,6 +29,7 @@ export default function PlatformThemes() {
   const [editingId, setEditingId] = useState("");
   const [editForm, setEditForm] = useState(initialForm);
   const [message, setMessage] = useState("");
+  const [previewSubdomain, setPreviewSubdomain] = useState("demo");
 
   const load = async () => {
     try {
@@ -66,6 +70,9 @@ export default function PlatformThemes() {
       isActive: !!row.isActive,
       isFeatured: !!row.isFeatured,
       featuredRank: Number(row.featuredRank || 0),
+      typographyPack: row.typographyPack || "modern-sans",
+      layoutVariant: row.layoutVariant || "default",
+      runtimePackageJson: row.runtimePackageJson || "{}",
     });
   };
 
@@ -134,6 +141,9 @@ export default function PlatformThemes() {
           <div className="space-y-2"><Label>Price</Label><Input type="number" value={form.price} onChange={(e) => setForm((s) => ({ ...s, price: e.target.value }))} /></div>
           <div className="space-y-2"><Label>Allowed plan codes CSV</Label><Input value={form.allowedPlanCodesCsv} onChange={(e) => setForm((s) => ({ ...s, allowedPlanCodesCsv: e.target.value }))} placeholder="growth,pro,enterprise" /></div>
           <div className="space-y-2"><Label>Featured rank</Label><Input type="number" value={form.featuredRank} onChange={(e) => setForm((s) => ({ ...s, featuredRank: e.target.value }))} /></div>
+          <div className="space-y-2"><Label>Typography pack</Label><Input value={form.typographyPack} onChange={(e) => setForm((s) => ({ ...s, typographyPack: e.target.value }))} /></div>
+          <div className="space-y-2"><Label>Layout variant</Label><Input value={form.layoutVariant} onChange={(e) => setForm((s) => ({ ...s, layoutVariant: e.target.value }))} /></div>
+          <div className="space-y-2 md:col-span-2"><Label>Runtime package JSON</Label><Input value={form.runtimePackageJson} onChange={(e) => setForm((s) => ({ ...s, runtimePackageJson: e.target.value }))} /></div>
           <div className="flex items-center gap-2"><Switch checked={form.isPaid} onCheckedChange={(v) => setForm((s) => ({ ...s, isPaid: v }))} /><Label>Paid theme</Label></div>
           <div className="flex items-center gap-2"><Switch checked={form.isActive} onCheckedChange={(v) => setForm((s) => ({ ...s, isActive: v }))} /><Label>Active</Label></div>
           <div className="flex items-center gap-2"><Switch checked={form.isFeatured} onCheckedChange={(v) => setForm((s) => ({ ...s, isFeatured: v }))} /><Label>Featured</Label></div>
@@ -146,6 +156,10 @@ export default function PlatformThemes() {
           <CardTitle>Theme Catalog Lifecycle</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          <div className="flex items-center gap-2 mb-2">
+            <Label className="text-xs">Preview store subdomain</Label>
+            <Input className="max-w-xs" value={previewSubdomain} onChange={(e) => setPreviewSubdomain(e.target.value)} placeholder="demo" />
+          </div>
           {rows.map((x) => (
             <div key={x.id} className="p-3 border rounded-lg space-y-3">
               <div className="flex items-center justify-between gap-3">
@@ -158,6 +172,7 @@ export default function PlatformThemes() {
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" onClick={() => runLifecycle(x.id, "publish")}>Publish</Button>
                   <Button size="sm" variant="outline" onClick={() => runLifecycle(x.id, "unpublish")}>Unpublish</Button>
+                  <Button size="sm" variant="outline" onClick={() => window.open(`/s/${previewSubdomain}?previewThemeId=${x.id}`, "_blank")}>Preview</Button>
                   <Button size="sm" onClick={() => startEdit(x)}>Edit</Button>
                 </div>
               </div>

@@ -277,3 +277,21 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - Fully visual AND/OR rule composer UI.
   - Background scheduler for periodic SLA checks.
   - Notification templates/escalation policies and assignment queues.
+
+[2026-02-19 09:34 IST] Storefront Enhancements Wave (Items 1-7 progression)
+- Developed:
+  - Visual branding presets + typography pack application in Store Builder (one-click token apply).
+  - Campaign templates and premium marketing block presets expanded (apply-ready bundles).
+  - Rich product browse UX improved: category filter, grid/list layout switch, sticky cart/checkout bar.
+  - Wholesale messaging upgraded with MOQ + pack-size hints from storefront config.
+  - Public checkout flow wired end-to-end (`/api/public/storefront/{subdomain}/checkout`) creating customer + order + order items.
+  - Theme runtime package scaffolding added on theme catalog (`TypographyPack`, `LayoutVariant`, `RuntimePackageJson`).
+  - Full preview mode before apply enabled for store owner + platform owner via `previewThemeId` query flow.
+- Partial:
+  - Product listing UX is improved but still not a full dedicated PDP/PLP template engine.
+  - Checkout is functional baseline; payment gateway handoff/3DS and advanced shipping/tax are pending.
+  - Runtime package system is schema-enabled and preview-aware, but not yet a full compiled theme runtime pipeline.
+- Pending:
+  - Deep per-theme page layout variants with fully separate component packs.
+  - Full checkout orchestration (coupons, shipping rules, tax engine, payment callback states).
+  - Advanced sticky ATC behavior on dedicated PDP screens.

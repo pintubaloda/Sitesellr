@@ -22,6 +22,12 @@ public class ThemeCatalogItem
     public bool IsActive { get; set; } = true;
     public bool IsFeatured { get; set; }
     public int FeaturedRank { get; set; }
+    [MaxLength(60)]
+    public string TypographyPack { get; set; } = "modern-sans";
+    [MaxLength(60)]
+    public string LayoutVariant { get; set; } = "default";
+    [MaxLength(4000)]
+    public string RuntimePackageJson { get; set; } = "{}";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

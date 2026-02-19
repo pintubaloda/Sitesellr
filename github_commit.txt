@@ -398,3 +398,17 @@ Files:
 Notes:
 - Implemented requested scope with API + UI + notification hooks.
 [Committed] e52bf32 pushed to origin/main
+
+[Pending Commit] 2026-02-19 09:34 IST
+Title: Add branding presets, richer storefront browse/checkout UX, runtime theme scaffolding, and preview mode
+Files:
+- backend-dotnet/Models/Storefront.cs
+- backend-dotnet/Data/AppDbContext.cs
+- backend-dotnet/Program.cs
+- backend-dotnet/Controllers/StorefrontController.cs
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- frontend/src/pages/admin/StoreBuilder.js
+- frontend/src/pages/admin/PlatformThemes.js
+- frontend/src/pages/storefront/StorefrontPublic.js
+Notes:
+- Covers requested items 1-7 with full implementation where feasible and schema-level foundations for runtime theme packs.

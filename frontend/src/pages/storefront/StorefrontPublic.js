@@ -64,6 +64,9 @@ export default function StorefrontPublic() {
   const [data, setData] = useState(null);
   const [page, setPage] = useState(null);
   const [error, setError] = useState("");
+  const [categoryId, setCategoryId] = useState("all");
+  const [listLayout, setListLayout] = useState("grid");
+  const [cart, setCart] = useState([]);
 
   const slug = useMemo(() => {
     const path = location.pathname.replace(`/s/${subdomain}`, "").replace(/^\//, "");
@@ -73,7 +76,9 @@ export default function StorefrontPublic() {
   useEffect(() => {
     const run = async () => {
       try {
-        const res = await api.get(`/public/storefront/${subdomain}`);
+        const query = new URLSearchParams(location.search);
+        const previewThemeId = query.get("previewThemeId");
+        const res = await api.get(`/public/storefront/${subdomain}`, { params: previewThemeId ? { previewThemeId } : {} });
         setData(res.data);
         setError("");
       } catch {
@@ -81,7 +86,7 @@ export default function StorefrontPublic() {
       }
     };
     run();
-  }, [subdomain]);
+  }, [subdomain, location.search]);
 
   useEffect(() => {
     const run = async () => {
@@ -104,6 +109,7 @@ export default function StorefrontPublic() {
 
   const menu = parseJsonArray(data.navigation?.itemsJson);
   const sections = parseJsonArray(data.homepage?.sectionsJson);
+  const categories = Array.isArray(data.categories) ? data.categories : [];
   const showPricing = !!data.theme?.showPricing;
   const wholesaleMode = ["wholesale", "hybrid"].includes((data.theme?.catalogMode || "retail").toLowerCase());
   const device = /Mobi|Android|iPhone/i.test(navigator.userAgent)
@@ -114,12 +120,33 @@ export default function StorefrontPublic() {
   const customerType = (new URLSearchParams(location.search).get("customerType") || "retail").toLowerCase();
   const isLoggedIn = (new URLSearchParams(location.search).get("loggedIn") || "false").toLowerCase() === "true";
   let defaultMoq = 10;
+  let packSize = 1;
   try {
     const cfg = JSON.parse(data.theme?.catalogVisibilityJson || "{}");
     if (Number(cfg.defaultMoq) > 0) defaultMoq = Number(cfg.defaultMoq);
+    if (Number(cfg.packSize) > 0) packSize = Number(cfg.packSize);
   } catch {
     // ignore invalid config
   }
+  const filteredProducts = (data.products || []).filter((p) => categoryId === "all" || p.categoryId === categoryId);
+  const cartCount = cart.reduce((n, i) => n + i.quantity, 0);
+  const cartTotal = cart.reduce((n, i) => n + (Number(i.price || 0) * i.quantity), 0);
+  const typographyPack = (data.theme?.activeTheme?.typographyPack || "modern-sans").toLowerCase();
+  const fontFamily = typographyPack === "merchant-serif"
+    ? "Georgia, Cambria, 'Times New Roman', Times, serif"
+    : typographyPack === "luxury-display"
+      ? "'Trebuchet MS', 'Segoe UI', sans-serif"
+      : "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+  const addToCart = (product, qty = 1) => {
+    setCart((prev) => {
+      const idx = prev.findIndex((x) => x.id === product.id);
+      if (idx < 0) return [...prev, { id: product.id, title: product.title, price: Number(product.price || 0), quantity: qty }];
+      const next = [...prev];
+      next[idx] = { ...next[idx], quantity: next[idx].quantity + qty };
+      return next;
+    });
+  };
 
   const submitQuote = async (product) => {
     const name = window.prompt("Your name");
@@ -143,13 +170,37 @@ export default function StorefrontPublic() {
     }
   };
 
+  const checkout = async () => {
+    const name = window.prompt("Checkout: Your name");
+    if (!name) return;
+    const email = window.prompt("Checkout: Your email");
+    if (!email) return;
+    const phone = window.prompt("Checkout: Your phone");
+    if (!phone) return;
+    const paymentMethod = window.prompt("Payment method (cod/upi/card)", "cod") || "cod";
+    try {
+      const res = await api.post(`/public/storefront/${subdomain}/checkout`, {
+        name,
+        email,
+        phone,
+        paymentMethod,
+        items: cart.map((x) => ({ productId: x.id, quantity: x.quantity })),
+      });
+      window.alert(`Order created: ${res.data?.orderId}`);
+      setCart([]);
+    } catch {
+      window.alert("Checkout failed.");
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="min-h-screen bg-white text-slate-900" style={{ fontFamily }}>
       <header className="border-b">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {data.theme?.logoUrl ? <img src={data.theme.logoUrl} alt={data.store?.name} className="h-8 w-8 rounded" /> : null}
             <h1 className="text-xl font-bold">{data.store?.name}</h1>
+            {data.previewThemeId ? <span className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">Preview Mode</span> : null}
           </div>
           <nav>{renderMenu(menu.length ? menu : [{ label: "Home", path: "/" }], subdomain, { customerType, isLoggedIn, device })}</nav>
         </div>
@@ -166,16 +217,34 @@ export default function StorefrontPublic() {
           ) : null}
 
           <section>
-            <h2 className="text-lg font-semibold mb-4">Products</h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {(data.products || []).map((p) => (
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 className="text-lg font-semibold">Products</h2>
+              <div className="flex items-center gap-2">
+                <select className="h-9 rounded border px-2 text-sm" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                  <option value="all">All categories</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <button className={`px-2 py-1 rounded border text-xs ${listLayout === "grid" ? "bg-slate-900 text-white" : ""}`} onClick={() => setListLayout("grid")}>Grid</button>
+                <button className={`px-2 py-1 rounded border text-xs ${listLayout === "list" ? "bg-slate-900 text-white" : ""}`} onClick={() => setListLayout("list")}>List</button>
+              </div>
+            </div>
+            <div className={listLayout === "grid" ? "grid sm:grid-cols-2 lg:grid-cols-4 gap-4" : "space-y-3"}>
+              {filteredProducts.map((p) => (
                 <div key={p.id} className="border rounded-xl p-3">
                   <p className="font-medium">{p.title}</p>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2">{p.description}</p>
                   <p className="text-sm mt-2 font-semibold">
                     {showPricing ? `${p.currency || "INR"} ${Number(p.price || 0).toLocaleString()}` : "Login to view price"}
                   </p>
-                  {wholesaleMode ? <p className="text-xs text-amber-700 mt-1">MOQ starts at {defaultMoq} units · Bulk pricing available</p> : null}
+                  {wholesaleMode ? <p className="text-xs text-amber-700 mt-1">MOQ {defaultMoq}+ · Pack size {packSize} · Bulk pricing available</p> : null}
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      className="text-xs px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800"
+                      onClick={() => addToCart(p, wholesaleMode ? defaultMoq : 1)}
+                    >
+                      Add to cart
+                    </button>
+                  </div>
                   {wholesaleMode ? <button className="mt-2 text-xs px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50" onClick={() => submitQuote(p)}>Request Quote</button> : null}
                 </div>
               ))}
@@ -188,6 +257,14 @@ export default function StorefrontPublic() {
           <div className="prose prose-slate max-w-none whitespace-pre-wrap">{page?.content}</div>
         </main>
       )}
+      {cartCount > 0 ? (
+        <div className="fixed bottom-0 left-0 right-0 border-t bg-white/95 backdrop-blur z-40">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-medium">{cartCount} item(s) · INR {cartTotal.toLocaleString()}</p>
+            <button className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700" onClick={checkout}>Checkout</button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

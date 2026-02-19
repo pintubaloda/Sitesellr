@@ -20,7 +20,7 @@ public class PublicStorefrontController : ControllerBase
     }
 
     [HttpGet("{subdomain}")]
-    public async Task<IActionResult> GetBySubdomain(string subdomain, [FromQuery] Guid? customerGroupId, CancellationToken ct)
+    public async Task<IActionResult> GetBySubdomain(string subdomain, [FromQuery] Guid? customerGroupId, [FromQuery] Guid? previewThemeId, CancellationToken ct)
     {
         var normalized = subdomain.Trim().ToLowerInvariant();
         var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalized, ct);
@@ -29,6 +29,17 @@ public class PublicStorefrontController : ControllerBase
         var theme = await _db.StoreThemeConfigs.AsNoTracking()
             .Include(x => x.ActiveTheme)
             .FirstOrDefaultAsync(x => x.StoreId == store.Id, ct);
+        if (previewThemeId.HasValue)
+        {
+            var previewTheme = await _db.ThemeCatalogItems.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == previewThemeId.Value && x.IsActive, ct);
+            if (previewTheme != null)
+            {
+                theme ??= new Models.StoreThemeConfig { StoreId = store.Id };
+                theme.ActiveThemeId = previewTheme.Id;
+                theme.ActiveTheme = previewTheme;
+            }
+        }
         var homepage = await _db.StoreHomepageLayouts.AsNoTracking().FirstOrDefaultAsync(x => x.StoreId == store.Id, ct);
         var nav = await _db.StoreNavigationMenus.AsNoTracking()
             .Where(x => x.StoreId == store.Id && x.IsPrimary)
@@ -56,11 +67,17 @@ public class PublicStorefrontController : ControllerBase
                 x.Id,
                 x.Title,
                 x.Description,
+                x.CategoryId,
                 Price = (theme == null || theme.ShowPricing) ? x.Price : (decimal?)null,
                 x.Currency
             })
             .ToListAsync(ct);
         products = ApplyVisibility(products, x => x.Id.ToString().ToLowerInvariant(), productRules).ToList();
+        var categories = await _db.Categories.AsNoTracking()
+            .Where(x => x.StoreId == store.Id)
+            .OrderBy(x => x.Name)
+            .Select(x => new { x.Id, x.Name, x.Slug })
+            .ToListAsync(ct);
 
         var filteredSectionsJson = FilterThemeBlocks(homepage?.SectionsJson ?? "[]", blockRules);
 
@@ -70,7 +87,15 @@ public class PublicStorefrontController : ControllerBase
             theme = theme == null ? null : new
             {
                 theme.ActiveThemeId,
-                ActiveTheme = theme.ActiveTheme == null ? null : new { theme.ActiveTheme.Name, theme.ActiveTheme.Slug, theme.ActiveTheme.Category },
+                ActiveTheme = theme.ActiveTheme == null ? null : new
+                {
+                    theme.ActiveTheme.Name,
+                    theme.ActiveTheme.Slug,
+                    theme.ActiveTheme.Category,
+                    theme.ActiveTheme.TypographyPack,
+                    theme.ActiveTheme.LayoutVariant,
+                    theme.ActiveTheme.RuntimePackageJson
+                },
                 theme.LogoUrl,
                 theme.FaviconUrl,
                 theme.HeaderJson,
@@ -85,7 +110,9 @@ public class PublicStorefrontController : ControllerBase
             homepage = new { SectionsJson = filteredSectionsJson },
             navigation = new { ItemsJson = nav?.ItemsJson ?? "[]" },
             pages,
-            products
+            products,
+            categories,
+            previewThemeId
         });
     }
 
@@ -146,6 +173,81 @@ public class PublicStorefrontController : ControllerBase
         return Ok(new { submitted = true, row.Id, row.Status });
     }
 
+    [HttpPost("{subdomain}/checkout")]
+    public async Task<IActionResult> PublicCheckout(string subdomain, [FromBody] PublicCheckoutRequest req, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        if (req.Items == null || req.Items.Count == 0) return BadRequest(new { error = "cart_empty" });
+
+        var products = await _db.Products.AsNoTracking()
+            .Where(x => x.StoreId == store.Id && req.Items.Select(i => i.ProductId).Contains(x.Id))
+            .ToListAsync(ct);
+        if (products.Count == 0) return BadRequest(new { error = "products_not_found" });
+
+        var customer = await _db.Customers.FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Email == req.Email.Trim().ToLowerInvariant(), ct);
+        if (customer == null)
+        {
+            customer = new Models.Customer
+            {
+                StoreId = store.Id,
+                Name = req.Name.Trim(),
+                Email = req.Email.Trim().ToLowerInvariant(),
+                Phone = req.Phone.Trim(),
+                Type = Models.CustomerType.Retail,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            _db.Customers.Add(customer);
+            await _db.SaveChangesAsync(ct);
+        }
+
+        decimal subtotal = 0;
+        var orderItems = new List<Models.OrderItem>();
+        foreach (var item in req.Items)
+        {
+            var p = products.FirstOrDefault(x => x.Id == item.ProductId);
+            if (p == null) continue;
+            var qty = Math.Max(1, item.Quantity);
+            var total = p.Price * qty;
+            subtotal += total;
+            orderItems.Add(new Models.OrderItem
+            {
+                Id = Guid.NewGuid(),
+                ProductId = p.Id,
+                Title = p.Title,
+                SKU = p.SKU,
+                Quantity = qty,
+                Price = p.Price,
+                Total = total
+            });
+        }
+
+        if (orderItems.Count == 0) return BadRequest(new { error = "cart_invalid" });
+        var order = new Models.Order
+        {
+            Id = Guid.NewGuid(),
+            StoreId = store.Id,
+            CustomerId = customer.Id,
+            Type = Models.OrderType.Retail,
+            Status = Models.OrderStatus.Pending,
+            PaymentStatus = req.PaymentMethod.Trim().ToLowerInvariant() == "cod" ? Models.PaymentStatus.Pending : Models.PaymentStatus.Pending,
+            Subtotal = subtotal,
+            Tax = 0,
+            Shipping = 0,
+            Total = subtotal,
+            Currency = store.Currency,
+            Notes = $"public_checkout;payment={req.PaymentMethod}",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+            Items = orderItems
+        };
+        _db.Orders.Add(order);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { success = true, orderId = order.Id, total = order.Total, currency = order.Currency });
+    }
+
     private static IEnumerable<T> ApplyVisibility<T>(IEnumerable<T> source, Func<T, string> key, IReadOnlyCollection<Models.VisibilityRule> rules)
     {
         var allow = rules.Where(x => x.Effect == "allow").Select(x => x.TargetKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -201,4 +303,26 @@ public class QuoteInquiryCreateRequest
     public string Phone { get; set; } = string.Empty;
     [StringLength(1200)]
     public string? Message { get; set; }
+}
+
+public class PublicCheckoutRequest
+{
+    [Required, StringLength(200, MinimumLength = 2)]
+    public string Name { get; set; } = string.Empty;
+    [Required, EmailAddress, StringLength(320)]
+    public string Email { get; set; } = string.Empty;
+    [Required, StringLength(20, MinimumLength = 8)]
+    public string Phone { get; set; } = string.Empty;
+    [Required, StringLength(40)]
+    public string PaymentMethod { get; set; } = "cod";
+    [Required]
+    public List<PublicCheckoutItem> Items { get; set; } = new();
+}
+
+public class PublicCheckoutItem
+{
+    [Required]
+    public Guid ProductId { get; set; }
+    [Range(1, 9999)]
+    public int Quantity { get; set; } = 1;
 }

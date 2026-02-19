@@ -839,6 +839,9 @@ public class PlatformThemesController : ControllerBase
             IsActive = req.IsActive,
             IsFeatured = req.IsFeatured,
             FeaturedRank = req.FeaturedRank,
+            TypographyPack = string.IsNullOrWhiteSpace(req.TypographyPack) ? "modern-sans" : req.TypographyPack.Trim().ToLowerInvariant(),
+            LayoutVariant = string.IsNullOrWhiteSpace(req.LayoutVariant) ? "default" : req.LayoutVariant.Trim().ToLowerInvariant(),
+            RuntimePackageJson = string.IsNullOrWhiteSpace(req.RuntimePackageJson) ? "{}" : req.RuntimePackageJson.Trim(),
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -868,6 +871,9 @@ public class PlatformThemesController : ControllerBase
         row.IsActive = req.IsActive;
         row.IsFeatured = req.IsFeatured;
         row.FeaturedRank = req.FeaturedRank;
+        row.TypographyPack = string.IsNullOrWhiteSpace(req.TypographyPack) ? "modern-sans" : req.TypographyPack.Trim().ToLowerInvariant();
+        row.LayoutVariant = string.IsNullOrWhiteSpace(req.LayoutVariant) ? "default" : req.LayoutVariant.Trim().ToLowerInvariant();
+        row.RuntimePackageJson = string.IsNullOrWhiteSpace(req.RuntimePackageJson) ? "{}" : req.RuntimePackageJson.Trim();
         row.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
@@ -979,6 +985,12 @@ public class ThemeCatalogCreateRequest
     public bool IsFeatured { get; set; }
     [Range(0, 9999)]
     public int FeaturedRank { get; set; }
+    [StringLength(60)]
+    public string? TypographyPack { get; set; }
+    [StringLength(60)]
+    public string? LayoutVariant { get; set; }
+    [StringLength(4000)]
+    public string? RuntimePackageJson { get; set; }
 }
 
 public class ThemeCatalogUpdateRequest
@@ -1002,6 +1014,12 @@ public class ThemeCatalogUpdateRequest
     public bool IsFeatured { get; set; }
     [Range(0, 9999)]
     public int FeaturedRank { get; set; }
+    [StringLength(60)]
+    public string? TypographyPack { get; set; }
+    [StringLength(60)]
+    public string? LayoutVariant { get; set; }
+    [StringLength(4000)]
+    public string? RuntimePackageJson { get; set; }
 }
 
 public class ThemeFeatureRequest

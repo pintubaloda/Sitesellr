@@ -323,3 +323,14 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - Fully visual boolean rule graph editor.
   - Production payment webhook verification/signature checks.
   - Hardened signed preview token system for theme preview sessions.
+
+[2026-02-19 10:18 IST] Role/Permission model alignment + test-user permission binding
+- Developed:
+  - Expanded permission catalog to align with requested platform/store/customer atomic permission model (merchant governance, finance, plugins, API keys, security, store ops, customer perms).
+  - Added platform staff default permission bundle in tenancy resolver (scoped read/masked-style capabilities).
+  - Updated store role bundles to permission-first templates (Store Admin and Store Staff bundles).
+  - Bound seeded test users to permissions by role on startup (`SEED_TEST_USERS=true`) by syncing `store_user_permissions` for owner/admin/staff users.
+  - Kept role as bundle source but no feature exposure hardcoded by role names in frontend access checks.
+- Notes:
+  - Platform owner/platform staff permission exposure is resolved from platform role bundle templates at runtime.
+  - Customer test user remains storefront-only by design (no admin/store permissions seeded).

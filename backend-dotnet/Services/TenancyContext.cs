@@ -129,6 +129,13 @@ public class TenancyResolver : ITenancyResolver
                         platformPermissions.Add(permission);
                     }
                 }
+                else if (platformRoles.Contains(PlatformRole.Staff))
+                {
+                    foreach (var permission in PermissionCatalog.GetPlatformStaffTemplatePermissions())
+                    {
+                        platformPermissions.Add(permission);
+                    }
+                }
             }
         }
 

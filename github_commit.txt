@@ -443,3 +443,13 @@ Files:
 Notes:
 - Added store-level quote alert settings, owner bootstrap password support, visual menu condition builder, and checkout payment callback API.
 [Committed] d09349a pushed to origin/main
+
+[Pending Commit] 2026-02-19 10:18 IST
+Title: Align permission catalog to requested model and bind seeded test users by role bundles
+Files:
+- backend-dotnet/Security/PermissionCatalog.cs
+- backend-dotnet/Services/TenancyContext.cs
+- backend-dotnet/Program.cs
+Notes:
+- Adds broader atomic permission set and runtime role-bundle permission mapping.
+- Seeds explicit store permissions for test users (owner/admin/staff) to match their role bundles.

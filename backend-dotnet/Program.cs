@@ -761,6 +761,27 @@ if (builder.Configuration.GetValue("SEED_TEST_USERS", false))
     await EnsureStoreRoleAsync(storeOwner.Id, StoreRole.Owner);
     await EnsureStoreRoleAsync(storeAdmin.Id, StoreRole.Admin);
     await EnsureStoreRoleAsync(storeStaff.Id, StoreRole.Staff);
+
+    async Task SyncStorePermissionsAsync(Guid userId, IReadOnlyCollection<string> desired)
+    {
+        var existing = await db.StoreUserPermissions.Where(x => x.StoreId == store.Id && x.UserId == userId).ToListAsync();
+        db.StoreUserPermissions.RemoveRange(existing);
+        foreach (var permission in desired.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            db.StoreUserPermissions.Add(new StoreUserPermission
+            {
+                StoreId = store.Id,
+                UserId = userId,
+                Permission = permission,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
+    }
+
+    await SyncStorePermissionsAsync(storeOwner.Id, PermissionCatalog.GetTemplatePermissions(StoreRole.Owner));
+    await SyncStorePermissionsAsync(storeAdmin.Id, PermissionCatalog.GetTemplatePermissions(StoreRole.Admin));
+    await SyncStorePermissionsAsync(storeStaff.Id, PermissionCatalog.GetTemplatePermissions(StoreRole.Staff));
+
     await db.SaveChangesAsync();
 }
 

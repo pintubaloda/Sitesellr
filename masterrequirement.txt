@@ -242,3 +242,9 @@ Menu advanced rule builder | Visual rule rows (field/op/value + AND/OR mode) add
 Menu reorder UX | DnD drop zones + up/down controls available | Not yet polished with tree ghost/animations | Production-grade tree DnD interaction layer
 Checkout orchestration | Added payment callback endpoint to move from pending->paid states | Callback currently app-driven simulation | Gateway-signed webhook flow + reconciliation jobs
 Theme runtime isolation | Runtime metadata now actively influences renderer behavior | Still not fully isolated package runtime | Full isolated runtime engine with strict component boundaries
+
+Update 2026-02-19 10:18 IST - Role/permission conformance pass
+Module name | developed | partial developed | need to develop
+Role = permission-bundle model | Expanded permission dictionary and bundle mapping for platform/store roles implemented | Some legacy policy names still coexist for backward compatibility | Full policy migration to strictly new permission namespace
+Test user permission binding | Seeded test users now receive explicit store permissions by role bundle at startup | Platform permissions remain runtime-derived (not persisted per-user grants) | Add persisted platform permission overrides UI and storage
+Platform staff scoped permissions | Staff role now resolves scoped template permissions in tenancy context | Department-specific variants (support/finance/risk) still consolidated | Split staff templates by department with assignment UX

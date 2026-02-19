@@ -6,6 +6,7 @@ namespace backend_dotnet.Services;
 public interface IEmailService
 {
     Task<bool> SendInviteAsync(string toEmail, string inviteUrl, string role, CancellationToken ct = default);
+    Task<bool> SendGenericAsync(string toEmail, string subject, string body, CancellationToken ct = default);
 }
 
 public class EmailService : IEmailService
@@ -20,6 +21,18 @@ public class EmailService : IEmailService
     }
 
     public async Task<bool> SendInviteAsync(string toEmail, string inviteUrl, string role, CancellationToken ct = default)
+    {
+        var subject = "Sitesellr Team Invitation";
+        var body = $@"You are invited to join Sitesellr store team.
+
+Role: {role}
+Accept invite: {inviteUrl}
+
+If you did not request this, ignore this email.";
+        return await SendGenericAsync(toEmail, subject, body, ct);
+    }
+
+    public async Task<bool> SendGenericAsync(string toEmail, string subject, string body, CancellationToken ct = default)
     {
         var host = _config["SMTP__Host"];
         var portRaw = _config["SMTP__Port"];
@@ -45,16 +58,9 @@ public class EmailService : IEmailService
             client.Credentials = new NetworkCredential(username, password);
         }
 
-        var body = $@"You are invited to join Sitesellr store team.
-
-Role: {role}
-Accept invite: {inviteUrl}
-
-If you did not request this, ignore this email.";
-
         using var message = new MailMessage(from, toEmail)
         {
-            Subject = "Sitesellr Team Invitation",
+            Subject = subject,
             Body = body
         };
 

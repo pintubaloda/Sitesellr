@@ -423,9 +423,17 @@ CREATE TABLE IF NOT EXISTS store_quote_inquiries (
   ""Phone"" character varying(20) NOT NULL,
   ""Message"" character varying(1200) NULL,
   ""Status"" character varying(40) NOT NULL,
+  ""AssignedToUserId"" uuid NULL,
+  ""Priority"" character varying(20) NOT NULL DEFAULT 'normal',
+  ""SlaDueAt"" timestamp with time zone NULL,
+  ""LastNotifiedAt"" timestamp with time zone NULL,
   ""CreatedAt"" timestamp with time zone NOT NULL,
   ""UpdatedAt"" timestamp with time zone NOT NULL
 );");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_quote_inquiries ADD COLUMN IF NOT EXISTS ""AssignedToUserId"" uuid NULL;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_quote_inquiries ADD COLUMN IF NOT EXISTS ""Priority"" character varying(20) NOT NULL DEFAULT 'normal';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_quote_inquiries ADD COLUMN IF NOT EXISTS ""SlaDueAt"" timestamp with time zone NULL;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_quote_inquiries ADD COLUMN IF NOT EXISTS ""LastNotifiedAt"" timestamp with time zone NULL;");
     await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_store_quote_inquiries_StoreId_CreatedAt ON store_quote_inquiries (""StoreId"", ""CreatedAt"");");
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS customer_groups (

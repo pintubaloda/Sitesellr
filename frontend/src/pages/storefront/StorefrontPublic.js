@@ -22,6 +22,25 @@ const renderMenu = (items, subdomain, context, depth = 0) => {
     if (login === "required" && !context.isLoggedIn) return false;
     if (login === "guest" && context.isLoggedIn) return false;
     if (device !== "all" && device !== context.device) return false;
+    const ruleJson = m.visibility?.ruleJson;
+    if (ruleJson) {
+      try {
+        const parsed = JSON.parse(ruleJson);
+        const conditions = Array.isArray(parsed?.conditions) ? parsed.conditions : [];
+        const mode = (parsed?.mode || "all").toLowerCase();
+        const checks = conditions.map((c) => {
+          const field = String(c?.field || "").trim();
+          const op = String(c?.op || "eq").trim().toLowerCase();
+          const value = String(c?.value || "").trim().toLowerCase();
+          const current = String(context[field] ?? "").toLowerCase();
+          return op === "neq" ? current !== value : current === value;
+        });
+        const ok = mode === "any" ? checks.some(Boolean) : checks.every(Boolean);
+        if (!ok) return false;
+      } catch {
+        return false;
+      }
+    }
     return true;
   });
   if (visible.length === 0) return null;

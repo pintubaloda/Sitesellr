@@ -260,3 +260,20 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - Full drag-and-drop tree reorder UX for menu nodes.
   - Advanced conditional rule builder (AND/OR groups).
   - Quote notification hooks (email/WhatsApp) and ownership routing.
+
+[2026-02-19 09:26 IST] Advanced Menu Rules + Quote Assignment/SLA Automation
+- Developed:
+  - Menu drag-drop tree operations added (drag handle + drop before/after/as-child targets) in Store Builder.
+  - Advanced boolean visibility evaluator added to storefront menu rendering via `visibility.ruleJson` with `mode=all|any` and condition list (`field/op/value`).
+  - Quote workflow expanded with assignment + SLA + priority metadata.
+  - Quote automation endpoint added to process SLA-breached inquiries and send notification emails.
+  - Assignment/status updates trigger assignee notification emails when SMTP configured.
+  - Public quote submit can trigger alert email to `QUOTE_ALERT_EMAIL`.
+- Partial:
+  - Menu DnD UX is functional but still lightweight (no visual tree ghost previews).
+  - Advanced boolean rule builder currently JSON-input driven per menu item (not a full visual expression designer).
+  - SLA automation is manual trigger endpoint (button-driven), not scheduled worker/cron yet.
+- Pending:
+  - Fully visual AND/OR rule composer UI.
+  - Background scheduler for periodic SLA checks.
+  - Notification templates/escalation policies and assignment queues.

@@ -179,6 +179,12 @@ public class StoreQuoteInquiry
     public string Message { get; set; } = string.Empty;
     [MaxLength(40)]
     public string Status { get; set; } = "new";
+    public Guid? AssignedToUserId { get; set; }
+    public User? AssignedToUser { get; set; }
+    [MaxLength(20)]
+    public string Priority { get; set; } = "normal";
+    public DateTimeOffset? SlaDueAt { get; set; }
+    public DateTimeOffset? LastNotifiedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

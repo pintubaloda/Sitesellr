@@ -11,10 +11,12 @@ namespace backend_dotnet.Controllers;
 public class PublicStorefrontController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly backend_dotnet.Services.IEmailService _emailService;
 
-    public PublicStorefrontController(AppDbContext db)
+    public PublicStorefrontController(AppDbContext db, backend_dotnet.Services.IEmailService emailService)
     {
         _db = db;
+        _emailService = emailService;
     }
 
     [HttpGet("{subdomain}")]
@@ -129,6 +131,18 @@ public class PublicStorefrontController : ControllerBase
         };
         _db.StoreQuoteInquiries.Add(row);
         await _db.SaveChangesAsync(ct);
+
+        var alertEmail = Environment.GetEnvironmentVariable("QUOTE_ALERT_EMAIL");
+        if (!string.IsNullOrWhiteSpace(alertEmail))
+        {
+            await _emailService.SendGenericAsync(
+                alertEmail,
+                $"New quote inquiry ({store.Subdomain})",
+                $"Quote {row.Id}\nName: {row.Name}\nEmail: {row.Email}\nPhone: {row.Phone}\nMessage: {row.Message}",
+                ct);
+            row.LastNotifiedAt = DateTimeOffset.UtcNow;
+            await _db.SaveChangesAsync(ct);
+        }
         return Ok(new { submitted = true, row.Id, row.Status });
     }
 

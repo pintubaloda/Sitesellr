@@ -208,3 +208,9 @@ Module name | developed | partial developed | need to develop
 Nested menu drag-reorder + conditional visibility | Nested menu hierarchy editor, visibility filters (customer/login/device), and sibling reorder controls are implemented and wired to public renderer | Reorder is up/down control instead of pointer drag-drop | Full drag-drop tree reorder with drop-zones and keyboard accessibility
 Premium section entitlement/billing enforcement | Backend entitlement resolution + guarded homepage layout validation/save + frontend lock/disable states by plan implemented | Entitlement source is plan-rule mapping; no paid section checkout yet | Marketplace billing for premium sections and entitlement purchase ledger
 Quote inquiry workflow for Request Quote | Public quote submit API + store admin list/status APIs + Store Builder processing UI + public button wiring implemented | No auto-notification, assignment, or SLA workflow yet | Add notification channels, assignee queues, and quote-to-order conversion pipeline
+
+Update 2026-02-19 09:26 IST - Requested advanced menu/quote scope
+Module name | developed | partial developed | need to develop
+Menu drag-drop + conditional visibility | DnD drop before/after/as-child, base filters, and advanced boolean rule evaluation support implemented | Advanced rules configured via JSON input (not full visual builder) | Full graphical rule builder with condition groups and validation UX
+Quote assignment/SLA automation | Assignment, priority, SLA fields + APIs + email notifications + SLA automation run endpoint implemented | Automation is manually triggered; not background scheduled | Scheduled workers, escalation ladders, and SLA dashboard analytics
+Premium section enforcement | Guardrails remain active in validate/save and UI lock states | Billing/entitlement purchase flow still absent | Paid entitlement checkout + ledger + revocation handling

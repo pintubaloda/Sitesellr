@@ -198,6 +198,7 @@ export const StoreBuilder = () => {
   const [futureSections, setFutureSections] = useState([]);
   const [layoutVersions, setLayoutVersions] = useState([]);
   const [menuItems, setMenuItems] = useState(normalizeMenuItems(FALLBACK_MENU));
+  const [draggingMenuId, setDraggingMenuId] = useState("");
   const [pages, setPages] = useState([]);
   const [pageForm, setPageForm] = useState({ title: "", slug: "", content: "", seoTitle: "", seoDescription: "", isPublished: false });
   const [editingPageId, setEditingPageId] = useState("");
@@ -216,6 +217,7 @@ export const StoreBuilder = () => {
   const [visibilityRules, setVisibilityRules] = useState([]);
   const [sectionEntitlements, setSectionEntitlements] = useState({ planCode: "", allowedPremiumKeys: [] });
   const [quoteInquiries, setQuoteInquiries] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [newGroupName, setNewGroupName] = useState("");
   const [ruleForm, setRuleForm] = useState({ customerGroupId: "", targetType: "product", targetKey: "", effect: "deny" });
   const [previewGroupId, setPreviewGroupId] = useState("");
@@ -253,7 +255,7 @@ export const StoreBuilder = () => {
     setLoading(true);
     setStatus("");
     try {
-      const [themesRes, settingsRes, layoutRes, navRes, pagesRes, versionsRes, groupsRes, rulesRes, entitlementsRes, quoteRes] = await Promise.all([
+      const [themesRes, settingsRes, layoutRes, navRes, pagesRes, versionsRes, groupsRes, rulesRes, entitlementsRes, quoteRes, teamRes] = await Promise.all([
         api.get(`/stores/${storeId}/storefront/themes`),
         api.get(`/stores/${storeId}/storefront/settings`),
         api.get(`/stores/${storeId}/storefront/homepage-layout`),
@@ -264,6 +266,7 @@ export const StoreBuilder = () => {
         api.get(`/stores/${storeId}/b2b/rules`),
         api.get(`/stores/${storeId}/storefront/section-entitlements`),
         api.get(`/stores/${storeId}/storefront/quote-inquiries`),
+        api.get(`/stores/${storeId}/team`),
       ]);
 
       const themeRows = Array.isArray(themesRes.data) ? themesRes.data : [];
@@ -295,6 +298,7 @@ export const StoreBuilder = () => {
         allowedPremiumKeys: Array.isArray(entitlementsRes.data?.allowedPremiumKeys) ? entitlementsRes.data.allowedPremiumKeys : [],
       });
       setQuoteInquiries(Array.isArray(quoteRes.data) ? quoteRes.data : []);
+      setTeamMembers(Array.isArray(teamRes.data) ? teamRes.data : []);
     } catch (err) {
       setStatus(err?.response?.status === 403 ? "You are not authorized." : "Could not load storefront settings.");
     } finally {
@@ -759,16 +763,56 @@ export const StoreBuilder = () => {
     }
   };
 
-  const updateQuoteStatus = async (id, status) => {
+  const updateQuoteStatus = async (id, status, assignedToUserId, priority, slaDueAt) => {
     if (!storeId || !id) return;
     try {
-      await api.put(`/stores/${storeId}/storefront/quote-inquiries/${id}/status`, { status });
+      await api.put(`/stores/${storeId}/storefront/quote-inquiries/${id}/status`, { status, assignedToUserId, priority, slaDueAt });
       const res = await api.get(`/stores/${storeId}/storefront/quote-inquiries`);
       setQuoteInquiries(Array.isArray(res.data) ? res.data : []);
       setStatus("Quote inquiry status updated.");
     } catch (err) {
       setStatus(err?.response?.data?.error || "Could not update quote inquiry status.");
     }
+  };
+
+  const handleDropMenu = (sourceId, targetId, mode) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const extractNode = (nodes, id) => {
+      let found = null;
+      const next = nodes
+        .filter((n) => {
+          if (n.id === id) {
+            found = n;
+            return false;
+          }
+          return true;
+        })
+        .map((n) => {
+          const child = extractNode(n.children || [], id);
+          if (child.node) found = child.node;
+          return { ...n, children: child.nodes };
+        });
+      return { nodes: next, node: found };
+    };
+    const insertRelative = (nodes, id, node, where) => {
+      const out = [];
+      for (const n of nodes) {
+        if (n.id === id && where === "before") out.push(node);
+        out.push({ ...n, children: insertRelative(n.children || [], id, node, where) });
+        if (n.id === id && where === "after") out.push(node);
+      }
+      return out;
+    };
+    const insertChild = (nodes, id, node) =>
+      nodes.map((n) => (n.id === id ? { ...n, children: [...(n.children || []), node] } : { ...n, children: insertChild(n.children || [], id, node) }));
+
+    setMenuItems((prev) => {
+      const removed = extractNode(prev, sourceId);
+      if (!removed.node) return prev;
+      if (mode === "child") return insertChild(removed.nodes, targetId, removed.node);
+      return insertRelative(removed.nodes, targetId, removed.node, mode);
+    });
+    setDraggingMenuId("");
   };
 
   const editPage = (page) => {
@@ -852,8 +896,8 @@ export const StoreBuilder = () => {
     <div key={item.id} className="space-y-2">
       <div className="grid grid-cols-12 gap-2 items-center p-3 border border-slate-200 dark:border-slate-700 rounded-xl" style={{ marginLeft: `${Math.min(depth, 5) * 18}px` }}>
         <Move className="w-4 h-4 text-slate-400 col-span-1" />
-        <Input className="col-span-3" value={item.label || ""} onChange={(e) => updateMenuItem(item.id, { label: e.target.value })} />
-        <Input className="col-span-3" value={item.path || ""} onChange={(e) => updateMenuItem(item.id, { path: e.target.value })} />
+        <Input className="col-span-2" value={item.label || ""} onChange={(e) => updateMenuItem(item.id, { label: e.target.value })} />
+        <Input className="col-span-2" value={item.path || ""} onChange={(e) => updateMenuItem(item.id, { path: e.target.value })} />
         <select
           className="col-span-2 h-9 rounded-md border px-2 bg-transparent text-xs"
           value={item.visibility?.customerType || "all"}
@@ -882,6 +926,12 @@ export const StoreBuilder = () => {
           <option value="desktop">D</option>
           <option value="tablet">T</option>
         </select>
+        <Input
+          className="col-span-2 text-xs"
+          value={item.visibility?.ruleJson || ""}
+          onChange={(e) => updateMenuItem(item.id, { visibility: { ...(item.visibility || {}), ruleJson: e.target.value } })}
+          placeholder='{"mode":"any","conditions":[...]}'
+        />
         <div className="col-span-1 flex justify-end gap-1">
           <Button variant="ghost" size="icon" onClick={() => reorderMenuItem(item.id, "up")} title="Move up">↑</Button>
           <Button variant="ghost" size="icon" onClick={() => reorderMenuItem(item.id, "down")} title="Move down">↓</Button>
@@ -889,7 +939,31 @@ export const StoreBuilder = () => {
           <Button variant="ghost" size="icon" onClick={() => removeMenuItem(item.id)} title="Delete menu"><Trash2 className="w-4 h-4" /></Button>
         </div>
       </div>
+      <div
+        className="h-2 rounded bg-transparent hover:bg-blue-200/70"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); handleDropMenu(draggingMenuId, item.id, "before"); }}
+      />
+      <div className="flex gap-2 pl-6">
+        <button
+          type="button"
+          className="text-[10px] text-slate-500 hover:text-slate-700"
+          draggable
+          onDragStart={() => setDraggingMenuId(item.id)}
+          onDragEnd={() => setDraggingMenuId("")}
+        >
+          drag
+        </button>
+        <button type="button" className="text-[10px] text-slate-500 hover:text-slate-700" onClick={() => handleDropMenu(draggingMenuId, item.id, "child")}>
+          drop as child
+        </button>
+      </div>
       {(item.children || []).map((child) => renderMenuNodeEditor(child, depth + 1))}
+      <div
+        className="h-2 rounded bg-transparent hover:bg-blue-200/70"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); handleDropMenu(draggingMenuId, item.id, "after"); }}
+      />
     </div>
   );
 
@@ -1076,6 +1150,19 @@ export const StoreBuilder = () => {
               <CardDescription>Requests submitted from wholesale storefront “Request Quote”.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await api.post(`/stores/${storeId}/storefront/quote-inquiries/automation/run`);
+                    setStatus("Quote automation run completed.");
+                  } catch (err) {
+                    setStatus(err?.response?.data?.error || "Could not run quote automation.");
+                  }
+                }}
+              >
+                Run SLA Automation
+              </Button>
               {quoteInquiries.length === 0 ? <p className="text-sm text-slate-500">No quote inquiries yet.</p> : null}
               {quoteInquiries.map((q) => (
                 <div key={q.id} className="p-3 border rounded-lg flex items-center justify-between gap-3">
@@ -1084,10 +1171,49 @@ export const StoreBuilder = () => {
                     <p className="text-xs text-slate-500">{q.email} · {q.message || "No message"}</p>
                     <p className="text-xs text-slate-400">Status: {q.status}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => updateQuoteStatus(q.id, "in_progress")}>In Progress</Button>
-                    <Button size="sm" variant="outline" onClick={() => updateQuoteStatus(q.id, "resolved")}>Resolve</Button>
-                    <Button size="sm" variant="outline" onClick={() => updateQuoteStatus(q.id, "closed")}>Close</Button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      className="h-8 rounded border px-2 text-xs bg-transparent"
+                      value={q.assignedToUserId || ""}
+                      onChange={(e) => setQuoteInquiries((prev) => prev.map((x) => x.id === q.id ? { ...x, assignedToUserId: e.target.value || null } : x))}
+                    >
+                      <option value="">Unassigned</option>
+                      {teamMembers.map((u) => <option key={u.userId} value={u.userId}>{u.email}</option>)}
+                    </select>
+                    <select
+                      className="h-8 rounded border px-2 text-xs bg-transparent"
+                      value={q.priority || "normal"}
+                      onChange={(e) => setQuoteInquiries((prev) => prev.map((x) => x.id === q.id ? { ...x, priority: e.target.value } : x))}
+                    >
+                      <option value="low">low</option>
+                      <option value="normal">normal</option>
+                      <option value="high">high</option>
+                      <option value="urgent">urgent</option>
+                    </select>
+                    <Input
+                      type="datetime-local"
+                      className="h-8 text-xs"
+                      value={q.slaDueAt ? new Date(q.slaDueAt).toISOString().slice(0, 16) : ""}
+                      onChange={(e) => setQuoteInquiries((prev) => prev.map((x) => x.id === q.id ? { ...x, slaDueAt: e.target.value ? new Date(e.target.value).toISOString() : null } : x))}
+                    />
+                    <select
+                      className="h-8 rounded border px-2 text-xs bg-transparent"
+                      value={q.status}
+                      onChange={(e) => setQuoteInquiries((prev) => prev.map((x) => x.id === q.id ? { ...x, status: e.target.value } : x))}
+                    >
+                      <option value="new">new</option>
+                      <option value="in_progress">in_progress</option>
+                      <option value="resolved">resolved</option>
+                      <option value="closed">closed</option>
+                    </select>
+                    <Button
+                      size="sm"
+                      className="col-span-2"
+                      variant="outline"
+                      onClick={() => updateQuoteStatus(q.id, q.status, q.assignedToUserId || null, q.priority || "normal", q.slaDueAt || null)}
+                    >
+                      Save
+                    </Button>
                   </div>
                 </div>
               ))}

@@ -499,11 +499,15 @@ public class AppDbContext : DbContext
             b.Property(x => x.Phone).HasMaxLength(20);
             b.Property(x => x.Message).HasMaxLength(1200);
             b.Property(x => x.Status).HasMaxLength(40);
+            b.Property(x => x.Priority).HasMaxLength(20);
+            b.Property(x => x.SlaDueAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.LastNotifiedAt).HasColumnType("timestamp with time zone");
             b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
             b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(x => new { x.StoreId, x.CreatedAt });
             b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
             b.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.SetNull);
+            b.HasOne(x => x.AssignedToUser).WithMany().HasForeignKey(x => x.AssignedToUserId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<CustomerGroup>(b =>

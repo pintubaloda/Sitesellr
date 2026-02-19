@@ -17,11 +17,13 @@ namespace backend_dotnet.Controllers;
 public class StorefrontController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IEmailService _emailService;
     private TenancyContext? Tenancy => HttpContext.Items["Tenancy"] as TenancyContext;
 
-    public StorefrontController(AppDbContext db)
+    public StorefrontController(AppDbContext db, IEmailService emailService)
     {
         _db = db;
+        _emailService = emailService;
     }
 
     [HttpGet("themes")]
@@ -531,7 +533,9 @@ public class StorefrontController : ControllerBase
     public async Task<IActionResult> ListQuoteInquiries(Guid storeId, [FromQuery] string? status, CancellationToken ct)
     {
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
-        var q = _db.StoreQuoteInquiries.AsNoTracking().Where(x => x.StoreId == storeId);
+        var q = _db.StoreQuoteInquiries.AsNoTracking()
+            .Include(x => x.AssignedToUser)
+            .Where(x => x.StoreId == storeId);
         if (!string.IsNullOrWhiteSpace(status))
         {
             var normalized = status.Trim().ToLowerInvariant();
@@ -550,9 +554,62 @@ public class StorefrontController : ControllerBase
         var row = await _db.StoreQuoteInquiries.FirstOrDefaultAsync(x => x.StoreId == storeId && x.Id == id, ct);
         if (row == null) return NotFound(new { error = "quote_inquiry_not_found" });
         row.Status = req.Status.Trim().ToLowerInvariant();
+        row.Priority = string.IsNullOrWhiteSpace(req.Priority) ? row.Priority : req.Priority.Trim().ToLowerInvariant();
+        row.AssignedToUserId = req.AssignedToUserId;
+        row.SlaDueAt = req.SlaDueAt;
         row.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
+
+        if (row.AssignedToUserId.HasValue)
+        {
+            var assigneeEmail = await _db.Users.AsNoTracking()
+                .Where(x => x.Id == row.AssignedToUserId.Value)
+                .Select(x => x.Email)
+                .FirstOrDefaultAsync(ct);
+            if (!string.IsNullOrWhiteSpace(assigneeEmail))
+            {
+                await _emailService.SendGenericAsync(
+                    assigneeEmail,
+                    $"Sitesellr quote assigned ({row.Status})",
+                    $"Quote {row.Id} assigned to you.\nStatus: {row.Status}\nPriority: {row.Priority}\nSLA: {row.SlaDueAt}",
+                    ct);
+                row.LastNotifiedAt = DateTimeOffset.UtcNow;
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+
         return Ok(row);
+    }
+
+    [HttpPost("quote-inquiries/automation/run")]
+    [Authorize(Policy = Policies.OrdersWrite)]
+    public async Task<IActionResult> RunQuoteAutomation(Guid storeId, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var now = DateTimeOffset.UtcNow;
+        var rows = await _db.StoreQuoteInquiries
+            .Include(x => x.AssignedToUser)
+            .Where(x => x.StoreId == storeId && x.SlaDueAt != null && x.SlaDueAt <= now && x.Status != "resolved" && x.Status != "closed")
+            .Take(100)
+            .ToListAsync(ct);
+        var sent = 0;
+        foreach (var row in rows)
+        {
+            var to = row.AssignedToUser?.Email ?? (Environment.GetEnvironmentVariable("QUOTE_ALERT_EMAIL") ?? "");
+            if (string.IsNullOrWhiteSpace(to)) continue;
+            var ok = await _emailService.SendGenericAsync(
+                to,
+                $"SLA breached: quote {row.Id}",
+                $"Quote {row.Id} breached SLA.\nStatus: {row.Status}\nPriority: {row.Priority}\nSLA Due: {row.SlaDueAt}",
+                ct);
+            if (ok)
+            {
+                row.LastNotifiedAt = now;
+                sent++;
+            }
+        }
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { processed = rows.Count, notificationsSent = sent });
     }
 
     private static HashSet<string> ParseCodes(string csv)
@@ -970,6 +1027,10 @@ public class UpdateQuoteInquiryStatusRequest
 {
     [Required, RegularExpression("^(new|in_progress|resolved|closed)$")]
     public string Status { get; set; } = "new";
+    public Guid? AssignedToUserId { get; set; }
+    [RegularExpression("^(low|normal|high|urgent)$")]
+    public string? Priority { get; set; }
+    public DateTimeOffset? SlaDueAt { get; set; }
 }
 
 public class SectionEntitlementsResponse

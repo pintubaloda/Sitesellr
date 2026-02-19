@@ -383,3 +383,17 @@ Notes:
 - Added backend + frontend implementation for all 3 requested items in this scope.
 [Committed] 68bfb62 pushed to origin/main
 [Committed] 68bfb62 pushed to origin/main
+
+[Pending Commit] 2026-02-19 09:26 IST
+Title: Add menu DnD tree operations, advanced boolean visibility evaluation, and quote assignment/SLA automation
+Files:
+- backend-dotnet/Services/EmailService.cs
+- backend-dotnet/Models/Storefront.cs
+- backend-dotnet/Data/AppDbContext.cs
+- backend-dotnet/Program.cs
+- backend-dotnet/Controllers/StorefrontController.cs
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- frontend/src/pages/admin/StoreBuilder.js
+- frontend/src/pages/storefront/StorefrontPublic.js
+Notes:
+- Implemented requested scope with API + UI + notification hooks.

@@ -367,3 +367,4 @@ Notes:
 - Added nested menu management in builder + recursive menu rendering on public storefront.
 - Added premium/free section marketplace shortcuts.
 - Added wholesale messaging UX (MOQ + Request Quote CTA) based on catalog mode.
+[Committed] cf5f165 pushed to origin/main

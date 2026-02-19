@@ -381,3 +381,5 @@ Files:
 - frontend/src/pages/storefront/StorefrontPublic.js
 Notes:
 - Added backend + frontend implementation for all 3 requested items in this scope.
+[Committed] 68bfb62 pushed to origin/main
+[Committed] 68bfb62 pushed to origin/main

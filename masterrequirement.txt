@@ -248,3 +248,7 @@ Module name | developed | partial developed | need to develop
 Role = permission-bundle model | Expanded permission dictionary and bundle mapping for platform/store roles implemented | Some legacy policy names still coexist for backward compatibility | Full policy migration to strictly new permission namespace
 Test user permission binding | Seeded test users now receive explicit store permissions by role bundle at startup | Platform permissions remain runtime-derived (not persisted per-user grants) | Add persisted platform permission overrides UI and storage
 Platform staff scoped permissions | Staff role now resolves scoped template permissions in tenancy context | Department-specific variants (support/finance/risk) still consolidated | Split staff templates by department with assignment UX
+
+Update 2026-02-19 10:27 IST - Permission verification observability
+Module name | developed | partial developed | need to develop
+Permission verification tooling | Added `/api/auth/permissions` endpoint for effective permission introspection by logged-in user | Debug endpoint is read-only API view | Add admin UI page to compare expected-vs-effective role bundles

@@ -454,3 +454,10 @@ Notes:
 - Adds broader atomic permission set and runtime role-bundle permission mapping.
 - Seeds explicit store permissions for test users (owner/admin/staff) to match their role bundles.
 [Committed] f490627 pushed to origin/main
+
+[Pending Commit] 2026-02-19 10:27 IST
+Title: Add auth permissions debug endpoint
+Files:
+- backend-dotnet/Controllers/AuthAccessController.cs
+Notes:
+- New endpoint: `/api/auth/permissions`.

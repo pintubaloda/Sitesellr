@@ -38,4 +38,30 @@ public class AuthAccessController : ControllerBase
             }
         });
     }
+
+    [HttpGet("permissions")]
+    public IActionResult GetEffectivePermissions()
+    {
+        var tenancy = HttpContext.Items["Tenancy"] as TenancyContext;
+        if (tenancy?.UserId == null)
+        {
+            return Unauthorized(new { error = "unauthenticated" });
+        }
+
+        var all = tenancy.PlatformPermissions
+            .Concat(tenancy.StorePermissions)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x)
+            .ToArray();
+
+        return Ok(new
+        {
+            userId = tenancy.UserId,
+            platformRoles = tenancy.PlatformRoles.Select(x => x.ToString()).OrderBy(x => x).ToArray(),
+            storeRole = tenancy.Role?.ToString(),
+            platformPermissions = tenancy.PlatformPermissions.OrderBy(x => x).ToArray(),
+            storePermissions = tenancy.StorePermissions.OrderBy(x => x).ToArray(),
+            effectivePermissions = all
+        });
+    }
 }

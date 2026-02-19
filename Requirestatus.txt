@@ -334,3 +334,8 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Notes:
   - Platform owner/platform staff permission exposure is resolved from platform role bundle templates at runtime.
   - Customer test user remains storefront-only by design (no admin/store permissions seeded).
+
+[2026-02-19 10:27 IST] Auth permissions debug endpoint
+- Developed:
+  - Added `GET /api/auth/permissions` for production/debug verification of logged-in user's effective permissions.
+  - Response includes: platform roles, store role, platform permissions, store permissions, and merged effective permissions.

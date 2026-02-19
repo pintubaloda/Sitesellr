@@ -47,6 +47,7 @@ public class AppDbContext : DbContext
     public DbSet<StoreStaticPage> StoreStaticPages => Set<StoreStaticPage>();
     public DbSet<StoreMediaAsset> StoreMediaAssets => Set<StoreMediaAsset>();
     public DbSet<StoreDomain> StoreDomains => Set<StoreDomain>();
+    public DbSet<StoreQuoteInquiry> StoreQuoteInquiries => Set<StoreQuoteInquiry>();
     public DbSet<CustomerGroup> CustomerGroups => Set<CustomerGroup>();
     public DbSet<CustomerGroupMember> CustomerGroupMembers => Set<CustomerGroupMember>();
     public DbSet<VisibilityRule> VisibilityRules => Set<VisibilityRule>();
@@ -487,6 +488,22 @@ public class AppDbContext : DbContext
             b.HasIndex(x => x.Hostname).IsUnique();
             b.HasIndex(x => new { x.StoreId, x.IsVerified });
             b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StoreQuoteInquiry>(b =>
+        {
+            b.ToTable("store_quote_inquiries");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).HasMaxLength(200);
+            b.Property(x => x.Email).HasMaxLength(320);
+            b.Property(x => x.Phone).HasMaxLength(20);
+            b.Property(x => x.Message).HasMaxLength(1200);
+            b.Property(x => x.Status).HasMaxLength(40);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.CreatedAt });
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<CustomerGroup>(b =>

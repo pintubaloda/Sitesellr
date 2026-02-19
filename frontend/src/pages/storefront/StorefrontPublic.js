@@ -12,16 +12,27 @@ const parseJsonArray = (value) => {
   }
 };
 
-const renderMenu = (items, subdomain, depth = 0) => {
+const renderMenu = (items, subdomain, context, depth = 0) => {
   if (!Array.isArray(items) || items.length === 0) return null;
+  const visible = items.filter((m) => {
+    const customerType = (m.visibility?.customerType || "all").toLowerCase();
+    const login = (m.visibility?.login || "any").toLowerCase();
+    const device = (m.visibility?.device || "all").toLowerCase();
+    if (customerType !== "all" && customerType !== context.customerType) return false;
+    if (login === "required" && !context.isLoggedIn) return false;
+    if (login === "guest" && context.isLoggedIn) return false;
+    if (device !== "all" && device !== context.device) return false;
+    return true;
+  });
+  if (visible.length === 0) return null;
   return (
     <ul className={`flex ${depth > 0 ? "flex-col gap-1 mt-1 ml-4 border-l pl-3" : "items-center gap-4"} text-sm`}>
-      {items.map((m, idx) => (
+      {visible.map((m, idx) => (
         <li key={`${m.path || "link"}-${m.label || "item"}-${idx}`} className="text-slate-600">
           <Link to={`/s/${subdomain}${m.path === "/" ? "" : (m.path || "")}`} className="hover:text-slate-900">
             {m.label || "Link"}
           </Link>
-          {renderMenu(m.children || [], subdomain, depth + 1)}
+          {renderMenu(m.children || [], subdomain, context, depth + 1)}
         </li>
       ))}
     </ul>
@@ -76,6 +87,13 @@ export default function StorefrontPublic() {
   const sections = parseJsonArray(data.homepage?.sectionsJson);
   const showPricing = !!data.theme?.showPricing;
   const wholesaleMode = ["wholesale", "hybrid"].includes((data.theme?.catalogMode || "retail").toLowerCase());
+  const device = /Mobi|Android|iPhone/i.test(navigator.userAgent)
+    ? "mobile"
+    : /iPad|Tablet/i.test(navigator.userAgent)
+      ? "tablet"
+      : "desktop";
+  const customerType = (new URLSearchParams(location.search).get("customerType") || "retail").toLowerCase();
+  const isLoggedIn = (new URLSearchParams(location.search).get("loggedIn") || "false").toLowerCase() === "true";
   let defaultMoq = 10;
   try {
     const cfg = JSON.parse(data.theme?.catalogVisibilityJson || "{}");
@@ -83,6 +101,28 @@ export default function StorefrontPublic() {
   } catch {
     // ignore invalid config
   }
+
+  const submitQuote = async (product) => {
+    const name = window.prompt("Your name");
+    if (!name) return;
+    const email = window.prompt("Your email");
+    if (!email) return;
+    const phone = window.prompt("Your phone");
+    if (!phone) return;
+    const message = window.prompt("Message (optional)") || `Need quote for ${product.title}`;
+    try {
+      await api.post(`/public/storefront/${subdomain}/quote-inquiries`, {
+        productId: product.id,
+        name,
+        email,
+        phone,
+        message,
+      });
+      window.alert("Quote request submitted.");
+    } catch {
+      window.alert("Could not submit quote request.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -92,7 +132,7 @@ export default function StorefrontPublic() {
             {data.theme?.logoUrl ? <img src={data.theme.logoUrl} alt={data.store?.name} className="h-8 w-8 rounded" /> : null}
             <h1 className="text-xl font-bold">{data.store?.name}</h1>
           </div>
-          <nav>{renderMenu(menu.length ? menu : [{ label: "Home", path: "/" }], subdomain)}</nav>
+          <nav>{renderMenu(menu.length ? menu : [{ label: "Home", path: "/" }], subdomain, { customerType, isLoggedIn, device })}</nav>
         </div>
       </header>
 
@@ -117,7 +157,7 @@ export default function StorefrontPublic() {
                     {showPricing ? `${p.currency || "INR"} ${Number(p.price || 0).toLocaleString()}` : "Login to view price"}
                   </p>
                   {wholesaleMode ? <p className="text-xs text-amber-700 mt-1">MOQ starts at {defaultMoq} units · Bulk pricing available</p> : null}
-                  {wholesaleMode ? <button className="mt-2 text-xs px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50">Request Quote</button> : null}
+                  {wholesaleMode ? <button className="mt-2 text-xs px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50" onClick={() => submitQuote(p)}>Request Quote</button> : null}
                 </div>
               ))}
             </div>

@@ -236,6 +236,11 @@ public class StorefrontController : ControllerBase
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         if (!TryValidateSections(req.SectionsJson, out var validationError))
             return BadRequest(new { error = validationError ?? "sections_invalid" });
+
+        var entitlements = await ResolveSectionEntitlements(storeId, ct);
+        if (ContainsBlockedPremiumSection(req.SectionsJson, entitlements.AllowedPremiumKeys, out var blockedKey))
+            return BadRequest(new { error = "premium_section_not_entitled", key = blockedKey, upgradeRequired = true });
+
         var layout = await _db.StoreHomepageLayouts.FirstOrDefaultAsync(x => x.StoreId == storeId, ct);
         if (layout == null)
         {
@@ -262,11 +267,22 @@ public class StorefrontController : ControllerBase
 
     [HttpPost("homepage-layout/validate")]
     [Authorize(Policy = Policies.StoreSettingsWrite)]
-    public IActionResult ValidateHomepageLayout(Guid storeId, [FromBody] HomepageLayoutRequest req)
+    public async Task<IActionResult> ValidateHomepageLayout(Guid storeId, [FromBody] HomepageLayoutRequest req, CancellationToken ct)
     {
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         var isValid = TryValidateSections(req.SectionsJson, out var error);
-        return Ok(new { valid = isValid, error });
+        var entitlements = await ResolveSectionEntitlements(storeId, ct);
+        var blocked = ContainsBlockedPremiumSection(req.SectionsJson, entitlements.AllowedPremiumKeys, out var blockedKey);
+        return Ok(new { valid = isValid && !blocked, error = blocked ? "premium_section_not_entitled" : error, blockedKey });
+    }
+
+    [HttpGet("section-entitlements")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> GetSectionEntitlements(Guid storeId, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var entitlements = await ResolveSectionEntitlements(storeId, ct);
+        return Ok(entitlements);
     }
 
     [HttpGet("homepage-layout/versions")]
@@ -510,6 +526,35 @@ public class StorefrontController : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("quote-inquiries")]
+    [Authorize(Policy = Policies.OrdersRead)]
+    public async Task<IActionResult> ListQuoteInquiries(Guid storeId, [FromQuery] string? status, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var q = _db.StoreQuoteInquiries.AsNoTracking().Where(x => x.StoreId == storeId);
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var normalized = status.Trim().ToLowerInvariant();
+            q = q.Where(x => x.Status == normalized);
+        }
+
+        var rows = await q.OrderByDescending(x => x.CreatedAt).Take(200).ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    [HttpPut("quote-inquiries/{id:guid}/status")]
+    [Authorize(Policy = Policies.OrdersWrite)]
+    public async Task<IActionResult> UpdateQuoteInquiryStatus(Guid storeId, Guid id, [FromBody] UpdateQuoteInquiryStatusRequest req, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var row = await _db.StoreQuoteInquiries.FirstOrDefaultAsync(x => x.StoreId == storeId && x.Id == id, ct);
+        if (row == null) return NotFound(new { error = "quote_inquiry_not_found" });
+        row.Status = req.Status.Trim().ToLowerInvariant();
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(row);
+    }
+
     private static HashSet<string> ParseCodes(string csv)
     {
         return csv.Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -571,6 +616,94 @@ public class StorefrontController : ControllerBase
             }
         }
         return true;
+    }
+
+    private async Task<SectionEntitlementsResponse> ResolveSectionEntitlements(Guid storeId, CancellationToken ct)
+    {
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Id == storeId, ct);
+        var planCode = string.Empty;
+        if (store != null)
+        {
+            var sub = await _db.MerchantSubscriptions.AsNoTracking()
+                .Include(x => x.Plan)
+                .Where(x => x.MerchantId == store.MerchantId && !x.IsCancelled)
+                .OrderByDescending(x => x.StartedAt)
+                .FirstOrDefaultAsync(ct);
+            planCode = sub?.Plan?.Code?.Trim().ToLowerInvariant() ?? string.Empty;
+        }
+
+        var premiumRules = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["announcement-bar-pro"] = new[] { "growth", "pro", "enterprise" },
+            ["testimonial-carousel-pro"] = new[] { "growth", "pro", "enterprise" },
+            ["video-story-pro"] = new[] { "pro", "enterprise" },
+            ["wholesale-cta-pro"] = new[] { "pro", "enterprise" }
+        };
+        var allowedPremium = premiumRules
+            .Where(x => x.Value.Contains(planCode, StringComparer.OrdinalIgnoreCase))
+            .Select(x => x.Key)
+            .OrderBy(x => x)
+            .ToArray();
+        return new SectionEntitlementsResponse
+        {
+            PlanCode = planCode,
+            AllowedPremiumKeys = allowedPremium,
+            PremiumRules = premiumRules
+        };
+    }
+
+    private static bool ContainsBlockedPremiumSection(string sectionsJson, IEnumerable<string> allowedKeys, out string blockedKey)
+    {
+        blockedKey = string.Empty;
+        var allowed = new HashSet<string>(allowedKeys, StringComparer.OrdinalIgnoreCase);
+        var premiumKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "announcement-bar-pro",
+            "testimonial-carousel-pro",
+            "video-story-pro",
+            "wholesale-cta-pro"
+        };
+
+        bool Visit(JsonElement node)
+        {
+            if (node.ValueKind != JsonValueKind.Object) return false;
+            if (node.TryGetProperty("settings", out var settings) &&
+                settings.ValueKind == JsonValueKind.Object &&
+                settings.TryGetProperty("templateKey", out var keyEl) &&
+                keyEl.ValueKind == JsonValueKind.String)
+            {
+                var key = keyEl.GetString() ?? string.Empty;
+                if (premiumKeys.Contains(key) && !allowed.Contains(key))
+                {
+                    blockedKey = key;
+                    return true;
+                }
+            }
+            if (node.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var child in children.EnumerateArray())
+                {
+                    if (Visit(child)) return true;
+                }
+            }
+            return false;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(sectionsJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return false;
+            foreach (var item in doc.RootElement.EnumerateArray())
+            {
+                if (Visit(item)) return true;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+
+        return false;
     }
 
     private static Dictionary<string, string> FlattenNodes(string sectionsJson)
@@ -831,4 +964,17 @@ public class EditSessionRequest
 {
     [StringLength(120)]
     public string? EditorName { get; set; }
+}
+
+public class UpdateQuoteInquiryStatusRequest
+{
+    [Required, RegularExpression("^(new|in_progress|resolved|closed)$")]
+    public string Status { get; set; } = "new";
+}
+
+public class SectionEntitlementsResponse
+{
+    public string PlanCode { get; set; } = string.Empty;
+    public string[] AllowedPremiumKeys { get; set; } = Array.Empty<string>();
+    public Dictionary<string, string[]> PremiumRules { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }

@@ -368,3 +368,16 @@ Notes:
 - Added premium/free section marketplace shortcuts.
 - Added wholesale messaging UX (MOQ + Request Quote CTA) based on catalog mode.
 [Committed] cf5f165 pushed to origin/main
+
+[Pending Commit] 2026-02-19 09:19 IST
+Title: Enforce premium section entitlements, add menu visibility rules, and implement quote inquiry workflow
+Files:
+- backend-dotnet/Models/Storefront.cs
+- backend-dotnet/Data/AppDbContext.cs
+- backend-dotnet/Program.cs
+- backend-dotnet/Controllers/StorefrontController.cs
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- frontend/src/pages/admin/StoreBuilder.js
+- frontend/src/pages/storefront/StorefrontPublic.js
+Notes:
+- Added backend + frontend implementation for all 3 requested items in this scope.

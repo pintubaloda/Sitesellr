@@ -81,6 +81,11 @@ const normalizeMenuItems = (items = []) =>
     id: i.id || newMenuId(),
     label: i.label || "Menu",
     path: i.path || "/",
+    visibility: {
+      customerType: i.visibility?.customerType || "all",
+      login: i.visibility?.login || "any",
+      device: i.visibility?.device || "all",
+    },
     children: normalizeMenuItems(i.children || []),
   }));
 
@@ -209,6 +214,8 @@ export const StoreBuilder = () => {
   const [remoteCursors, setRemoteCursors] = useState([]);
   const [customerGroups, setCustomerGroups] = useState([]);
   const [visibilityRules, setVisibilityRules] = useState([]);
+  const [sectionEntitlements, setSectionEntitlements] = useState({ planCode: "", allowedPremiumKeys: [] });
+  const [quoteInquiries, setQuoteInquiries] = useState([]);
   const [newGroupName, setNewGroupName] = useState("");
   const [ruleForm, setRuleForm] = useState({ customerGroupId: "", targetType: "product", targetKey: "", effect: "deny" });
   const [previewGroupId, setPreviewGroupId] = useState("");
@@ -246,7 +253,7 @@ export const StoreBuilder = () => {
     setLoading(true);
     setStatus("");
     try {
-      const [themesRes, settingsRes, layoutRes, navRes, pagesRes, versionsRes, groupsRes, rulesRes] = await Promise.all([
+      const [themesRes, settingsRes, layoutRes, navRes, pagesRes, versionsRes, groupsRes, rulesRes, entitlementsRes, quoteRes] = await Promise.all([
         api.get(`/stores/${storeId}/storefront/themes`),
         api.get(`/stores/${storeId}/storefront/settings`),
         api.get(`/stores/${storeId}/storefront/homepage-layout`),
@@ -255,6 +262,8 @@ export const StoreBuilder = () => {
         api.get(`/stores/${storeId}/storefront/homepage-layout/versions`),
         api.get(`/stores/${storeId}/b2b/groups`),
         api.get(`/stores/${storeId}/b2b/rules`),
+        api.get(`/stores/${storeId}/storefront/section-entitlements`),
+        api.get(`/stores/${storeId}/storefront/quote-inquiries`),
       ]);
 
       const themeRows = Array.isArray(themesRes.data) ? themesRes.data : [];
@@ -281,6 +290,11 @@ export const StoreBuilder = () => {
       setLayoutVersions(Array.isArray(versionsRes.data) ? versionsRes.data : []);
       setCustomerGroups(Array.isArray(groupsRes.data) ? groupsRes.data : []);
       setVisibilityRules(Array.isArray(rulesRes.data) ? rulesRes.data : []);
+      setSectionEntitlements({
+        planCode: entitlementsRes.data?.planCode || "",
+        allowedPremiumKeys: Array.isArray(entitlementsRes.data?.allowedPremiumKeys) ? entitlementsRes.data.allowedPremiumKeys : [],
+      });
+      setQuoteInquiries(Array.isArray(quoteRes.data) ? quoteRes.data : []);
     } catch (err) {
       setStatus(err?.response?.status === 403 ? "You are not authorized." : "Could not load storefront settings.");
     } finally {
@@ -639,6 +653,22 @@ export const StoreBuilder = () => {
         : { ...n, children: appendMenuChild(n.children || [], parentId, child) }
     );
 
+  const moveMenuNode = (nodes, id, dir) => {
+    const work = (arr) => {
+      const idx = arr.findIndex((n) => n.id === id);
+      if (idx >= 0)
+      {
+        const target = dir === "up" ? idx - 1 : idx + 1;
+        if (target < 0 || target >= arr.length) return arr;
+        const next = [...arr];
+        [next[idx], next[target]] = [next[target], next[idx]];
+        return next;
+      }
+      return arr.map((n) => ({ ...n, children: work(n.children || []) }));
+    };
+    return work(nodes);
+  };
+
   const addMenuItem = () => {
     setMenuItems((prev) => [...prev, { id: newMenuId(), label: "New", path: "/new", children: [] }]);
   };
@@ -655,6 +685,10 @@ export const StoreBuilder = () => {
     setMenuItems((prev) => removeMenuNode(prev, id));
   };
 
+  const reorderMenuItem = (id, dir) => {
+    setMenuItems((prev) => moveMenuNode(prev, id, dir));
+  };
+
   const saveNavigation = async () => {
     if (!storeId) return;
     setStatus("");
@@ -667,6 +701,11 @@ export const StoreBuilder = () => {
   };
 
   const addSectionTemplate = (template) => {
+    if (template.tier === "paid" && !sectionEntitlements.allowedPremiumKeys.includes(template.key))
+    {
+      setStatus("Premium section not available on current plan.");
+      return;
+    }
     pushHistory();
     setSections((prev) => [
       ...prev,
@@ -717,6 +756,18 @@ export const StoreBuilder = () => {
       setStatus("Page saved.");
     } catch (err) {
       setStatus(err?.response?.data?.error || "Could not save page.");
+    }
+  };
+
+  const updateQuoteStatus = async (id, status) => {
+    if (!storeId || !id) return;
+    try {
+      await api.put(`/stores/${storeId}/storefront/quote-inquiries/${id}/status`, { status });
+      const res = await api.get(`/stores/${storeId}/storefront/quote-inquiries`);
+      setQuoteInquiries(Array.isArray(res.data) ? res.data : []);
+      setStatus("Quote inquiry status updated.");
+    } catch (err) {
+      setStatus(err?.response?.data?.error || "Could not update quote inquiry status.");
     }
   };
 
@@ -801,9 +852,39 @@ export const StoreBuilder = () => {
     <div key={item.id} className="space-y-2">
       <div className="grid grid-cols-12 gap-2 items-center p-3 border border-slate-200 dark:border-slate-700 rounded-xl" style={{ marginLeft: `${Math.min(depth, 5) * 18}px` }}>
         <Move className="w-4 h-4 text-slate-400 col-span-1" />
-        <Input className="col-span-4" value={item.label || ""} onChange={(e) => updateMenuItem(item.id, { label: e.target.value })} />
-        <Input className="col-span-5" value={item.path || ""} onChange={(e) => updateMenuItem(item.id, { path: e.target.value })} />
-        <div className="col-span-2 flex justify-end gap-1">
+        <Input className="col-span-3" value={item.label || ""} onChange={(e) => updateMenuItem(item.id, { label: e.target.value })} />
+        <Input className="col-span-3" value={item.path || ""} onChange={(e) => updateMenuItem(item.id, { path: e.target.value })} />
+        <select
+          className="col-span-2 h-9 rounded-md border px-2 bg-transparent text-xs"
+          value={item.visibility?.customerType || "all"}
+          onChange={(e) => updateMenuItem(item.id, { visibility: { ...(item.visibility || {}), customerType: e.target.value } })}
+        >
+          <option value="all">All</option>
+          <option value="retail">Retail only</option>
+          <option value="business">Business only</option>
+        </select>
+        <select
+          className="col-span-1 h-9 rounded-md border px-1 bg-transparent text-xs"
+          value={item.visibility?.login || "any"}
+          onChange={(e) => updateMenuItem(item.id, { visibility: { ...(item.visibility || {}), login: e.target.value } })}
+        >
+          <option value="any">Any</option>
+          <option value="required">Login</option>
+          <option value="guest">Guest</option>
+        </select>
+        <select
+          className="col-span-1 h-9 rounded-md border px-1 bg-transparent text-xs"
+          value={item.visibility?.device || "all"}
+          onChange={(e) => updateMenuItem(item.id, { visibility: { ...(item.visibility || {}), device: e.target.value } })}
+        >
+          <option value="all">All</option>
+          <option value="mobile">M</option>
+          <option value="desktop">D</option>
+          <option value="tablet">T</option>
+        </select>
+        <div className="col-span-1 flex justify-end gap-1">
+          <Button variant="ghost" size="icon" onClick={() => reorderMenuItem(item.id, "up")} title="Move up">↑</Button>
+          <Button variant="ghost" size="icon" onClick={() => reorderMenuItem(item.id, "down")} title="Move down">↓</Button>
           <Button variant="outline" size="icon" onClick={() => addMenuChild(item.id)} title="Add child menu"><Plus className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={() => removeMenuItem(item.id)} title="Delete menu"><Trash2 className="w-4 h-4" /></Button>
         </div>
@@ -988,22 +1069,55 @@ export const StoreBuilder = () => {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Quote Inquiries</CardTitle>
+              <CardDescription>Requests submitted from wholesale storefront “Request Quote”.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {quoteInquiries.length === 0 ? <p className="text-sm text-slate-500">No quote inquiries yet.</p> : null}
+              {quoteInquiries.map((q) => (
+                <div key={q.id} className="p-3 border rounded-lg flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">{q.name} · {q.phone}</p>
+                    <p className="text-xs text-slate-500">{q.email} · {q.message || "No message"}</p>
+                    <p className="text-xs text-slate-400">Status: {q.status}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => updateQuoteStatus(q.id, "in_progress")}>In Progress</Button>
+                    <Button size="sm" variant="outline" onClick={() => updateQuoteStatus(q.id, "resolved")}>Resolve</Button>
+                    <Button size="sm" variant="outline" onClick={() => updateQuoteStatus(q.id, "closed")}>Close</Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="pages" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Section Marketplace</CardTitle>
-              <CardDescription>Add free and premium storefront sections to homepage.</CardDescription>
+              <CardDescription>Add free and premium storefront sections to homepage. Current plan: {sectionEntitlements.planCode || "none"}.</CardDescription>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
               {SECTION_MARKETPLACE.map((template) => (
                 <div key={template.key} className="p-3 border rounded-lg flex items-center justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium">{template.title}</p>
-                    <p className="text-xs text-slate-500">{template.tier === "paid" ? "Premium section" : "Free section"}</p>
+                    <p className="text-xs text-slate-500">
+                      {template.tier === "paid"
+                        ? (sectionEntitlements.allowedPremiumKeys.includes(template.key) ? "Premium section (enabled)" : "Premium section (upgrade required)")
+                        : "Free section"}
+                    </p>
                   </div>
-                  <Button size="sm" variant={template.tier === "paid" ? "outline" : "default"} onClick={() => addSectionTemplate(template)}>
+                  <Button
+                    size="sm"
+                    variant={template.tier === "paid" ? "outline" : "default"}
+                    disabled={template.tier === "paid" && !sectionEntitlements.allowedPremiumKeys.includes(template.key)}
+                    onClick={() => addSectionTemplate(template)}
+                  >
                     Add
                   </Button>
                 </div>

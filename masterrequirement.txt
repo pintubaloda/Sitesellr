@@ -202,3 +202,9 @@ Module name | developed | partial developed | need to develop
 Navigation / menus | Nested menu editing and recursive public rendering implemented | Reordering and advanced visibility rules (customer type/device/login) not complete | Full visual tree drag-reorder + conditional display engine
 Homepage builder premium blocks | Section marketplace added with free/premium presets and one-click add | Premium presets are not entitlement-gated yet | Paid section entitlement, checkout, and analytics-based upsell
 Wholesale storefront behavior | Wholesale/hybrid mode now displays MOQ messaging and Request Quote CTA in public product cards | Quote CTA is UI-only, no backend inquiry pipeline | Quote management APIs + merchant quote inbox/workflow
+
+Update 2026-02-19 09:19 IST - Requested storefront gaps closure
+Module name | developed | partial developed | need to develop
+Nested menu drag-reorder + conditional visibility | Nested menu hierarchy editor, visibility filters (customer/login/device), and sibling reorder controls are implemented and wired to public renderer | Reorder is up/down control instead of pointer drag-drop | Full drag-drop tree reorder with drop-zones and keyboard accessibility
+Premium section entitlement/billing enforcement | Backend entitlement resolution + guarded homepage layout validation/save + frontend lock/disable states by plan implemented | Entitlement source is plan-rule mapping; no paid section checkout yet | Marketplace billing for premium sections and entitlement purchase ledger
+Quote inquiry workflow for Request Quote | Public quote submit API + store admin list/status APIs + Store Builder processing UI + public button wiring implemented | No auto-notification, assignment, or SLA workflow yet | Add notification channels, assignee queues, and quote-to-order conversion pipeline

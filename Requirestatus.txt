@@ -237,3 +237,26 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - Full visual nested navigation tree with reorder handles and role/device conditions.
   - Premium section billing hooks (purchase/entitlement checks).
   - End-to-end quote/inquiry backend + admin pipeline.
+
+[2026-02-19 09:19 IST] Requested Scope Completed: Nested Menu Rules + Premium Entitlements + Quote Workflow
+- Developed:
+  - Nested menu conditional visibility rules added (customer type / login state / device) in Store Builder menu editor and public storefront renderer.
+  - Nested menu sibling reorder controls (up/down) added for parent and child nodes.
+  - Premium section entitlement enforcement added end-to-end:
+    - Backend entitlement API: `GET /api/stores/{storeId}/storefront/section-entitlements`
+    - Backend save/validate guard blocks unauthorized premium sections in homepage layout.
+    - Frontend section marketplace now disables locked premium sections by plan.
+  - Quote inquiry backend workflow added:
+    - Public submit endpoint: `POST /api/public/storefront/{subdomain}/quote-inquiries`
+    - Admin list endpoint: `GET /api/stores/{storeId}/storefront/quote-inquiries`
+    - Admin status update endpoint: `PUT /api/stores/{storeId}/storefront/quote-inquiries/{id}/status`
+    - Store Builder UI panel added to process quote statuses.
+  - Public storefront wholesale CTA now submits real quote request to backend.
+- Partial:
+  - Menu reorder is button-based (up/down), not drag-handle DnD yet.
+  - Menu visibility currently supports single customerType/login/device rule per item (not complex boolean rule sets).
+  - Quote workflow uses basic fields/statuses; no assignment/SLA/notifications yet.
+- Pending:
+  - Full drag-and-drop tree reorder UX for menu nodes.
+  - Advanced conditional rule builder (AND/OR groups).
+  - Quote notification hooks (email/WhatsApp) and ownership routing.

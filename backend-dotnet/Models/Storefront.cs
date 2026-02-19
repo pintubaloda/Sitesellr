@@ -161,3 +161,24 @@ public class StoreStaticPage
     public bool IsPublished { get; set; }
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
+
+public class StoreQuoteInquiry
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    public Guid? ProductId { get; set; }
+    public Product? Product { get; set; }
+    [MaxLength(200)]
+    public string Name { get; set; } = string.Empty;
+    [MaxLength(320)]
+    public string Email { get; set; } = string.Empty;
+    [MaxLength(20)]
+    public string Phone { get; set; } = string.Empty;
+    [MaxLength(1200)]
+    public string Message { get; set; } = string.Empty;
+    [MaxLength(40)]
+    public string Status { get; set; } = "new";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}

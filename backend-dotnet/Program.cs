@@ -414,6 +414,20 @@ CREATE TABLE IF NOT EXISTS store_domains (
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_domains_Hostname ON store_domains (""Hostname"");");
     await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_store_domains_StoreId_IsVerified ON store_domains (""StoreId"", ""IsVerified"");");
     await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS store_quote_inquiries (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""ProductId"" uuid NULL,
+  ""Name"" character varying(200) NOT NULL,
+  ""Email"" character varying(320) NOT NULL,
+  ""Phone"" character varying(20) NOT NULL,
+  ""Message"" character varying(1200) NULL,
+  ""Status"" character varying(40) NOT NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL,
+  ""UpdatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_store_quote_inquiries_StoreId_CreatedAt ON store_quote_inquiries (""StoreId"", ""CreatedAt"");");
+    await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS customer_groups (
   ""Id"" uuid PRIMARY KEY,
   ""StoreId"" uuid NOT NULL,

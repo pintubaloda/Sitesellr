@@ -2,6 +2,7 @@ using backend_dotnet.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Nodes;
+using System.ComponentModel.DataAnnotations;
 
 namespace backend_dotnet.Controllers;
 
@@ -101,6 +102,36 @@ public class PublicStorefrontController : ControllerBase
         return Ok(page);
     }
 
+    [HttpPost("{subdomain}/quote-inquiries")]
+    public async Task<IActionResult> CreateQuoteInquiry(string subdomain, [FromBody] QuoteInquiryCreateRequest req, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+
+        if (req.ProductId.HasValue)
+        {
+            var productExists = await _db.Products.AsNoTracking().AnyAsync(x => x.StoreId == store.Id && x.Id == req.ProductId.Value, ct);
+            if (!productExists) return BadRequest(new { error = "invalid_product_id" });
+        }
+
+        var row = new Models.StoreQuoteInquiry
+        {
+            StoreId = store.Id,
+            ProductId = req.ProductId,
+            Name = req.Name.Trim(),
+            Email = req.Email.Trim().ToLowerInvariant(),
+            Phone = req.Phone.Trim(),
+            Message = req.Message?.Trim() ?? string.Empty,
+            Status = "new",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        _db.StoreQuoteInquiries.Add(row);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { submitted = true, row.Id, row.Status });
+    }
+
     private static IEnumerable<T> ApplyVisibility<T>(IEnumerable<T> source, Func<T, string> key, IReadOnlyCollection<Models.VisibilityRule> rules)
     {
         var allow = rules.Where(x => x.Effect == "allow").Select(x => x.TargetKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -143,4 +174,17 @@ public class PublicStorefrontController : ControllerBase
             return json;
         }
     }
+}
+
+public class QuoteInquiryCreateRequest
+{
+    public Guid? ProductId { get; set; }
+    [Required, StringLength(200, MinimumLength = 2)]
+    public string Name { get; set; } = string.Empty;
+    [Required, EmailAddress, StringLength(320)]
+    public string Email { get; set; } = string.Empty;
+    [Required, StringLength(20, MinimumLength = 8)]
+    public string Phone { get; set; } = string.Empty;
+    [StringLength(1200)]
+    public string? Message { get; set; }
 }

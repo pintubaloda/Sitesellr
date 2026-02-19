@@ -196,3 +196,9 @@ Module name | developed | partial developed | need to develop
 Theme marketplace governance | Platform owner can publish/unpublish themes, edit pricing, update plan mapping CSV, set featured flag + featured rank, with sorted catalog exposure | Single-row editing flow, no bulk operations | Bulk lifecycle operations + guarded approvals for high-risk catalog changes
 Theme monetization controls | Free/paid theme setup and plan eligibility enforcement is active end-to-end | No promotional pricing windows/coupon linkage | Time-bound pricing, campaign bundles, and upsell funnels
 Theme ranking controls | Featured ranking is now persisted and used in platform/store ordering | No strategy presets (new/seasonal/top conversion) | Ranking strategy automation and analytics-driven reorder suggestions
+
+Update 2026-02-19 09:11 IST - Storefront builder/navigation/wholesale UX
+Module name | developed | partial developed | need to develop
+Navigation / menus | Nested menu editing and recursive public rendering implemented | Reordering and advanced visibility rules (customer type/device/login) not complete | Full visual tree drag-reorder + conditional display engine
+Homepage builder premium blocks | Section marketplace added with free/premium presets and one-click add | Premium presets are not entitlement-gated yet | Paid section entitlement, checkout, and analytics-based upsell
+Wholesale storefront behavior | Wholesale/hybrid mode now displays MOQ messaging and Request Quote CTA in public product cards | Quote CTA is UI-only, no backend inquiry pipeline | Quote management APIs + merchant quote inbox/workflow

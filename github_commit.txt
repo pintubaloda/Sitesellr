@@ -357,3 +357,13 @@ Notes:
 - Added full platform theme lifecycle endpoints and UI controls for publish/unpublish, pricing, plan codes, and featured rank.
 [Committed] 8aaf2e6 pushed to origin/main
 [Committed] 8aaf2e6 pushed to origin/main
+
+[Pending Commit] 2026-02-19 09:11 IST
+Title: Add nested storefront navigation editor, premium section marketplace, wholesale MOQ/quote messaging
+Files:
+- frontend/src/pages/admin/StoreBuilder.js
+- frontend/src/pages/storefront/StorefrontPublic.js
+Notes:
+- Added nested menu management in builder + recursive menu rendering on public storefront.
+- Added premium/free section marketplace shortcuts.
+- Added wholesale messaging UX (MOQ + Request Quote CTA) based on catalog mode.

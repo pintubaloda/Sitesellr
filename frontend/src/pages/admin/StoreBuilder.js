@@ -44,6 +44,16 @@ const FALLBACK_MENU = [
   { label: "Contact", path: "/contact" },
 ];
 
+const SECTION_MARKETPLACE = [
+  { key: "hero-banner-basic", title: "Hero Banner", type: "hero", tier: "free" },
+  { key: "featured-products", title: "Featured Products", type: "products", tier: "free" },
+  { key: "category-grid", title: "Category Grid", type: "collection", tier: "free" },
+  { key: "announcement-bar-pro", title: "Announcement Bar", type: "announcement", tier: "paid" },
+  { key: "testimonial-carousel-pro", title: "Testimonial Carousel", type: "testimonials", tier: "paid" },
+  { key: "video-story-pro", title: "Brand Video Story", type: "video", tier: "paid" },
+  { key: "wholesale-cta-pro", title: "Wholesale CTA Block", type: "wholesale_cta", tier: "paid" },
+];
+
 const parseJsonArray = (value, fallback) => {
   if (!value) return fallback;
   try {
@@ -56,6 +66,7 @@ const parseJsonArray = (value, fallback) => {
 
 const cloneDeep = (value) => JSON.parse(JSON.stringify(value));
 const newNodeId = () => `node_${Math.random().toString(36).slice(2, 10)}`;
+const newMenuId = () => `menu_${Math.random().toString(36).slice(2, 10)}`;
 const normalizeNodes = (nodes = []) =>
   (Array.isArray(nodes) ? nodes : []).map((n) => ({
     id: n.id || newNodeId(),
@@ -63,6 +74,14 @@ const normalizeNodes = (nodes = []) =>
     title: n.title || n.type || "Block",
     settings: n.settings || {},
     children: normalizeNodes(n.children || []),
+  }));
+
+const normalizeMenuItems = (items = []) =>
+  (Array.isArray(items) ? items : []).map((i) => ({
+    id: i.id || newMenuId(),
+    label: i.label || "Menu",
+    path: i.path || "/",
+    children: normalizeMenuItems(i.children || []),
   }));
 
 const findNodeByIdInTree = (nodes, id) => {
@@ -173,7 +192,7 @@ export const StoreBuilder = () => {
   const [pastSections, setPastSections] = useState([]);
   const [futureSections, setFutureSections] = useState([]);
   const [layoutVersions, setLayoutVersions] = useState([]);
-  const [menuItems, setMenuItems] = useState(FALLBACK_MENU);
+  const [menuItems, setMenuItems] = useState(normalizeMenuItems(FALLBACK_MENU));
   const [pages, setPages] = useState([]);
   const [pageForm, setPageForm] = useState({ title: "", slug: "", content: "", seoTitle: "", seoDescription: "", isPublished: false });
   const [editingPageId, setEditingPageId] = useState("");
@@ -257,7 +276,7 @@ export const StoreBuilder = () => {
       setSections(normalized);
       setSelectedNodeId(normalized[0]?.id || "");
       revisionRef.current = 0;
-      setMenuItems(parseJsonArray(navRes.data?.itemsJson, FALLBACK_MENU));
+      setMenuItems(normalizeMenuItems(parseJsonArray(navRes.data?.itemsJson, FALLBACK_MENU)));
       setPages(Array.isArray(pagesRes.data) ? pagesRes.data : []);
       setLayoutVersions(Array.isArray(versionsRes.data) ? versionsRes.data : []);
       setCustomerGroups(Array.isArray(groupsRes.data) ? groupsRes.data : []);
@@ -601,12 +620,39 @@ export const StoreBuilder = () => {
     }
   };
 
+  const upsertMenuNode = (nodes, id, patch) =>
+    nodes.map((n) =>
+      n.id === id
+        ? { ...n, ...patch }
+        : { ...n, children: upsertMenuNode(n.children || [], id, patch) }
+    );
+
+  const removeMenuNode = (nodes, id) =>
+    nodes
+      .filter((n) => n.id !== id)
+      .map((n) => ({ ...n, children: removeMenuNode(n.children || [], id) }));
+
+  const appendMenuChild = (nodes, parentId, child) =>
+    nodes.map((n) =>
+      n.id === parentId
+        ? { ...n, children: [...(n.children || []), child] }
+        : { ...n, children: appendMenuChild(n.children || [], parentId, child) }
+    );
+
   const addMenuItem = () => {
-    setMenuItems((prev) => [...prev, { label: "New", path: "/new" }]);
+    setMenuItems((prev) => [...prev, { id: newMenuId(), label: "New", path: "/new", children: [] }]);
   };
 
-  const removeMenuItem = (idx) => {
-    setMenuItems((prev) => prev.filter((_, i) => i !== idx));
+  const addMenuChild = (parentId) => {
+    setMenuItems((prev) => appendMenuChild(prev, parentId, { id: newMenuId(), label: "Child", path: "/child", children: [] }));
+  };
+
+  const updateMenuItem = (id, patch) => {
+    setMenuItems((prev) => upsertMenuNode(prev, id, patch));
+  };
+
+  const removeMenuItem = (id) => {
+    setMenuItems((prev) => removeMenuNode(prev, id));
   };
 
   const saveNavigation = async () => {
@@ -618,6 +664,21 @@ export const StoreBuilder = () => {
     } catch (err) {
       setStatus(err?.response?.data?.error || "Could not save navigation.");
     }
+  };
+
+  const addSectionTemplate = (template) => {
+    pushHistory();
+    setSections((prev) => [
+      ...prev,
+      {
+        id: newNodeId(),
+        type: template.type,
+        title: template.title,
+        settings: { tier: template.tier, templateKey: template.key },
+        children: [],
+      },
+    ]);
+    setStatus(`Added section: ${template.title}`);
   };
 
   const uploadMedia = async (e, kind = "generic") => {
@@ -735,6 +796,21 @@ export const StoreBuilder = () => {
       </div>
     );
   };
+
+  const renderMenuNodeEditor = (item, depth = 0) => (
+    <div key={item.id} className="space-y-2">
+      <div className="grid grid-cols-12 gap-2 items-center p-3 border border-slate-200 dark:border-slate-700 rounded-xl" style={{ marginLeft: `${Math.min(depth, 5) * 18}px` }}>
+        <Move className="w-4 h-4 text-slate-400 col-span-1" />
+        <Input className="col-span-4" value={item.label || ""} onChange={(e) => updateMenuItem(item.id, { label: e.target.value })} />
+        <Input className="col-span-5" value={item.path || ""} onChange={(e) => updateMenuItem(item.id, { path: e.target.value })} />
+        <div className="col-span-2 flex justify-end gap-1">
+          <Button variant="outline" size="icon" onClick={() => addMenuChild(item.id)} title="Add child menu"><Plus className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => removeMenuItem(item.id)} title="Delete menu"><Trash2 className="w-4 h-4" /></Button>
+        </div>
+      </div>
+      {(item.children || []).map((child) => renderMenuNodeEditor(child, depth + 1))}
+    </div>
+  );
 
   return (
     <div className="space-y-6" data-testid="store-builder-page">
@@ -915,6 +991,26 @@ export const StoreBuilder = () => {
         </TabsContent>
 
         <TabsContent value="pages" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Section Marketplace</CardTitle>
+              <CardDescription>Add free and premium storefront sections to homepage.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {SECTION_MARKETPLACE.map((template) => (
+                <div key={template.key} className="p-3 border rounded-lg flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium">{template.title}</p>
+                    <p className="text-xs text-slate-500">{template.tier === "paid" ? "Premium section" : "Free section"}</p>
+                  </div>
+                  <Button size="sm" variant={template.tier === "paid" ? "outline" : "default"} onClick={() => addSectionTemplate(template)}>
+                    Add
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
           <div className="grid lg:grid-cols-3 gap-6">
             <Card>
               <CardHeader className="pb-3">
@@ -1084,18 +1180,11 @@ export const StoreBuilder = () => {
           <Card>
             <CardHeader>
               <CardTitle>Navigation Menu</CardTitle>
-              <CardDescription>Header/footer menu controls backed by Storefront API.</CardDescription>
+              <CardDescription>Header/footer nested menu controls backed by Storefront API.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {menuItems.map((item, idx) => (
-                  <div key={`${item.path}-${idx}`} className="grid grid-cols-12 gap-2 items-center p-3 border border-slate-200 dark:border-slate-700 rounded-xl">
-                    <Move className="w-4 h-4 text-slate-400 col-span-1" />
-                    <Input className="col-span-4" value={item.label || ""} onChange={(e) => setMenuItems((prev) => prev.map((x, i) => (i === idx ? { ...x, label: e.target.value } : x)))} />
-                    <Input className="col-span-6" value={item.path || ""} onChange={(e) => setMenuItems((prev) => prev.map((x, i) => (i === idx ? { ...x, path: e.target.value } : x)))} />
-                    <Button className="col-span-1" variant="ghost" size="icon" onClick={() => removeMenuItem(idx)}><Trash2 className="w-4 h-4" /></Button>
-                  </div>
-                ))}
+                {menuItems.map((item) => renderMenuNodeEditor(item))}
                 <Button variant="outline" className="w-full rounded-xl" onClick={addMenuItem}><Plus className="w-4 h-4 mr-2" />Add Menu Item</Button>
                 <Button className="w-full rounded-xl" onClick={saveNavigation}>Save Navigation</Button>
               </div>

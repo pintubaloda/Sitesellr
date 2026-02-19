@@ -221,3 +221,19 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Pending:
   - Theme lifecycle audit timeline view (who changed price/rank/status).
   - Advanced sorting presets and scheduled publish/unpublish windows.
+
+[2026-02-19 09:11 IST] Storefront Follow-up: Nested Menus + Premium Sections + Wholesale Messaging
+- Developed:
+  - Navigation module upgraded to nested menu editor in Store Builder (parent/child menu management in UI).
+  - Public storefront header renderer now supports recursive nested menus.
+  - Added Section Marketplace in homepage builder with free + premium section presets for faster merchant composition.
+  - Public storefront now shows wholesale-mode messaging: MOQ hint + Request Quote CTA when catalog mode is wholesale/hybrid.
+  - MOQ message reads `defaultMoq` from `catalogVisibilityJson` if configured (fallback 10).
+- Partial:
+  - Nested menu drag-reorder and visibility-by-customer/device controls are not yet implemented.
+  - Premium section monetization is UI-level preset flow; no separate paid section checkout/gating yet.
+  - Quote CTA is present but not connected to inquiry workflow/ticketing.
+- Pending:
+  - Full visual nested navigation tree with reorder handles and role/device conditions.
+  - Premium section billing hooks (purchase/entitlement checks).
+  - End-to-end quote/inquiry backend + admin pipeline.

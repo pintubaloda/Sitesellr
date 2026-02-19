@@ -12,6 +12,22 @@ const parseJsonArray = (value) => {
   }
 };
 
+const renderMenu = (items, subdomain, depth = 0) => {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  return (
+    <ul className={`flex ${depth > 0 ? "flex-col gap-1 mt-1 ml-4 border-l pl-3" : "items-center gap-4"} text-sm`}>
+      {items.map((m, idx) => (
+        <li key={`${m.path || "link"}-${m.label || "item"}-${idx}`} className="text-slate-600">
+          <Link to={`/s/${subdomain}${m.path === "/" ? "" : (m.path || "")}`} className="hover:text-slate-900">
+            {m.label || "Link"}
+          </Link>
+          {renderMenu(m.children || [], subdomain, depth + 1)}
+        </li>
+      ))}
+    </ul>
+  );
+};
+
 export default function StorefrontPublic() {
   const { subdomain } = useParams();
   const location = useLocation();
@@ -59,6 +75,14 @@ export default function StorefrontPublic() {
   const menu = parseJsonArray(data.navigation?.itemsJson);
   const sections = parseJsonArray(data.homepage?.sectionsJson);
   const showPricing = !!data.theme?.showPricing;
+  const wholesaleMode = ["wholesale", "hybrid"].includes((data.theme?.catalogMode || "retail").toLowerCase());
+  let defaultMoq = 10;
+  try {
+    const cfg = JSON.parse(data.theme?.catalogVisibilityJson || "{}");
+    if (Number(cfg.defaultMoq) > 0) defaultMoq = Number(cfg.defaultMoq);
+  } catch {
+    // ignore invalid config
+  }
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -68,13 +92,7 @@ export default function StorefrontPublic() {
             {data.theme?.logoUrl ? <img src={data.theme.logoUrl} alt={data.store?.name} className="h-8 w-8 rounded" /> : null}
             <h1 className="text-xl font-bold">{data.store?.name}</h1>
           </div>
-          <nav className="flex items-center gap-4 text-sm">
-            {(menu.length ? menu : [{ label: "Home", path: "/" }]).map((m, idx) => (
-              <Link key={`${m.path}-${idx}`} to={`/s/${subdomain}${m.path === "/" ? "" : m.path}`} className="text-slate-600 hover:text-slate-900">
-                {m.label || "Link"}
-              </Link>
-            ))}
-          </nav>
+          <nav>{renderMenu(menu.length ? menu : [{ label: "Home", path: "/" }], subdomain)}</nav>
         </div>
       </header>
 
@@ -98,6 +116,8 @@ export default function StorefrontPublic() {
                   <p className="text-sm mt-2 font-semibold">
                     {showPricing ? `${p.currency || "INR"} ${Number(p.price || 0).toLocaleString()}` : "Login to view price"}
                   </p>
+                  {wholesaleMode ? <p className="text-xs text-amber-700 mt-1">MOQ starts at {defaultMoq} units · Bulk pricing available</p> : null}
+                  {wholesaleMode ? <button className="mt-2 text-xs px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50">Request Quote</button> : null}
                 </div>
               ))}
             </div>

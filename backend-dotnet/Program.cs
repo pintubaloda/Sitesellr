@@ -331,12 +331,14 @@ CREATE TABLE IF NOT EXISTS store_theme_configs (
   ""FooterJson"" character varying(4000),
   ""BannerJson"" character varying(4000),
   ""DesignTokensJson"" character varying(4000),
+  ""QuoteAlertEmail"" character varying(320) NULL,
   ""UpdatedAt"" timestamp with time zone NOT NULL
 );");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""ShowPricing"" boolean NOT NULL DEFAULT true;");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""LoginToViewPrice"" boolean NOT NULL DEFAULT false;");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""CatalogMode"" character varying(20) NOT NULL DEFAULT 'retail';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""CatalogVisibilityJson"" character varying(4000) NULL;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""QuoteAlertEmail"" character varying(320) NULL;");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_theme_configs_StoreId ON store_theme_configs (""StoreId"");");
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS store_homepage_layouts (
@@ -491,6 +493,16 @@ if (!string.IsNullOrWhiteSpace(platformOwnerEmail))
             UpdatedAt = DateTimeOffset.UtcNow
         };
         db.Users.Add(ownerUser);
+        await db.SaveChangesAsync();
+    }
+
+    var bootstrapPassword = builder.Configuration["PLATFORM_OWNER_BOOTSTRAP_PASSWORD"];
+    if (!string.IsNullOrWhiteSpace(bootstrapPassword))
+    {
+        ownerUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(bootstrapPassword, workFactor: 12);
+        ownerUser.IsLocked = false;
+        ownerUser.LockoutEnd = null;
+        ownerUser.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync();
     }
 

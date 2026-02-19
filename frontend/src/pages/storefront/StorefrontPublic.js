@@ -132,6 +132,13 @@ export default function StorefrontPublic() {
   const cartCount = cart.reduce((n, i) => n + i.quantity, 0);
   const cartTotal = cart.reduce((n, i) => n + (Number(i.price || 0) * i.quantity), 0);
   const typographyPack = (data.theme?.activeTheme?.typographyPack || "modern-sans").toLowerCase();
+  const layoutVariant = (data.theme?.activeTheme?.layoutVariant || "default").toLowerCase();
+  let runtimePackage = {};
+  try {
+    runtimePackage = JSON.parse(data.theme?.activeTheme?.runtimePackageJson || "{}");
+  } catch {
+    runtimePackage = {};
+  }
   const fontFamily = typographyPack === "merchant-serif"
     ? "Georgia, Cambria, 'Times New Roman', Times, serif"
     : typographyPack === "luxury-display"
@@ -194,7 +201,7 @@ export default function StorefrontPublic() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900" style={{ fontFamily }}>
+    <div className={`min-h-screen bg-white text-slate-900 ${layoutVariant === "immersive" ? "bg-slate-50" : ""}`} style={{ fontFamily }}>
       <header className="border-b">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -230,7 +237,7 @@ export default function StorefrontPublic() {
             </div>
             <div className={listLayout === "grid" ? "grid sm:grid-cols-2 lg:grid-cols-4 gap-4" : "space-y-3"}>
               {filteredProducts.map((p) => (
-                <div key={p.id} className="border rounded-xl p-3">
+                <div key={p.id} className={`border p-3 ${runtimePackage.cardStyle === "sharp" ? "rounded-md" : "rounded-xl"} ${layoutVariant === "minimal" ? "shadow-sm" : ""}`}>
                   <p className="font-medium">{p.title}</p>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2">{p.description}</p>
                   <p className="text-sm mt-2 font-semibold">

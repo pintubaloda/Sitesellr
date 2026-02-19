@@ -57,6 +57,8 @@ public class StoreThemeConfig
     public string CatalogMode { get; set; } = "retail";
     [MaxLength(4000)]
     public string? CatalogVisibilityJson { get; set; }
+    [MaxLength(320)]
+    public string? QuoteAlertEmail { get; set; }
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 

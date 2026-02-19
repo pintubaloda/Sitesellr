@@ -155,6 +155,7 @@ public class StorefrontController : ControllerBase
         config.LoginToViewPrice = req.LoginToViewPrice;
         config.CatalogMode = string.IsNullOrWhiteSpace(req.CatalogMode) ? "retail" : req.CatalogMode.Trim().ToLowerInvariant();
         config.CatalogVisibilityJson = req.CatalogVisibilityJson?.Trim();
+        config.QuoteAlertEmail = req.QuoteAlertEmail?.Trim().ToLowerInvariant();
         config.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
@@ -940,6 +941,8 @@ public class StoreThemeSettingsRequest
     public string CatalogMode { get; set; } = "retail";
     [StringLength(4000)]
     public string? CatalogVisibilityJson { get; set; }
+    [StringLength(320)]
+    public string? QuoteAlertEmail { get; set; }
 }
 
 public class HomepageLayoutRequest

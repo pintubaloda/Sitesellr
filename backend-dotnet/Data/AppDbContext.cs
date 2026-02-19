@@ -399,6 +399,7 @@ public class AppDbContext : DbContext
             b.Property(x => x.DesignTokensJson).HasMaxLength(4000);
             b.Property(x => x.CatalogMode).HasMaxLength(20);
             b.Property(x => x.CatalogVisibilityJson).HasMaxLength(4000);
+            b.Property(x => x.QuoteAlertEmail).HasMaxLength(320);
             b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(x => x.StoreId).IsUnique();
             b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);

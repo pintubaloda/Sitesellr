@@ -232,3 +232,13 @@ Backend compile stability | Fixed premium entitlement helper compile break in St
 Update 2026-02-19 09:43 IST - Deployment stability hotfix
 Module name | developed | partial developed | need to develop
 Render deploy stability | Fixed startup SQL formatting crash in Program.cs (escaped braces for JSON defaults) | N/A | Continue replacing risky raw-sql literals with migration-safe or parameter-safe patterns
+
+Update 2026-02-19 10:01 IST - Closure on role/env dependent and UX gap items
+Module name | developed | partial developed | need to develop
+Platform role access dependency | Owner bootstrap password flow added for easier platform owner activation (`PLATFORM_OWNER_BOOTSTRAP_PASSWORD`) | Still requires correct env + seeding strategy in production | Formal platform bootstrap admin flow with one-time setup token
+Quote notifications dependency | Store-level quote alert email supported + env fallback | SMTP still required for actual delivery | Queue-backed retries and provider failover
+Premium entitlement transparency | Entitlement check + UI lock state already active and retained | Merchant plan management UX still separate | In-app upgrade purchase path from locked section cards
+Menu advanced rule builder | Visual rule rows (field/op/value + AND/OR mode) added (no JSON typing required for normal use) | Complex nested condition groups not yet visualized | Full condition-group expression designer
+Menu reorder UX | DnD drop zones + up/down controls available | Not yet polished with tree ghost/animations | Production-grade tree DnD interaction layer
+Checkout orchestration | Added payment callback endpoint to move from pending->paid states | Callback currently app-driven simulation | Gateway-signed webhook flow + reconciliation jobs
+Theme runtime isolation | Runtime metadata now actively influences renderer behavior | Still not fully isolated package runtime | Full isolated runtime engine with strict component boundaries

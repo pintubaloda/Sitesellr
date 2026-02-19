@@ -105,7 +105,8 @@ public class PublicStorefrontController : ControllerBase
                 theme.ShowPricing,
                 theme.LoginToViewPrice,
                 theme.CatalogMode,
-                theme.CatalogVisibilityJson
+                theme.CatalogVisibilityJson,
+                theme.QuoteAlertEmail
             },
             homepage = new { SectionsJson = filteredSectionsJson },
             navigation = new { ItemsJson = nav?.ItemsJson ?? "[]" },
@@ -160,6 +161,13 @@ public class PublicStorefrontController : ControllerBase
         await _db.SaveChangesAsync(ct);
 
         var alertEmail = Environment.GetEnvironmentVariable("QUOTE_ALERT_EMAIL");
+        if (string.IsNullOrWhiteSpace(alertEmail))
+        {
+            alertEmail = await _db.StoreThemeConfigs.AsNoTracking()
+                .Where(x => x.StoreId == store.Id)
+                .Select(x => x.QuoteAlertEmail)
+                .FirstOrDefaultAsync(ct);
+        }
         if (!string.IsNullOrWhiteSpace(alertEmail))
         {
             await _emailService.SendGenericAsync(
@@ -248,6 +256,31 @@ public class PublicStorefrontController : ControllerBase
         return Ok(new { success = true, orderId = order.Id, total = order.Total, currency = order.Currency });
     }
 
+    [HttpPost("{subdomain}/checkout/{orderId:guid}/payment-callback")]
+    public async Task<IActionResult> CheckoutPaymentCallback(string subdomain, Guid orderId, [FromBody] PublicPaymentCallbackRequest req, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        var order = await _db.Orders.FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Id == orderId, ct);
+        if (order == null) return NotFound(new { error = "order_not_found" });
+
+        var status = req.Status.Trim().ToLowerInvariant();
+        if (status == "paid")
+        {
+            order.PaymentStatus = Models.PaymentStatus.Paid;
+            order.Status = Models.OrderStatus.Paid;
+        }
+        else if (status == "failed")
+        {
+            order.PaymentStatus = Models.PaymentStatus.Pending;
+            order.Status = Models.OrderStatus.Pending;
+        }
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { updated = true, order.Id, order.Status, order.PaymentStatus });
+    }
+
     private static IEnumerable<T> ApplyVisibility<T>(IEnumerable<T> source, Func<T, string> key, IReadOnlyCollection<Models.VisibilityRule> rules)
     {
         var allow = rules.Where(x => x.Effect == "allow").Select(x => x.TargetKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -325,4 +358,10 @@ public class PublicCheckoutItem
     public Guid ProductId { get; set; }
     [Range(1, 9999)]
     public int Quantity { get; set; } = 1;
+}
+
+public class PublicPaymentCallbackRequest
+{
+    [Required, RegularExpression("^(paid|failed)$")]
+    public string Status { get; set; } = "paid";
 }

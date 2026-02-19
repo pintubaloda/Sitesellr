@@ -88,17 +88,33 @@ const normalizeNodes = (nodes = []) =>
   }));
 
 const normalizeMenuItems = (items = []) =>
-  (Array.isArray(items) ? items : []).map((i) => ({
-    id: i.id || newMenuId(),
-    label: i.label || "Menu",
-    path: i.path || "/",
-    visibility: {
-      customerType: i.visibility?.customerType || "all",
-      login: i.visibility?.login || "any",
-      device: i.visibility?.device || "all",
-    },
-    children: normalizeMenuItems(i.children || []),
-  }));
+  (Array.isArray(items) ? items : []).map((i) => {
+    let parsedMode = "all";
+    let parsedConditions = [];
+    try {
+      if (i.visibility?.ruleJson) {
+        const parsed = JSON.parse(i.visibility.ruleJson);
+        parsedMode = parsed?.mode === "any" ? "any" : "all";
+        parsedConditions = Array.isArray(parsed?.conditions) ? parsed.conditions : [];
+      }
+    } catch {
+      parsedMode = "all";
+      parsedConditions = [];
+    }
+    return {
+      id: i.id || newMenuId(),
+      label: i.label || "Menu",
+      path: i.path || "/",
+      visibility: {
+        customerType: i.visibility?.customerType || "all",
+        login: i.visibility?.login || "any",
+        device: i.visibility?.device || "all",
+        ruleMode: parsedMode,
+        conditions: parsedConditions,
+      },
+      children: normalizeMenuItems(i.children || []),
+    };
+  });
 
 const findNodeByIdInTree = (nodes, id) => {
   for (const node of nodes) {
@@ -215,6 +231,7 @@ export const StoreBuilder = () => {
     loginToViewPrice: false,
     catalogMode: "retail",
     catalogVisibilityJson: "[]",
+    quoteAlertEmail: "",
   });
   const [sections, setSections] = useState(normalizeNodes(FALLBACK_SECTIONS));
   const [pastSections, setPastSections] = useState([]);
@@ -306,6 +323,7 @@ export const StoreBuilder = () => {
         loginToViewPrice: settingsRes.data?.loginToViewPrice ?? false,
         catalogMode: settingsRes.data?.catalogMode || "retail",
         catalogVisibilityJson: settingsRes.data?.catalogVisibilityJson || "[]",
+        quoteAlertEmail: settingsRes.data?.quoteAlertEmail || "",
       });
       const normalized = normalizeNodes(parseJsonArray(layoutRes.data?.sectionsJson, FALLBACK_SECTIONS));
       setSections(normalized);
@@ -716,6 +734,41 @@ export const StoreBuilder = () => {
     setMenuItems((prev) => moveMenuNode(prev, id, dir));
   };
 
+  const syncVisibilityRule = (visibility) => {
+    const mode = visibility?.ruleMode === "any" ? "any" : "all";
+    const conditions = Array.isArray(visibility?.conditions)
+      ? visibility.conditions
+          .filter((c) => c?.field && c?.value !== undefined && c?.value !== null && String(c.value).trim() !== "")
+          .map((c) => ({ field: c.field, op: c.op === "neq" ? "neq" : "eq", value: String(c.value) }))
+      : [];
+    return {
+      ...visibility,
+      ruleJson: conditions.length > 0 ? JSON.stringify({ mode, conditions }) : "",
+    };
+  };
+
+  const setMenuVisibility = (item, patch) => {
+    const next = syncVisibilityRule({ ...(item.visibility || {}), ...patch });
+    updateMenuItem(item.id, { visibility: next });
+  };
+
+  const addVisibilityCondition = (item) => {
+    const conditions = Array.isArray(item.visibility?.conditions) ? item.visibility.conditions : [];
+    setMenuVisibility(item, { conditions: [...conditions, { field: "customerType", op: "eq", value: "retail" }] });
+  };
+
+  const updateVisibilityCondition = (item, idx, patch) => {
+    const conditions = Array.isArray(item.visibility?.conditions) ? [...item.visibility.conditions] : [];
+    if (!conditions[idx]) return;
+    conditions[idx] = { ...conditions[idx], ...patch };
+    setMenuVisibility(item, { conditions });
+  };
+
+  const removeVisibilityCondition = (item, idx) => {
+    const conditions = Array.isArray(item.visibility?.conditions) ? item.visibility.conditions.filter((_, i) => i !== idx) : [];
+    setMenuVisibility(item, { conditions });
+  };
+
   const saveNavigation = async () => {
     if (!storeId) return;
     setStatus("");
@@ -964,7 +1017,7 @@ export const StoreBuilder = () => {
         <select
           className="col-span-2 h-9 rounded-md border px-2 bg-transparent text-xs"
           value={item.visibility?.customerType || "all"}
-          onChange={(e) => updateMenuItem(item.id, { visibility: { ...(item.visibility || {}), customerType: e.target.value } })}
+          onChange={(e) => setMenuVisibility(item, { customerType: e.target.value })}
         >
           <option value="all">All</option>
           <option value="retail">Retail only</option>
@@ -973,7 +1026,7 @@ export const StoreBuilder = () => {
         <select
           className="col-span-1 h-9 rounded-md border px-1 bg-transparent text-xs"
           value={item.visibility?.login || "any"}
-          onChange={(e) => updateMenuItem(item.id, { visibility: { ...(item.visibility || {}), login: e.target.value } })}
+          onChange={(e) => setMenuVisibility(item, { login: e.target.value })}
         >
           <option value="any">Any</option>
           <option value="required">Login</option>
@@ -982,19 +1035,13 @@ export const StoreBuilder = () => {
         <select
           className="col-span-1 h-9 rounded-md border px-1 bg-transparent text-xs"
           value={item.visibility?.device || "all"}
-          onChange={(e) => updateMenuItem(item.id, { visibility: { ...(item.visibility || {}), device: e.target.value } })}
+          onChange={(e) => setMenuVisibility(item, { device: e.target.value })}
         >
           <option value="all">All</option>
           <option value="mobile">M</option>
           <option value="desktop">D</option>
           <option value="tablet">T</option>
         </select>
-        <Input
-          className="col-span-2 text-xs"
-          value={item.visibility?.ruleJson || ""}
-          onChange={(e) => updateMenuItem(item.id, { visibility: { ...(item.visibility || {}), ruleJson: e.target.value } })}
-          placeholder='{"mode":"any","conditions":[...]}'
-        />
         <div className="col-span-1 flex justify-end gap-1">
           <Button variant="ghost" size="icon" onClick={() => reorderMenuItem(item.id, "up")} title="Move up">↑</Button>
           <Button variant="ghost" size="icon" onClick={() => reorderMenuItem(item.id, "down")} title="Move down">↓</Button>
@@ -1020,6 +1067,35 @@ export const StoreBuilder = () => {
         <button type="button" className="text-[10px] text-slate-500 hover:text-slate-700" onClick={() => handleDropMenu(draggingMenuId, item.id, "child")}>
           drop as child
         </button>
+      </div>
+      <div className="ml-6 p-2 border rounded-md bg-slate-50/60 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-slate-500">Advanced rule</span>
+          <select
+            className="h-7 rounded border px-1 bg-transparent text-xs"
+            value={item.visibility?.ruleMode || "all"}
+            onChange={(e) => setMenuVisibility(item, { ruleMode: e.target.value })}
+          >
+            <option value="all">AND (all)</option>
+            <option value="any">OR (any)</option>
+          </select>
+          <Button size="sm" variant="outline" onClick={() => addVisibilityCondition(item)}>Add condition</Button>
+        </div>
+        {(item.visibility?.conditions || []).map((c, idx) => (
+          <div key={`${item.id}-cond-${idx}`} className="grid grid-cols-12 gap-1 items-center">
+            <select className="col-span-4 h-7 rounded border px-1 bg-transparent text-xs" value={c.field || "customerType"} onChange={(e) => updateVisibilityCondition(item, idx, { field: e.target.value })}>
+              <option value="customerType">customerType</option>
+              <option value="login">login</option>
+              <option value="device">device</option>
+            </select>
+            <select className="col-span-2 h-7 rounded border px-1 bg-transparent text-xs" value={c.op || "eq"} onChange={(e) => updateVisibilityCondition(item, idx, { op: e.target.value })}>
+              <option value="eq">==</option>
+              <option value="neq">!=</option>
+            </select>
+            <Input className="col-span-5 h-7 text-xs" value={c.value || ""} onChange={(e) => updateVisibilityCondition(item, idx, { value: e.target.value })} />
+            <Button className="col-span-1 h-7" size="icon" variant="ghost" onClick={() => removeVisibilityCondition(item, idx)}><Trash2 className="w-3 h-3" /></Button>
+          </div>
+        ))}
       </div>
       {(item.children || []).map((child) => renderMenuNodeEditor(child, depth + 1))}
       <div
@@ -1153,6 +1229,10 @@ export const StoreBuilder = () => {
               <div className="space-y-2">
                 <Label>Catalog Visibility JSON</Label>
                 <Textarea rows={2} value={themeSettings.catalogVisibilityJson} onChange={(e) => setThemeSettings((s) => ({ ...s, catalogVisibilityJson: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Quote Alert Email</Label>
+                <Input value={themeSettings.quoteAlertEmail} onChange={(e) => setThemeSettings((s) => ({ ...s, quoteAlertEmail: e.target.value }))} placeholder="ops@yourstore.com" />
               </div>
               <div className="flex items-center gap-2">
                 <input id="showPricing" type="checkbox" checked={themeSettings.showPricing} onChange={(e) => setThemeSettings((s) => ({ ...s, showPricing: e.target.checked }))} />

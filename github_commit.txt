@@ -429,3 +429,16 @@ Files:
 Notes:
 - Fixes `System.FormatException` at Program.cs line 296 on Render deployment.
 [Committed] 52ea961 pushed to origin/main
+
+[Pending Commit] 2026-02-19 10:01 IST
+Title: Reduce env/role coupling and improve storefront UX maturity
+Files:
+- backend-dotnet/Models/Storefront.cs
+- backend-dotnet/Data/AppDbContext.cs
+- backend-dotnet/Program.cs
+- backend-dotnet/Controllers/StorefrontController.cs
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- frontend/src/pages/admin/StoreBuilder.js
+- frontend/src/pages/storefront/StorefrontPublic.js
+Notes:
+- Added store-level quote alert settings, owner bootstrap password support, visual menu condition builder, and checkout payment callback API.

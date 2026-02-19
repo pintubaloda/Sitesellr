@@ -306,3 +306,20 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 [2026-02-19 09:43 IST] Render crash hotfix (FormatException line 296)
 - Fixed startup SQL format parsing failure in `Program.cs` by escaping JSON default braces for `ExecuteSqlRawAsync`.
 - Changed SQL defaults from `'{}'` to `'{{}}'` in raw SQL strings so EF raw-sql formatter does not treat braces as format tokens.
+
+[2026-02-19 10:01 IST] Env/Role dependency reduction + UX maturity pass
+- Developed:
+  - Added `QuoteAlertEmail` at store storefront settings level (reduces env-only dependency for quote alerts).
+  - Public quote notifications now fallback to store-configured quote alert email if global env is missing.
+  - Added public checkout payment callback endpoint to progress payment/order status beyond baseline checkout.
+  - Added `PLATFORM_OWNER_BOOTSTRAP_PASSWORD` support for bootstrapping owner login access with role + unlocked account.
+  - Upgraded menu rule UX from raw JSON-only to visual condition rows (AND/OR mode + field/op/value), while still storing JSON rule format.
+  - Added menu drag-drop drop zones (before/after/child) for better tree reorder UX.
+  - Expanded theme runtime scaffolding usage in public renderer (`TypographyPack`, `LayoutVariant`, `RuntimePackageJson`) and style adaptation.
+- Partial:
+  - Payment callback remains simulated/manual endpoint, not gateway webhook verified.
+  - Runtime package still metadata-driven, not fully isolated runtime sandbox.
+- Pending:
+  - Fully visual boolean rule graph editor.
+  - Production payment webhook verification/signature checks.
+  - Hardened signed preview token system for theme preview sessions.

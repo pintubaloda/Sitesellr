@@ -397,3 +397,4 @@ Files:
 - frontend/src/pages/storefront/StorefrontPublic.js
 Notes:
 - Implemented requested scope with API + UI + notification hooks.
+[Committed] e52bf32 pushed to origin/main

@@ -228,3 +228,7 @@ Theme preview before apply (platform/store owners) | Preview mode implemented wi
 Update 2026-02-19 09:38 IST - Build stabilization
 Module name | developed | partial developed | need to develop
 Backend compile stability | Fixed premium entitlement helper compile break in StorefrontController | N/A | Continue CI coverage for new controller helpers
+
+Update 2026-02-19 09:43 IST - Deployment stability hotfix
+Module name | developed | partial developed | need to develop
+Render deploy stability | Fixed startup SQL formatting crash in Program.cs (escaped braces for JSON defaults) | N/A | Continue replacing risky raw-sql literals with migration-safe or parameter-safe patterns

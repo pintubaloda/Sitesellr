@@ -309,7 +309,7 @@ CREATE TABLE IF NOT EXISTS theme_catalog_items (
   ""FeaturedRank"" integer NOT NULL DEFAULT 0,
   ""TypographyPack"" character varying(60) NOT NULL DEFAULT 'modern-sans',
   ""LayoutVariant"" character varying(60) NOT NULL DEFAULT 'default',
-  ""RuntimePackageJson"" character varying(4000) NOT NULL DEFAULT '{}',
+  ""RuntimePackageJson"" character varying(4000) NOT NULL DEFAULT '{{}}',
   ""CreatedAt"" timestamp with time zone NOT NULL,
   ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT now()
 );");
@@ -317,7 +317,7 @@ CREATE TABLE IF NOT EXISTS theme_catalog_items (
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""FeaturedRank"" integer NOT NULL DEFAULT 0;");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""TypographyPack"" character varying(60) NOT NULL DEFAULT 'modern-sans';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""LayoutVariant"" character varying(60) NOT NULL DEFAULT 'default';");
-    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""RuntimePackageJson"" character varying(4000) NOT NULL DEFAULT '{}';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""RuntimePackageJson"" character varying(4000) NOT NULL DEFAULT '{{}}';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT now();");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_theme_catalog_items_Slug ON theme_catalog_items (""Slug"");");
     await db.Database.ExecuteSqlRawAsync(@"

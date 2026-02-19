@@ -421,3 +421,10 @@ Files:
 Notes:
 - Prevented use of `out blockedKey` inside local function by introducing `foundBlockedKey` and delayed assignment.
 [Committed] 2388fad pushed to origin/main
+
+[Pending Commit] 2026-02-19 09:43 IST
+Title: Hotfix Render startup crash caused by ExecuteSqlRaw format braces
+Files:
+- backend-dotnet/Program.cs
+Notes:
+- Fixes `System.FormatException` at Program.cs line 296 on Render deployment.

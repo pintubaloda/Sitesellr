@@ -302,3 +302,7 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - `ContainsBlockedPremiumSection` now uses internal local variable and assigns `blockedKey` only after traversal success.
 - Impact:
   - Resolves backend build failure seen in commits `68bfb62`, `e52bf32`, `032bf12`, `75afd72`, `b1f9fb7`, `6b10637`.
+
+[2026-02-19 09:43 IST] Render crash hotfix (FormatException line 296)
+- Fixed startup SQL format parsing failure in `Program.cs` by escaping JSON default braces for `ExecuteSqlRawAsync`.
+- Changed SQL defaults from `'{}'` to `'{{}}'` in raw SQL strings so EF raw-sql formatter does not treat braces as format tokens.

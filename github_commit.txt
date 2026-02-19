@@ -453,3 +453,4 @@ Files:
 Notes:
 - Adds broader atomic permission set and runtime role-bundle permission mapping.
 - Seeds explicit store permissions for test users (owner/admin/staff) to match their role bundles.
+[Committed] f490627 pushed to origin/main

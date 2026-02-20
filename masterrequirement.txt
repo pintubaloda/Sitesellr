@@ -389,3 +389,10 @@ UPDATE [2026-02-20] - PLATFORM OWNER MENU BACKEND WIRING
   - Super-admin functional surfaces now include live governance analytics and configuration actions.
 - Partial:
   - Some module domains currently rely on existing platform datasets (orders/audit/login/theme/campaign) as phase-1 sources; deeper dedicated domain models can be expanded in phase-2.
+
+UPDATE [2026-02-20] - SIMPLE RBAC MODE
+- Developed:
+  - Platform owner now assigns access in simplified way by user type defaults.
+  - Only two assignment targets exposed in UI: Platform Staff and Store Owner.
+- Reduced complexity:
+  - Removed manual CSV permission handling from primary RBAC screen.

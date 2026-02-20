@@ -641,3 +641,19 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Files:
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformOwnerModulesController.cs`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformModule.js`
+
+[2026-02-20] RBAC Simplification - Default User-Type Assignment
+- Simplified role/permission management flow for platform owner:
+  - Removed manual CSV-based role/permission editing UI.
+  - Added two default assignment actions:
+    - Assign `Platform Staff` default permissions
+    - Assign `Store Owner` default permissions (store-specific)
+- Backend added endpoint:
+  - `POST /api/platform/rbac/users/{userId}/assign-default`
+  - Supported types: `platform_staff`, `store_owner`
+- Behavior:
+  - `platform_staff`: sets platform role to Staff.
+  - `store_owner`: sets store role to Owner and applies owner default permission template.
+- Files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformRbacController.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformRbac.js`

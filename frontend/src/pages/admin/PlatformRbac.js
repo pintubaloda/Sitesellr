@@ -5,24 +5,15 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import api from "../../lib/api";
 
-const parseCsv = (value) =>
-  value
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-
 export const PlatformRbac = () => {
   const [users, setUsers] = useState([]);
   const [stores, setStores] = useState([]);
   const [userSearch, setUserSearch] = useState("");
   const [category, setCategory] = useState("platform");
-  const [userId, setUserId] = useState("");
-  const [platformRoles, setPlatformRoles] = useState("");
-  const [storeId, setStoreId] = useState("");
+  const [platformUserId, setPlatformUserId] = useState("");
   const [storeUserId, setStoreUserId] = useState("");
-  const [permissions, setPermissions] = useState("");
+  const [storeId, setStoreId] = useState("");
   const [reason, setReason] = useState("");
-  const [stepUp, setStepUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -72,11 +63,38 @@ export const PlatformRbac = () => {
     }
   };
 
+  const assignPlatformStaff = async () => {
+    if (!platformUserId.trim() || !reason.trim()) return;
+    await wrap(async () => {
+      await api.post(`/platform/rbac/users/${platformUserId.trim()}/assign-default`, {
+        userType: "platform_staff",
+        reason: reason.trim(),
+      });
+      setMessage("Default Platform Staff permission assigned.");
+      await loadLists(userSearch);
+    });
+  };
+
+  const assignStoreOwner = async () => {
+    if (!storeUserId.trim() || !storeId.trim() || !reason.trim()) return;
+    await wrap(async () => {
+      await api.post(`/platform/rbac/users/${storeUserId.trim()}/assign-default`, {
+        userType: "store_owner",
+        storeId: storeId.trim(),
+        reason: reason.trim(),
+      });
+      setMessage("Default Store Owner permission assigned.");
+      await loadLists(userSearch);
+    });
+  };
+
   return (
     <div className="space-y-6" data-testid="platform-rbac-page">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Platform RBAC</h1>
-        <p className="text-slate-500 dark:text-slate-400">Assign permissions by user category: Platform or Store.</p>
+        <p className="text-slate-500 dark:text-slate-400">
+          Simplified mode: Platform Owner assigns default access for Platform Staff and Store Owner.
+        </p>
       </div>
 
       <div className="grid lg:grid-cols-[320px_minmax(0,1fr)] gap-6">
@@ -84,29 +102,15 @@ export const PlatformRbac = () => {
           <CardHeader className="space-y-3">
             <CardTitle>Users</CardTitle>
             <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={category === "platform" ? "default" : "outline"}
-                onClick={() => setCategory("platform")}
-              >
+              <Button type="button" variant={category === "platform" ? "default" : "outline"} onClick={() => setCategory("platform")}>
                 Platform Users
               </Button>
-              <Button
-                type="button"
-                variant={category === "store" ? "default" : "outline"}
-                onClick={() => setCategory("store")}
-              >
+              <Button type="button" variant={category === "store" ? "default" : "outline"} onClick={() => setCategory("store")}>
                 Store Users
               </Button>
             </div>
-            <Input
-              placeholder="Search email..."
-              value={userSearch}
-              onChange={(e) => setUserSearch(e.target.value)}
-            />
-            <Button type="button" variant="outline" onClick={() => loadLists(userSearch)}>
-              Refresh List
-            </Button>
+            <Input placeholder="Search email..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} />
+            <Button type="button" variant="outline" onClick={() => loadLists(userSearch)}>Refresh List</Button>
           </CardHeader>
           <CardContent className="space-y-2 max-h-[70vh] overflow-auto">
             {filteredUsers.map((u) => (
@@ -114,19 +118,13 @@ export const PlatformRbac = () => {
                 key={u.id}
                 type="button"
                 onClick={() => {
-                  if (category === "platform") {
-                    setUserId(String(u.id));
-                    setPlatformRoles((u.platformRoles || []).map((r) => (r === "Owner" ? 0 : 1)).join(","));
-                  } else {
-                    setStoreUserId(String(u.id));
-                  }
+                  if (category === "platform") setPlatformUserId(String(u.id));
+                  else setStoreUserId(String(u.id));
                 }}
                 className="w-full text-left px-3 py-2 rounded border border-slate-200 hover:bg-slate-50"
               >
                 <p className="text-sm font-medium truncate">{u.email}</p>
-                <p className="text-xs text-slate-500">
-                  roles: {(u.platformRoles || []).join(", ") || "none"} · stores: {u.storeMemberships || 0}
-                </p>
+                <p className="text-xs text-slate-500">roles: {(u.platformRoles || []).join(", ") || "none"} · stores: {u.storeMemberships || 0}</p>
                 <p className="text-[11px] text-slate-400 mt-1 truncate">{u.id}</p>
               </button>
             ))}
@@ -137,66 +135,31 @@ export const PlatformRbac = () => {
         <div className="space-y-6">
           <Card className="border-slate-200 dark:border-slate-800">
             <CardHeader>
-              <CardTitle>Platform Roles (Owner-only API)</CardTitle>
+              <CardTitle>Assign Platform Staff (Default)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>User ID</Label>
-                <Input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="GUID" />
+                <Label>Platform User ID</Label>
+                <Input value={platformUserId} onChange={(e) => setPlatformUserId(e.target.value)} placeholder="Select from left list" />
               </div>
               <div className="space-y-2">
-                <Label>Roles CSV (0=Owner,1=Staff)</Label>
-                <Input value={platformRoles} onChange={(e) => setPlatformRoles(e.target.value)} placeholder="0,1" />
-              </div>
-              <div className="space-y-2">
-                <Label>Reason (required for sensitive changes)</Label>
+                <Label>Reason</Label>
                 <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why this change is needed" />
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  disabled={loading || !userId.trim()}
-                  onClick={() =>
-                    wrap(async () => {
-                      const res = await api.get(`/platform/rbac/users/${userId.trim()}/platform-roles`);
-                      setPlatformRoles((res.data || []).join(","));
-                      setMessage("Platform roles loaded.");
-                    })
-                  }
-                >
-                  Load Roles
-                </Button>
-                <Button
-                  disabled={loading || !userId.trim() || !reason.trim()}
-                  onClick={() =>
-                    wrap(async () => {
-                      await api.put(
-                        `/platform/rbac/users/${userId.trim()}/platform-roles`,
-                        {
-                          roles: parseCsv(platformRoles).map((x) => Number(x)),
-                          reason: reason.trim(),
-                        },
-                        { headers: stepUp ? { "X-Step-Up-Auth": "true" } : {} }
-                      );
-                      setMessage("Platform roles saved.");
-                      await loadLists(userSearch);
-                    })
-                  }
-                >
-                  Save Roles
-                </Button>
-              </div>
+              <Button disabled={loading || !platformUserId.trim() || !reason.trim()} onClick={assignPlatformStaff}>
+                Assign Default Platform Staff
+              </Button>
             </CardContent>
           </Card>
 
           <Card className="border-slate-200 dark:border-slate-800">
             <CardHeader>
-              <CardTitle>Store User Permissions</CardTitle>
+              <CardTitle>Assign Store Owner (Default)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Store ID</Label>
+                  <Label>Store</Label>
                   <select
                     className="w-full h-10 border rounded-md px-3 text-sm bg-white dark:bg-slate-950"
                     value={storeId}
@@ -211,59 +174,17 @@ export const PlatformRbac = () => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>User ID</Label>
-                  <Input value={storeUserId} onChange={(e) => setStoreUserId(e.target.value)} placeholder="GUID" />
+                  <Label>Store User ID</Label>
+                  <Input value={storeUserId} onChange={(e) => setStoreUserId(e.target.value)} placeholder="Select from left list" />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Permissions CSV</Label>
-                <Input
-                  value={permissions}
-                  onChange={(e) => setPermissions(e.target.value)}
-                  placeholder="orders.read,orders.write,products.read,products.write"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Reason (required for sensitive changes)</Label>
+                <Label>Reason</Label>
                 <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why this change is needed" />
               </div>
-              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                <input type="checkbox" checked={stepUp} onChange={(e) => setStepUp(e.target.checked)} />
-                Step-up confirmed (adds X-Step-Up-Auth header)
-              </label>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  disabled={loading || !storeId.trim() || !storeUserId.trim()}
-                  onClick={() =>
-                    wrap(async () => {
-                      const res = await api.get(`/platform/rbac/stores/${storeId.trim()}/users/${storeUserId.trim()}/permissions`);
-                      setPermissions((res.data || []).join(","));
-                      setMessage("Store permissions loaded.");
-                    })
-                  }
-                >
-                  Load Permissions
-                </Button>
-                <Button
-                  disabled={loading || !storeId.trim() || !storeUserId.trim() || !reason.trim()}
-                  onClick={() =>
-                    wrap(async () => {
-                      await api.put(
-                        `/platform/rbac/stores/${storeId.trim()}/users/${storeUserId.trim()}/permissions`,
-                        {
-                          permissions: parseCsv(permissions),
-                          reason: reason.trim(),
-                        },
-                        { headers: stepUp ? { "X-Step-Up-Auth": "true" } : {} }
-                      );
-                      setMessage("Store permissions saved.");
-                    })
-                  }
-                >
-                  Save Permissions
-                </Button>
-              </div>
+              <Button disabled={loading || !storeId.trim() || !storeUserId.trim() || !reason.trim()} onClick={assignStoreOwner}>
+                Assign Default Store Owner
+              </Button>
             </CardContent>
           </Card>
         </div>

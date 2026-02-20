@@ -221,8 +221,99 @@ public class PlatformRbacController : ControllerBase
         await _db.SaveChangesAsync(ct);
         return Ok(new { storeId, userId, permissions = distinctPermissions });
     }
+
+    [HttpPost("users/{userId:guid}/assign-default")]
+    public async Task<IActionResult> AssignDefault(Guid userId, [FromBody] AssignDefaultRoleRequest req, CancellationToken ct)
+    {
+        var guardError = ValidateSensitiveAction("rbac.assign_default", req.Reason);
+        if (guardError != null) return guardError;
+        if (!await _db.Users.AnyAsync(u => u.Id == userId, ct)) return NotFound(new { error = "user_not_found" });
+
+        var userType = (req.UserType ?? string.Empty).Trim().ToLowerInvariant();
+        if (userType == "platform_staff")
+        {
+            var existingRoles = _db.PlatformUserRoles.Where(x => x.UserId == userId);
+            _db.PlatformUserRoles.RemoveRange(existingRoles);
+            _db.PlatformUserRoles.Add(new PlatformUserRole
+            {
+                UserId = userId,
+                Role = PlatformRole.Staff,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+
+            _db.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = Tenancy?.UserId,
+                Action = "platform.rbac.default_assigned",
+                EntityType = "user",
+                EntityId = userId.ToString(),
+                Details = $"userType=platform_staff;reason={req.Reason}",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+
+            await _db.SaveChangesAsync(ct);
+            return Ok(new { userId, userType = "platform_staff", assigned = true });
+        }
+
+        if (userType == "store_owner")
+        {
+            if (!req.StoreId.HasValue || req.StoreId.Value == Guid.Empty) return BadRequest(new { error = "store_required" });
+            var storeId = req.StoreId.Value;
+            if (!await _db.Stores.AnyAsync(x => x.Id == storeId, ct)) return NotFound(new { error = "store_not_found" });
+
+            var role = await _db.StoreUserRoles.FirstOrDefaultAsync(x => x.StoreId == storeId && x.UserId == userId, ct);
+            if (role == null)
+            {
+                role = new StoreUserRole
+                {
+                    StoreId = storeId,
+                    UserId = userId,
+                    Role = StoreRole.Owner,
+                    CreatedAt = DateTimeOffset.UtcNow
+                };
+                _db.StoreUserRoles.Add(role);
+            }
+            else
+            {
+                role.Role = StoreRole.Owner;
+                role.CustomRoleName = null;
+            }
+
+            var existingPermissions = _db.StoreUserPermissions.Where(x => x.StoreId == storeId && x.UserId == userId);
+            _db.StoreUserPermissions.RemoveRange(existingPermissions);
+            var template = PermissionCatalog.GetTemplatePermissions(StoreRole.Owner).Distinct(StringComparer.OrdinalIgnoreCase);
+            foreach (var permission in template)
+            {
+                _db.StoreUserPermissions.Add(new StoreUserPermission
+                {
+                    StoreId = storeId,
+                    UserId = userId,
+                    Permission = permission,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
+
+            _db.AuditLogs.Add(new AuditLog
+            {
+                StoreId = storeId,
+                ActorUserId = Tenancy?.UserId,
+                Action = "platform.rbac.default_assigned",
+                EntityType = "store_user_role",
+                EntityId = role.Id.ToString(),
+                Details = $"userType=store_owner;reason={req.Reason}",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+
+            await _db.SaveChangesAsync(ct);
+            return Ok(new { userId, storeId, userType = "store_owner", assigned = true });
+        }
+
+        return BadRequest(new { error = "invalid_user_type", allowed = new[] { "platform_staff", "store_owner" } });
+    }
 }
 
 public record PlatformRolesRequest(List<PlatformRole> Roles, string? Reason);
 
 public record StorePermissionsRequest(List<string> Permissions, string? Reason);
+
+public record AssignDefaultRoleRequest(string UserType, Guid? StoreId, string? Reason);

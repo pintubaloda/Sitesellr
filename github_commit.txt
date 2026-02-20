@@ -583,3 +583,8 @@ Notes:
 - Full platform-owner menu wiring completed:
   - Added platform owner module controller APIs for payments, billing, plugins, API governance, risk, reports, and platform config.
   - Replaced platform module shell UI with live API-driven module screens and save actions.
+
+[2026-02-20] Pending Commit
+- RBAC simplified for platform owner operations:
+  - Added default user-type assignment endpoint.
+  - Replaced complex CSV permission UI with simple default assignment actions for Platform Staff and Store Owner.

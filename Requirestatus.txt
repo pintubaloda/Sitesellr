@@ -617,3 +617,27 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Files:
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/MerchantsController.cs`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Merchants.js`
+
+[2026-02-20] Platform Owner Modules - Full Backend Wiring Pass
+- Added platform-owner backend module APIs:
+  - `GET /api/platform/owner/payments`
+  - `GET /api/platform/owner/billing`
+  - `GET /api/platform/owner/plugins`
+  - `PUT /api/platform/owner/plugins/kill-switch`
+  - `GET /api/platform/owner/api-integrations`
+  - `PUT /api/platform/owner/api-integrations/config`
+  - `GET /api/platform/owner/risk`
+  - `GET /api/platform/owner/reports`
+  - `GET /api/platform/owner/config`
+  - `PUT /api/platform/owner/config`
+- Wired all new Platform Owner menu pages to real backend data and actions:
+  - Payments & Transactions: live counts + recent transaction feed
+  - Billing & Subscriptions: plan/subscription metrics + create-plan action
+  - Plugin / App Marketplace: ecosystem metrics + kill-switch control
+  - API & Integrations: token/login metrics + API governance config save
+  - Risk / Fraud Monitoring: risk counters + alert list
+  - Platform Configuration: global config read/write
+  - Reporting & Intelligence: monthly revenue, merchant growth, security events
+- Files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformOwnerModulesController.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformModule.js`

@@ -578,3 +578,8 @@ Notes:
 - Merchant module fix:
   - backend `/api/merchants` now returns nested store list per merchant.
   - frontend merchant page now renders mapped stores under each merchant card.
+
+[2026-02-20] Pending Commit
+- Full platform-owner menu wiring completed:
+  - Added platform owner module controller APIs for payments, billing, plugins, API governance, risk, reports, and platform config.
+  - Replaced platform module shell UI with live API-driven module screens and save actions.

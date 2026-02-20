@@ -81,6 +81,7 @@ function App() {
             <Route path="platform-api" element={<PlatformModule moduleKey="api" />} />
             <Route path="platform-risk" element={<PlatformModule moduleKey="risk" />} />
             <Route path="platform-config" element={<PlatformModule moduleKey="config" />} />
+            <Route path="platform-domains" element={<PlatformModule moduleKey="domains" />} />
             <Route path="platform-reports" element={<PlatformModule moduleKey="reports" />} />
           </Route>
 

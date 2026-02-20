@@ -49,6 +49,7 @@ public class DomainSslController : ControllerBase
         var exists = await _db.StoreDomains.AsNoTracking().AnyAsync(x => x.Hostname == hostname, ct);
         if (exists) return Conflict(new { error = "domain_exists" });
         var token = Convert.ToHexString(Guid.NewGuid().ToByteArray())[..16].ToLowerInvariant();
+        var sslPurchaseRequired = await IsSslMarketplacePurchaseRequiredAsync(ct);
 
         var row = new StoreDomain
         {
@@ -59,8 +60,8 @@ public class DomainSslController : ControllerBase
             DnsManagedByCloudflare = false,
             DnsStatus = "pending",
             SslProvider = string.IsNullOrWhiteSpace(req.SslProvider) ? "letsencrypt" : req.SslProvider.Trim().ToLowerInvariant(),
-            SslPurchased = !IsSslMarketplacePurchaseRequired(),
-            SslStatus = IsSslMarketplacePurchaseRequired() ? "payment_required" : "pending",
+            SslPurchased = !sslPurchaseRequired,
+            SslStatus = sslPurchaseRequired ? "payment_required" : "pending",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -241,8 +242,16 @@ public class DomainSslController : ControllerBase
         await _db.SaveChangesAsync(ct);
     }
 
-    private bool IsSslMarketplacePurchaseRequired()
+    private async Task<bool> IsSslMarketplacePurchaseRequiredAsync(CancellationToken ct)
     {
+        var value = await _db.PlatformBrandingSettings.AsNoTracking()
+            .Where(x => x.Key == "platform.domains.ssl.require_marketplace_purchase")
+            .Select(x => x.Value)
+            .FirstOrDefaultAsync(ct);
+        if (!string.IsNullOrWhiteSpace(value) && bool.TryParse(value, out var parsed))
+        {
+            return parsed;
+        }
         return _config.GetValue("SSL_REQUIRE_MARKETPLACE_PURCHASE", true);
     }
 }

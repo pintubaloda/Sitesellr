@@ -821,3 +821,30 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StoresController.cs`
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/TenancyContext.cs`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/DomainsSsl.js`
+
+[2026-02-20] Platform Owner Domain Control Center + Configurable Cloudflare/SSL Runtime
+- Added platform-owner domain center (new menu/module):
+  - View all tenant subdomains across stores.
+  - View all custom domains with DNS/verification/SSL purchase/SSL status per domain.
+  - Platform summary metrics: total domains, verified, active SSL, pending, payment-required.
+- Added platform-owner domains config API + UI:
+  - Cloudflare API token, zone id, base domain, ingress host.
+  - Let's Encrypt issuer command and contact email.
+  - SSL marketplace purchase toggle (`require_marketplace_purchase`).
+- Runtime integration:
+  - Cloudflare DNS service now reads platform-owner saved config from DB (fallback to env vars).
+  - Let's Encrypt issuer now reads platform-owner saved config from DB (fallback to env vars).
+- Subdomain uniqueness logic clarified and exposed:
+  - Requested subdomain is normalized.
+  - If taken, system appends numeric suffix (`demo`, `demo1`, `demo2`, ...).
+- Added platform menu route:
+  - `/admin/platform-domains`
+- Files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformOwnerModulesController.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/CloudflareDnsService.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/SslService.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/DomainSslController.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformModule.js`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/components/layouts/DashboardLayout.js`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/App.js`

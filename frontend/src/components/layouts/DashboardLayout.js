@@ -176,6 +176,13 @@ const sidebarItems = [
     requiredAny: ["platform.settings.manage", "platform.features.manage", "security.policies.manage"],
   },
   {
+    title: "Domains & SSL (Platform)",
+    icon: Globe,
+    path: "/admin/platform-domains",
+    scope: "platform-owner",
+    requiredAny: ["platform.settings.manage", "platform.features.manage", "security.policies.manage"],
+  },
+  {
     title: "Reporting & Intelligence",
     icon: LineChart,
     path: "/admin/platform-reports",

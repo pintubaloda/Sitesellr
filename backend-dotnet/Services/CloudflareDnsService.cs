@@ -1,6 +1,8 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using backend_dotnet.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend_dotnet.Services;
 
@@ -25,20 +27,22 @@ public class CloudflareDnsService : ICloudflareDnsService
     private readonly IConfiguration _config;
     private readonly HttpClient _http;
     private readonly ILogger<CloudflareDnsService> _logger;
+    private readonly AppDbContext _db;
 
-    public CloudflareDnsService(IConfiguration config, HttpClient http, ILogger<CloudflareDnsService> logger)
+    public CloudflareDnsService(IConfiguration config, HttpClient http, ILogger<CloudflareDnsService> logger, AppDbContext db)
     {
         _config = config;
         _http = http;
         _logger = logger;
+        _db = db;
     }
 
     public async Task<(bool Success, string? Error)> EnsureTenantSubdomainAsync(string subdomain, CancellationToken ct)
     {
-        var token = _config["CLOUDFLARE_API_TOKEN"];
-        var zoneId = _config["CLOUDFLARE_ZONE_ID"];
-        var baseDomain = _config["PLATFORM_BASE_DOMAIN"];
-        var target = _config["PLATFORM_INGRESS_HOST"];
+        var token = await GetValueAsync("platform.domains.cloudflare.api_token", "CLOUDFLARE_API_TOKEN", ct);
+        var zoneId = await GetValueAsync("platform.domains.cloudflare.zone_id", "CLOUDFLARE_ZONE_ID", ct);
+        var baseDomain = await GetValueAsync("platform.domains.platform_base_domain", "PLATFORM_BASE_DOMAIN", ct);
+        var target = await GetValueAsync("platform.domains.platform_ingress_host", "PLATFORM_INGRESS_HOST", ct);
         if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(zoneId) || string.IsNullOrWhiteSpace(baseDomain) || string.IsNullOrWhiteSpace(target))
             return (false, "Cloudflare DNS env vars missing.");
 
@@ -87,8 +91,8 @@ public class CloudflareDnsService : ICloudflareDnsService
 
     public async Task<CustomDomainDnsResult> EnsureCustomDomainAsync(string hostname, string verificationToken, CancellationToken ct)
     {
-        var token = _config["CLOUDFLARE_API_TOKEN"];
-        var target = _config["PLATFORM_INGRESS_HOST"];
+        var token = await GetValueAsync("platform.domains.cloudflare.api_token", "CLOUDFLARE_API_TOKEN", ct);
+        var target = await GetValueAsync("platform.domains.platform_ingress_host", "PLATFORM_INGRESS_HOST", ct);
         if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(target))
         {
             return new CustomDomainDnsResult(false, false, false, false, null, target, "Cloudflare custom-domain env vars missing.");
@@ -114,8 +118,8 @@ public class CloudflareDnsService : ICloudflareDnsService
 
     public async Task<CustomDomainDnsResult> CheckCustomDomainAsync(string hostname, string verificationToken, CancellationToken ct)
     {
-        var token = _config["CLOUDFLARE_API_TOKEN"];
-        var target = _config["PLATFORM_INGRESS_HOST"];
+        var token = await GetValueAsync("platform.domains.cloudflare.api_token", "CLOUDFLARE_API_TOKEN", ct);
+        var target = await GetValueAsync("platform.domains.platform_ingress_host", "PLATFORM_INGRESS_HOST", ct);
         if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(target))
         {
             return new CustomDomainDnsResult(false, false, false, false, null, target, "Cloudflare custom-domain env vars missing.");
@@ -246,5 +250,18 @@ public class CloudflareDnsService : ICloudflareDnsService
         if (!doc.RootElement.TryGetProperty("result", out var result) || result.ValueKind != JsonValueKind.Array || result.GetArrayLength() == 0) return (null, null);
         var row = result[0];
         return (row.GetProperty("id").GetString(), row.GetProperty("content").GetString());
+    }
+
+    private async Task<string?> GetValueAsync(string settingsKey, string configKey, CancellationToken ct)
+    {
+        var value = await _db.PlatformBrandingSettings.AsNoTracking()
+            .Where(x => x.Key == settingsKey)
+            .Select(x => x.Value)
+            .FirstOrDefaultAsync(ct);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+        return _config[configKey];
     }
 }

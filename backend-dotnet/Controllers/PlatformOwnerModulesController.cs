@@ -13,10 +13,12 @@ namespace backend_dotnet.Controllers;
 public class PlatformOwnerModulesController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IConfiguration _config;
 
-    public PlatformOwnerModulesController(AppDbContext db)
+    public PlatformOwnerModulesController(AppDbContext db, IConfiguration config)
     {
         _db = db;
+        _config = config;
     }
 
     [HttpGet("payments")]
@@ -279,6 +281,120 @@ public class PlatformOwnerModulesController : ControllerBase
         });
     }
 
+    [HttpGet("domains")]
+    public async Task<IActionResult> Domains(CancellationToken ct)
+    {
+        var customDomains = await _db.StoreDomains.AsNoTracking()
+            .Include(x => x.Store)
+            .ThenInclude(s => s.Merchant)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(500)
+            .Select(x => new
+            {
+                x.Id,
+                x.StoreId,
+                StoreName = x.Store.Name,
+                MerchantName = x.Store.Merchant.Name,
+                x.Hostname,
+                x.IsVerified,
+                x.DnsManagedByCloudflare,
+                x.DnsStatus,
+                x.SslPurchased,
+                x.SslProvider,
+                x.SslStatus,
+                x.SslPurchaseReference,
+                x.SslPurchasedAt,
+                x.SslExpiresAt,
+                x.LastError,
+                x.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        var subdomains = await _db.Stores.AsNoTracking()
+            .Include(x => x.Merchant)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(500)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                MerchantName = x.Merchant.Name,
+                x.Subdomain,
+                x.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        var cfg = await _db.PlatformBrandingSettings.AsNoTracking()
+            .Where(x => x.Key.StartsWith("platform.domains.", StringComparison.OrdinalIgnoreCase))
+            .ToDictionaryAsync(x => x.Key, x => x.Value, ct);
+
+        var cloudflareApiToken = cfg.GetValueOrDefault("platform.domains.cloudflare.api_token", string.Empty);
+        var cloudflareZoneId = cfg.GetValueOrDefault("platform.domains.cloudflare.zone_id", _config["CLOUDFLARE_ZONE_ID"] ?? string.Empty);
+        var platformBaseDomain = cfg.GetValueOrDefault("platform.domains.platform_base_domain", _config["PLATFORM_BASE_DOMAIN"] ?? string.Empty);
+        var platformIngressHost = cfg.GetValueOrDefault("platform.domains.platform_ingress_host", _config["PLATFORM_INGRESS_HOST"] ?? string.Empty);
+        var sslIssuerCommand = cfg.GetValueOrDefault("platform.domains.ssl.issuer_command", _config["SSL_ISSUER_COMMAND"] ?? string.Empty);
+        var sslContactEmail = cfg.GetValueOrDefault("platform.domains.ssl.contact_email", _config["SSL_CONTACT_EMAIL"] ?? string.Empty);
+        var requireMarketplacePurchase = cfg.GetValueOrDefault("platform.domains.ssl.require_marketplace_purchase", (_config.GetValue("SSL_REQUIRE_MARKETPLACE_PURCHASE", true)).ToString().ToLowerInvariant());
+
+        return Ok(new
+        {
+            summary = new
+            {
+                totalSubdomains = subdomains.Count(x => !string.IsNullOrWhiteSpace(x.Subdomain)),
+                totalCustomDomains = customDomains.Count,
+                verifiedCustomDomains = customDomains.Count(x => x.IsVerified),
+                activeSslCustomDomains = customDomains.Count(x => string.Equals(x.SslStatus, "active", StringComparison.OrdinalIgnoreCase)),
+                pendingSslCustomDomains = customDomains.Count(x => string.Equals(x.SslStatus, "pending", StringComparison.OrdinalIgnoreCase) || string.Equals(x.SslStatus, "issuing", StringComparison.OrdinalIgnoreCase)),
+                failedSslCustomDomains = customDomains.Count(x => string.Equals(x.SslStatus, "failed", StringComparison.OrdinalIgnoreCase)),
+                paymentRequiredSslCustomDomains = customDomains.Count(x => string.Equals(x.SslStatus, "payment_required", StringComparison.OrdinalIgnoreCase))
+            },
+            subdomainPolicy = "Requested subdomain is normalized and auto-uniqued. If taken, numeric suffix is appended (example: demo, demo1, demo2).",
+            subdomains,
+            customDomains,
+            config = new
+            {
+                cloudflareApiTokenMasked = string.IsNullOrWhiteSpace(cloudflareApiToken) ? "" : $"***{cloudflareApiToken[^Math.Min(4, cloudflareApiToken.Length)..]}",
+                cloudflareZoneId,
+                platformBaseDomain,
+                platformIngressHost,
+                sslIssuerCommand,
+                sslContactEmail,
+                sslRequireMarketplacePurchase = requireMarketplacePurchase,
+                runtime = new
+                {
+                    cloudflareConfigured = !string.IsNullOrWhiteSpace(cloudflareApiToken) && !string.IsNullOrWhiteSpace(cloudflareZoneId) && !string.IsNullOrWhiteSpace(platformBaseDomain) && !string.IsNullOrWhiteSpace(platformIngressHost),
+                    letsEncryptConfigured = !string.IsNullOrWhiteSpace(sslIssuerCommand) && !string.IsNullOrWhiteSpace(sslContactEmail)
+                }
+            }
+        });
+    }
+
+    [HttpPut("domains/config")]
+    public async Task<IActionResult> UpdateDomainsConfig([FromBody] PlatformDomainsConfigRequest req, CancellationToken ct)
+    {
+        var kv = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["platform.domains.cloudflare.zone_id"] = req.CloudflareZoneId.Trim(),
+            ["platform.domains.platform_base_domain"] = req.PlatformBaseDomain.Trim().ToLowerInvariant(),
+            ["platform.domains.platform_ingress_host"] = req.PlatformIngressHost.Trim().ToLowerInvariant(),
+            ["platform.domains.ssl.issuer_command"] = req.SslIssuerCommand.Trim(),
+            ["platform.domains.ssl.contact_email"] = req.SslContactEmail.Trim(),
+            ["platform.domains.ssl.require_marketplace_purchase"] = req.SslRequireMarketplacePurchase.Trim().ToLowerInvariant()
+        };
+        if (!string.IsNullOrWhiteSpace(req.CloudflareApiToken))
+        {
+            kv["platform.domains.cloudflare.api_token"] = req.CloudflareApiToken.Trim();
+        }
+
+        foreach (var pair in kv)
+        {
+            if (pair.Value.Length > 4000) return BadRequest(new { error = "config_value_too_long", key = pair.Key });
+        }
+
+        await UpsertSettingsAsync(kv, ct);
+        return Ok(new { saved = true });
+    }
+
     [HttpGet("config")]
     public async Task<IActionResult> Config(CancellationToken ct)
     {
@@ -361,4 +477,15 @@ public class PlatformConfigRequest
     public string LimitsJson { get; set; } = "{}";
     public string CommunicationProvider { get; set; } = "smtp";
     public string RegionRulesJson { get; set; } = "{}";
+}
+
+public class PlatformDomainsConfigRequest
+{
+    public string CloudflareApiToken { get; set; } = string.Empty;
+    public string CloudflareZoneId { get; set; } = string.Empty;
+    public string PlatformBaseDomain { get; set; } = string.Empty;
+    public string PlatformIngressHost { get; set; } = string.Empty;
+    public string SslIssuerCommand { get; set; } = string.Empty;
+    public string SslContactEmail { get; set; } = string.Empty;
+    public string SslRequireMarketplacePurchase { get; set; } = "true";
 }

@@ -678,3 +678,20 @@ Notes:
   - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/TenancyContext.cs
   - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/DomainsSsl.js
 - Commit: 435c3a9 (pushed to origin/main)
+
+[2026-02-20] Pending Commit
+- Platform owner domain control implementation:
+  - New platform owner domain module with global subdomain/custom-domain visibility.
+  - New domain config API/UI for Cloudflare + Let's Encrypt runtime values.
+  - Cloudflare and SSL services now read platform-saved config keys (DB) with env fallback.
+  - Added dedicated platform menu route `/admin/platform-domains`.
+  - Clarified subdomain-taken logic (normalized + numeric suffix).
+- Files:
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformOwnerModulesController.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/CloudflareDnsService.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/SslService.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/DomainSslController.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformModule.js
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/components/layouts/DashboardLayout.js
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/App.js

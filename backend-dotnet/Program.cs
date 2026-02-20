@@ -94,8 +94,8 @@ builder.Services.AddScoped<IWebAuthnService, WebAuthnService>();
 builder.Services.AddScoped<ITenancyResolver, TenancyResolver>();
 builder.Services.AddHttpClient<ICloudflareDnsService, CloudflareDnsService>();
 builder.Services.AddSingleton<StorefrontRealtimeService>();
-builder.Services.AddSingleton<ISslProvider, LetsEncryptShellProvider>();
-builder.Services.AddSingleton<ISslProviderFactory, SslProviderFactory>();
+builder.Services.AddScoped<ISslProvider, LetsEncryptShellProvider>();
+builder.Services.AddScoped<ISslProviderFactory, SslProviderFactory>();
 builder.Services.AddSingleton<IPaymentPlugin, DummyPaymentPlugin>();
 builder.Services.AddSingleton<IPaymentPluginFactory, PaymentPluginFactory>();
 builder.Services.AddSingleton<IFido2>(sp =>

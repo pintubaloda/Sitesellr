@@ -474,3 +474,13 @@ UPDATE [2026-02-20] - SUBDOMAIN, CUSTOM DOMAIN, CLOUDFARE DNS, SSL PURCHASE FLOW
   - Real payment-gateway callback/reconciliation for SSL purchase reference is still placeholder (purchase endpoint currently stores payment reference and triggers issuance flow).
 - Pending:
   - Full invoice/chargeback lifecycle for SSL marketplace purchases.
+
+UPDATE [2026-02-20] - PLATFORM DOMAIN GOVERNANCE + CLOUDFLARE/SSL CONFIG UI
+- Developed:
+  - Platform Owner can now view all tenant subdomains and all custom domains with status.
+  - Platform Owner menu now includes dedicated Domains & SSL module.
+  - Platform Owner can configure Cloudflare and Let’s Encrypt values from UI (persisted in platform settings).
+  - DNS/SSL runtime services consume platform settings (DB) with env fallback.
+  - Subdomain collision policy is deterministic: normalize + numeric suffix increment.
+- Partial:
+  - Secure secret storage for Cloudflare token is plain platform settings currently (no KMS integration yet).

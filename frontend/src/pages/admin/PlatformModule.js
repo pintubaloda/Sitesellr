@@ -12,6 +12,7 @@ const CONTENT = {
   api: { title: "API & Integrations", endpoint: "/platform/owner/api-integrations" },
   risk: { title: "Risk / Fraud Monitoring", endpoint: "/platform/owner/risk" },
   config: { title: "Platform Configuration", endpoint: "/platform/owner/config" },
+  domains: { title: "Domains & SSL (Platform)", endpoint: "/platform/owner/domains" },
   reports: { title: "Reporting & Intelligence", endpoint: "/platform/owner/reports" },
 };
 
@@ -41,6 +42,15 @@ export default function PlatformModule({ moduleKey = "reports" }) {
     defaultRateLimitRpm: "120",
     versionPolicy: "v1",
   });
+  const [domainsConfigForm, setDomainsConfigForm] = useState({
+    cloudflareApiToken: "",
+    cloudflareZoneId: "",
+    platformBaseDomain: "",
+    platformIngressHost: "",
+    sslIssuerCommand: "",
+    sslContactEmail: "",
+    sslRequireMarketplacePurchase: "true",
+  });
   const [planForm, setPlanForm] = useState({
     name: "",
     code: "",
@@ -61,6 +71,9 @@ export default function PlatformModule({ moduleKey = "reports" }) {
       }
       if (moduleKey === "api") {
         setApiConfigForm((prev) => ({ ...prev, ...(res.data?.config || {}) }));
+      }
+      if (moduleKey === "domains") {
+        setDomainsConfigForm((prev) => ({ ...prev, ...(res.data?.config || {}) }));
       }
     } catch (err) {
       setError(err?.response?.status === 403 ? "You are not authorized." : "Could not load module data.");
@@ -95,6 +108,18 @@ export default function PlatformModule({ moduleKey = "reports" }) {
       await load();
     } catch (err) {
       setError(err?.response?.data?.error || "Could not save API configuration.");
+    }
+  };
+
+  const saveDomainsConfig = async () => {
+    setError("");
+    setMessage("");
+    try {
+      await api.put("/platform/owner/domains/config", domainsConfigForm);
+      setMessage("Domains/SSL configuration saved.");
+      await load();
+    } catch (err) {
+      setError(err?.response?.data?.error || "Could not save Domains/SSL configuration.");
     }
   };
 
@@ -320,6 +345,94 @@ export default function PlatformModule({ moduleKey = "reports" }) {
             <Button onClick={savePlatformConfig}>Save Platform Config</Button>
           </CardContent>
         </Card>
+      ) : null}
+
+      {moduleKey === "domains" ? (
+        <>
+          <div className="grid md:grid-cols-6 gap-3">
+            <Metric label="Subdomains" value={data?.summary?.totalSubdomains ?? 0} />
+            <Metric label="Custom Domains" value={data?.summary?.totalCustomDomains ?? 0} />
+            <Metric label="Verified Custom" value={data?.summary?.verifiedCustomDomains ?? 0} />
+            <Metric label="SSL Active" value={data?.summary?.activeSslCustomDomains ?? 0} />
+            <Metric label="SSL Pending" value={data?.summary?.pendingSslCustomDomains ?? 0} />
+            <Metric label="Payment Required" value={data?.summary?.paymentRequiredSslCustomDomains ?? 0} />
+          </div>
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardHeader><CardTitle>Subdomain Uniqueness Policy</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-slate-600 dark:text-slate-300">{data?.subdomainPolicy}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardHeader><CardTitle>Cloudflare + Let&apos;s Encrypt Configuration</CardTitle></CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Cloudflare API Token</Label>
+                <Input
+                  placeholder={data?.config?.cloudflareApiTokenMasked || "not set"}
+                  value={domainsConfigForm.cloudflareApiToken}
+                  onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareApiToken: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cloudflare Zone ID</Label>
+                <Input value={domainsConfigForm.cloudflareZoneId || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareZoneId: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Platform Base Domain</Label>
+                <Input value={domainsConfigForm.platformBaseDomain || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, platformBaseDomain: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Platform Ingress Host</Label>
+                <Input value={domainsConfigForm.platformIngressHost || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, platformIngressHost: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>SSL Issuer Command</Label>
+                <Input value={domainsConfigForm.sslIssuerCommand || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslIssuerCommand: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>SSL Contact Email</Label>
+                <Input value={domainsConfigForm.sslContactEmail || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslContactEmail: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Require SSL Marketplace Purchase</Label>
+                <Input value={domainsConfigForm.sslRequireMarketplacePurchase || "true"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslRequireMarketplacePurchase: e.target.value }))} />
+              </div>
+              <div className="md:col-span-2 flex items-center justify-between">
+                <p className="text-xs text-slate-500">
+                  Runtime status: Cloudflare {data?.config?.runtime?.cloudflareConfigured ? "configured" : "missing"} · Let&apos;s Encrypt {data?.config?.runtime?.letsEncryptConfigured ? "configured" : "missing"}
+                </p>
+                <Button onClick={saveDomainsConfig}>Save Domain Config</Button>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardHeader><CardTitle>Tenant Subdomains</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {(data?.subdomains || []).map((row) => (
+                <div key={row.id} className="text-sm border rounded p-2">
+                  <p className="font-medium">{row.subdomain || "-"} · {row.name}</p>
+                  <p className="text-slate-500">{row.merchantName}</p>
+                </div>
+              ))}
+              {!loading && (data?.subdomains || []).length === 0 ? <p className="text-sm text-slate-500">No subdomains found.</p> : null}
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardHeader><CardTitle>Custom Domains</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {(data?.customDomains || []).map((row) => (
+                <div key={row.id} className="text-sm border rounded p-2">
+                  <p className="font-medium">{row.hostname}</p>
+                  <p className="text-slate-500">{row.merchantName} · {row.storeName}</p>
+                  <p className="text-slate-500">dns: {row.dnsStatus} · verified: {String(row.isVerified)} · ssl: {row.sslStatus} · purchased: {String(row.sslPurchased)}</p>
+                  {row.lastError ? <p className="text-red-600 text-xs">{row.lastError}</p> : null}
+                </div>
+              ))}
+              {!loading && (data?.customDomains || []).length === 0 ? <p className="text-sm text-slate-500">No custom domains found.</p> : null}
+            </CardContent>
+          </Card>
+        </>
       ) : null}
 
       {moduleKey === "reports" ? (

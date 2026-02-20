@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using backend_dotnet.Models;
+using backend_dotnet.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend_dotnet.Services;
 
@@ -15,23 +17,25 @@ public class LetsEncryptShellProvider : ISslProvider
 {
     private readonly IConfiguration _config;
     private readonly ILogger<LetsEncryptShellProvider> _logger;
+    private readonly AppDbContext _db;
     public string Name => "letsencrypt";
 
-    public LetsEncryptShellProvider(IConfiguration config, ILogger<LetsEncryptShellProvider> logger)
+    public LetsEncryptShellProvider(IConfiguration config, ILogger<LetsEncryptShellProvider> logger, AppDbContext db)
     {
         _config = config;
         _logger = logger;
+        _db = db;
     }
 
     public async Task<SslIssueResult> IssueAsync(StoreDomain domain, CancellationToken ct)
     {
-        var cmd = _config["SSL_ISSUER_COMMAND"];
+        var cmd = await GetValueAsync("platform.domains.ssl.issuer_command", "SSL_ISSUER_COMMAND", ct);
         if (string.IsNullOrWhiteSpace(cmd))
         {
             return new SslIssueResult(false, null, "SSL_ISSUER_COMMAND is not configured.");
         }
 
-        var email = _config["SSL_CONTACT_EMAIL"] ?? "admin@example.com";
+        var email = await GetValueAsync("platform.domains.ssl.contact_email", "SSL_CONTACT_EMAIL", ct) ?? "admin@example.com";
         var command = cmd
             .Replace("{domain}", domain.Hostname, StringComparison.OrdinalIgnoreCase)
             .Replace("{email}", email, StringComparison.OrdinalIgnoreCase);
@@ -64,6 +68,19 @@ public class LetsEncryptShellProvider : ISslProvider
             _logger.LogError(ex, "SSL issue exception for {Domain}", domain.Hostname);
             return new SslIssueResult(false, null, ex.Message);
         }
+    }
+
+    private async Task<string?> GetValueAsync(string settingsKey, string configKey, CancellationToken ct)
+    {
+        var value = await _db.PlatformBrandingSettings.AsNoTracking()
+            .Where(x => x.Key == settingsKey)
+            .Select(x => x.Value)
+            .FirstOrDefaultAsync(ct);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+        return _config[configKey];
     }
 }
 

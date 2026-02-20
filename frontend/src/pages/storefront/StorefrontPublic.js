@@ -143,14 +143,11 @@ export default function StorefrontPublic() {
     run();
   }, [subdomain]);
 
-  if (error) return <div className="min-h-screen p-10">{error}</div>;
-  if (!data) return <div className="min-h-screen p-10">Loading storefront...</div>;
-
-  const menu = parseJsonArray(data.navigation?.itemsJson);
-  const sections = parseJsonArray(data.homepage?.sectionsJson);
-  const categories = Array.isArray(data.categories) ? data.categories : [];
-  const showPricing = !!data.theme?.showPricing;
-  const wholesaleMode = ["wholesale", "hybrid"].includes((data.theme?.catalogMode || "retail").toLowerCase());
+  const menu = parseJsonArray(data?.navigation?.itemsJson);
+  const sections = parseJsonArray(data?.homepage?.sectionsJson);
+  const categories = Array.isArray(data?.categories) ? data.categories : [];
+  const showPricing = !!data?.theme?.showPricing;
+  const wholesaleMode = ["wholesale", "hybrid"].includes((data?.theme?.catalogMode || "retail").toLowerCase());
   const device = /Mobi|Android|iPhone/i.test(navigator.userAgent)
     ? "mobile"
     : /iPad|Tablet/i.test(navigator.userAgent)
@@ -161,13 +158,13 @@ export default function StorefrontPublic() {
   let defaultMoq = 10;
   let packSize = 1;
   try {
-    const cfg = JSON.parse(data.theme?.catalogVisibilityJson || "{}");
+    const cfg = JSON.parse(data?.theme?.catalogVisibilityJson || "{}");
     if (Number(cfg.defaultMoq) > 0) defaultMoq = Number(cfg.defaultMoq);
     if (Number(cfg.packSize) > 0) packSize = Number(cfg.packSize);
   } catch {
     // ignore invalid config
   }
-  const filteredProducts = (data.products || []).filter((p) => categoryId === "all" || p.categoryId === categoryId);
+  const filteredProducts = (data?.products || []).filter((p) => categoryId === "all" || p.categoryId === categoryId);
   const searchedProducts = filteredProducts.filter((p) =>
     search.trim() ? `${p.title} ${p.description || ""}`.toLowerCase().includes(search.toLowerCase()) : true
   );
@@ -182,9 +179,9 @@ export default function StorefrontPublic() {
         .join("|"),
     [cart]
   );
-  const typographyPack = (data.theme?.activeTheme?.typographyPack || "modern-sans").toLowerCase();
-  const layoutVariant = (data.theme?.activeTheme?.layoutVariant || "default").toLowerCase();
-  const runtimePackage = sanitizeRuntimePackage(data.theme?.activeTheme?.runtimePackageJson || "{}");
+  const typographyPack = (data?.theme?.activeTheme?.typographyPack || "modern-sans").toLowerCase();
+  const layoutVariant = (data?.theme?.activeTheme?.layoutVariant || "default").toLowerCase();
+  const runtimePackage = sanitizeRuntimePackage(data?.theme?.activeTheme?.runtimePackageJson || "{}");
   const fontFamily = typographyPack === "merchant-serif"
     ? "Georgia, Cambria, 'Times New Roman', Times, serif"
     : typographyPack === "luxury-display"
@@ -411,18 +408,21 @@ export default function StorefrontPublic() {
     }
   };
 
-  const pdp = mode === "pdp" ? (data.products || []).find((x) => x.id === slugParts[1]) : null;
+  const pdp = mode === "pdp" ? (data?.products || []).find((x) => x.id === slugParts[1]) : null;
   const tokens = (() => {
     try {
-      return JSON.parse(data.theme?.designTokensJson || "{}");
+      return JSON.parse(data?.theme?.designTokensJson || "{}");
     } catch {
       return {};
     }
   })();
   const primary = tokens.primaryColor || "#2563eb";
   const accent = tokens.accentColor || "#f59e0b";
-  const plpVariant = resolveCategoryVariant(data.theme?.activeTheme?.plpVariantsJson, categoryId === "all" ? categories[0]?.id : categoryId);
-  const pdpVariant = pdp ? resolveCategoryVariant(data.theme?.activeTheme?.pdpVariantsJson, pdp.categoryId) : "default";
+  const plpVariant = resolveCategoryVariant(data?.theme?.activeTheme?.plpVariantsJson, categoryId === "all" ? categories[0]?.id : categoryId);
+  const pdpVariant = pdp ? resolveCategoryVariant(data?.theme?.activeTheme?.pdpVariantsJson, pdp.categoryId) : "default";
+
+  if (error) return <div className="min-h-screen p-10">{error}</div>;
+  if (!data) return <div className="min-h-screen p-10">Loading storefront...</div>;
 
   return (
     <div className={`min-h-screen bg-white text-slate-900 ${layoutVariant === "immersive" ? "bg-slate-50" : ""}`} style={{ fontFamily }}>
@@ -430,9 +430,9 @@ export default function StorefrontPublic() {
         <div className="bg-slate-900 text-white text-xs py-2 px-4 text-center">Free shipping on orders over INR 999 • Fast India-wide delivery</div>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            {data.theme?.logoUrl ? <img src={data.theme.logoUrl} alt={data.store?.name} className="h-9 w-9 rounded-md object-cover border" /> : null}
-            <Link to={`/s/${subdomain}`} className="text-xl font-bold truncate">{data.store?.name}</Link>
-            {data.previewThemeId ? <span className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">Preview Mode</span> : null}
+            {data?.theme?.logoUrl ? <img src={data.theme.logoUrl} alt={data?.store?.name} className="h-9 w-9 rounded-md object-cover border" /> : null}
+            <Link to={`/s/${subdomain}`} className="text-xl font-bold truncate">{data?.store?.name}</Link>
+            {data?.previewThemeId ? <span className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">Preview Mode</span> : null}
           </div>
           <div className="hidden lg:block flex-1 max-w-xl">
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products..." className="w-full h-10 px-4 rounded-full border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100" />
@@ -661,7 +661,7 @@ export default function StorefrontPublic() {
       <footer className="border-t bg-slate-950 text-slate-200 mt-16">
         <div className="max-w-7xl mx-auto px-4 py-10 grid md:grid-cols-4 gap-8 text-sm">
           <div>
-            <p className="font-semibold text-white text-base">{data.store?.name}</p>
+            <p className="font-semibold text-white text-base">{data?.store?.name}</p>
             <p className="mt-2 text-slate-400">Professional commerce storefront with retail + wholesale support.</p>
           </div>
           <div>

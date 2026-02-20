@@ -563,3 +563,8 @@ Notes:
 - Files:
   - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformRbacController.cs
   - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformRbac.js
+
+[2026-02-20] Pending Commit
+- Fix CI hook-order failure in StorefrontPublic:
+  - eliminate conditional hook execution path by shifting early returns below hook declarations.
+  - add safe optional chaining for pre-load state.

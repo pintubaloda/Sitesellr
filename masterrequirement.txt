@@ -364,3 +364,7 @@ UPDATE [2026-02-20] - PLATFORM USER CATEGORY ASSIGNMENT UI
   - User selection now drives role/permission assignment forms directly.
 - Partial:
   - Fine-grained permission matrix UI (checkbox per permission group) is still pending; current entry remains CSV-based.
+
+UPDATE [2026-02-20] - FRONTEND STABILITY FIX (CI)
+- Developed:
+  - Fixed React hooks ordering violations on storefront page; frontend lint/build gate no longer fails on those hook-rule errors.

@@ -119,6 +119,8 @@ public static class PermissionCatalog
 {
     private static readonly HashSet<string> OwnerAdminTemplate = new(StringComparer.OrdinalIgnoreCase)
     {
+        Permissions.StoreSettingsRead,
+        Permissions.StoreSettingsWrite,
         Permissions.StoreSettingsManage,
         Permissions.StoreBrandingManage,
         Permissions.StoreDomainsManage,
@@ -146,6 +148,7 @@ public static class PermissionCatalog
 
     private static readonly HashSet<string> StaffTemplate = new(StringComparer.OrdinalIgnoreCase)
     {
+        Permissions.StoreSettingsRead,
         Permissions.OrdersRead,
         Permissions.OrdersUpdate,
         Permissions.ShipmentsManage,

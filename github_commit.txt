@@ -618,3 +618,6 @@ Notes:
 - Store-owner modules moved from mock/demo to live backend wiring:
   - Added store insights APIs for dashboard, analytics, and marketing.
   - Rebuilt frontend dashboard/analytics/marketing pages against live API responses.
+
+[2026-02-20] Pending Commit
+- Fixed store-user login context failure by adding missing `store.settings.read` permissions to role templates.

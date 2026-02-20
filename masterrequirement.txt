@@ -434,3 +434,7 @@ UPDATE [2026-02-20] - STORE OWNER LIVE MODULES
   - Removed dependency on static mock datasets for these three modules.
 - Impact:
   - Store-owner operational reporting and marketing screens now reflect real tenant data.
+
+UPDATE [2026-02-20] - STORE USER PERMISSION BASELINE FIX
+- Developed:
+  - Store role templates now include required store settings read/write baseline permissions for proper store context loading.

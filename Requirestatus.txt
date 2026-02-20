@@ -730,3 +730,13 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Dashboard.js`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Marketing.js`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Analytics.js`
+
+[2026-02-20] Store Owner Login Fix - Missing Store Settings Read Permission
+- Root cause found: store role templates did not include `store.settings.read`, so `/api/stores` returned forbidden for store users.
+- Fix applied in permission catalog templates:
+  - Owner/Admin template now includes `store.settings.read` and `store.settings.write`.
+  - Staff template now includes `store.settings.read`.
+- Result:
+  - Store users (including `store.owner@sitesellr.local`) can load own store context and dashboard/pages no longer show "Store is not selected".
+- File:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Security/PermissionCatalog.cs`

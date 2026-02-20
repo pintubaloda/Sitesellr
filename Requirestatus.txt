@@ -507,3 +507,13 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Fix: disabled host config reload-on-change watcher at process start using:
   - `DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false`
 - File: /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs
+
+[2026-02-20] Platform Global Branding - Admin + Landing Effect
+- Added backend platform branding settings API:
+  - `GET /api/platform/branding` (public read)
+  - `PUT /api/platform/branding` (platform owner)
+- Added persistence model/table: `platform_branding_settings`.
+- Added Platform Themes UI section to manage global branding values.
+- Applied global branding effects to:
+  - Admin shell (`DashboardLayout`) brand name/logo/color/font tokens
+  - Landing page (`Landing.js`) brand name/logo/primary color/font + hero text overrides

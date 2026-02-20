@@ -37,11 +37,32 @@ export default function PlatformThemes() {
   const [message, setMessage] = useState("");
   const [previewSubdomain, setPreviewSubdomain] = useState("demo");
   const [zipFile, setZipFile] = useState(null);
+  const [branding, setBranding] = useState({
+    brandName: "Sitesellr",
+    logoUrl: "",
+    primaryColor: "#2563eb",
+    accentColor: "#0f172a",
+    fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    landingHeroTitle: "",
+    landingHeroSubtitle: "",
+  });
 
   const load = async () => {
     try {
-      const res = await api.get("/platform/themes");
-      setRows(Array.isArray(res.data) ? res.data : []);
+      const [themesRes, brandingRes] = await Promise.all([
+        api.get("/platform/themes"),
+        api.get("/platform/branding"),
+      ]);
+      setRows(Array.isArray(themesRes.data) ? themesRes.data : []);
+      setBranding({
+        brandName: brandingRes.data?.brandName || "Sitesellr",
+        logoUrl: brandingRes.data?.logoUrl || "",
+        primaryColor: brandingRes.data?.primaryColor || "#2563eb",
+        accentColor: brandingRes.data?.accentColor || "#0f172a",
+        fontFamily: brandingRes.data?.fontFamily || "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+        landingHeroTitle: brandingRes.data?.landingHeroTitle || "",
+        landingHeroSubtitle: brandingRes.data?.landingHeroSubtitle || "",
+      });
     } catch (err) {
       setMessage(err?.response?.status === 403 ? "You are not authorized." : "Could not load themes.");
     }
@@ -151,6 +172,16 @@ export default function PlatformThemes() {
     }
   };
 
+  const saveBranding = async () => {
+    setMessage("");
+    try {
+      await api.put("/platform/branding", branding);
+      setMessage("Platform branding saved.");
+    } catch (err) {
+      setMessage(err?.response?.data?.error || "Could not save platform branding.");
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="platform-themes-page">
       <div>
@@ -159,6 +190,23 @@ export default function PlatformThemes() {
       </div>
 
       {message ? <p className="text-sm text-slate-600 dark:text-slate-300">{message}</p> : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Platform Global Branding</CardTitle>
+          <CardDescription>Applied to admin shell and landing page theme tokens.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-2 gap-3">
+          <div className="space-y-2"><Label>Brand Name</Label><Input value={branding.brandName} onChange={(e) => setBranding((s) => ({ ...s, brandName: e.target.value }))} /></div>
+          <div className="space-y-2"><Label>Logo URL</Label><Input value={branding.logoUrl} onChange={(e) => setBranding((s) => ({ ...s, logoUrl: e.target.value }))} /></div>
+          <div className="space-y-2"><Label>Primary Color</Label><Input value={branding.primaryColor} onChange={(e) => setBranding((s) => ({ ...s, primaryColor: e.target.value }))} /></div>
+          <div className="space-y-2"><Label>Accent Color</Label><Input value={branding.accentColor} onChange={(e) => setBranding((s) => ({ ...s, accentColor: e.target.value }))} /></div>
+          <div className="space-y-2 md:col-span-2"><Label>Font Family</Label><Input value={branding.fontFamily} onChange={(e) => setBranding((s) => ({ ...s, fontFamily: e.target.value }))} /></div>
+          <div className="space-y-2 md:col-span-2"><Label>Landing Hero Title (optional override)</Label><Input value={branding.landingHeroTitle} onChange={(e) => setBranding((s) => ({ ...s, landingHeroTitle: e.target.value }))} /></div>
+          <div className="space-y-2 md:col-span-2"><Label>Landing Hero Subtitle (optional override)</Label><Input value={branding.landingHeroSubtitle} onChange={(e) => setBranding((s) => ({ ...s, landingHeroSubtitle: e.target.value }))} /></div>
+          <Button className="md:col-span-2" onClick={saveBranding}>Save Platform Branding</Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

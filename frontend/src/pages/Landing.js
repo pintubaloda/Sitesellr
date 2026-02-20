@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -36,8 +36,9 @@ import {
 } from "lucide-react";
 import { pricingPlans, testimonials, faqs } from "../lib/mock-data";
 import { formatCurrency } from "../lib/utils";
+import api from "../lib/api";
 
-const Navbar = () => {
+const Navbar = ({ branding }) => {
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -47,10 +48,10 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2" data-testid="logo-link">
-            <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
-              <Store className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center" style={{ backgroundColor: branding.primaryColor || "#2563eb" }}>
+              {branding.logoUrl ? <img src={branding.logoUrl} alt={branding.brandName || "Sitesellr"} className="w-9 h-9 rounded-lg object-cover" /> : <Store className="w-5 h-5 text-white" />}
             </div>
-            <span className="text-xl font-bold text-slate-900 dark:text-white">Sitesellr</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-white">{branding.brandName || "Sitesellr"}</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -136,7 +137,7 @@ const Navbar = () => {
   );
 };
 
-const HeroSection = () => {
+const HeroSection = ({ branding }) => {
   return (
     <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
       {/* Background Elements */}
@@ -154,19 +155,19 @@ const HeroSection = () => {
             </Badge>
             
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 dark:text-white leading-[1.1] mb-6 animate-fade-in">
-              Launch Your{" "}
+              {branding.landingHeroTitle || "Launch Your"}{" "}
               <span className="text-gradient">Online Store</span>{" "}
               in Minutes
             </h1>
             
             <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-400 mb-8 leading-relaxed max-w-xl animate-fade-in stagger-1">
-              The all-in-one e-commerce platform designed for Indian businesses. 
+              {branding.landingHeroSubtitle || "The all-in-one e-commerce platform designed for Indian businesses."} 
               GST-ready, COD enabled, and packed with features to help you sell more.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12 animate-fade-in stagger-2">
               <Link to="/onboarding">
-                <Button size="lg" className="rounded-full bg-blue-600 hover:bg-blue-700 text-base px-8 h-12 w-full sm:w-auto" data-testid="hero-cta-primary">
+                <Button size="lg" className="rounded-full text-base px-8 h-12 w-full sm:w-auto" style={{ backgroundColor: branding.primaryColor || "#2563eb" }} data-testid="hero-cta-primary">
                   Start Selling Free
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
@@ -251,7 +252,7 @@ const HeroSection = () => {
   );
 };
 
-const FeaturesSection = () => {
+const FeaturesSection = ({ branding }) => {
   const features = [
     {
       icon: Store,
@@ -360,7 +361,7 @@ const FeaturesSection = () => {
               Built for India, Made for Scale
             </h3>
             <p className="text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
-              Whether you're selling to 10 customers or 10,000, Sitesellr grows with you. 
+              Whether you're selling to 10 customers or 10,000, {branding.brandName || "Sitesellr"} grows with you. 
               Our platform handles the complexity so you can focus on what matters — your business.
             </p>
             <ul className="space-y-3">
@@ -582,7 +583,7 @@ const FAQSection = () => {
   );
 };
 
-const CTASection = () => {
+const CTASection = ({ branding }) => {
   return (
     <section className="py-20 lg:py-32 bg-blue-600 dark:bg-blue-700 relative overflow-hidden">
       {/* Background Pattern */}
@@ -596,7 +597,7 @@ const CTASection = () => {
           Ready to Start Selling?
         </h2>
         <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto">
-          Join 10,000+ Indian businesses already growing with Sitesellr. 
+          Join 10,000+ Indian businesses already growing with {branding.brandName || "Sitesellr"}. 
           Set up your store in minutes, not days.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -625,7 +626,7 @@ const CTASection = () => {
   );
 };
 
-const Footer = () => {
+const Footer = ({ branding }) => {
   return (
     <footer className="bg-slate-900 dark:bg-slate-950 text-slate-400 py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -636,7 +637,7 @@ const Footer = () => {
               <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
                 <Store className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-white">Sitesellr</span>
+              <span className="text-xl font-bold text-white">{branding.brandName || "Sitesellr"}</span>
             </div>
             <p className="text-sm mb-6 max-w-sm">
               The all-in-one e-commerce platform built for Indian businesses. 
@@ -683,7 +684,7 @@ const Footer = () => {
 
         <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm">
-            © 2024 Sitesellr. All rights reserved.
+            © 2024 {branding.brandName || "Sitesellr"}. All rights reserved.
           </p>
           <p className="text-sm">
             Made with love in India
@@ -695,16 +696,28 @@ const Footer = () => {
 };
 
 export const Landing = () => {
+  const [branding, setBranding] = useState({
+    brandName: "Sitesellr",
+    logoUrl: "",
+    primaryColor: "#2563eb",
+    accentColor: "#0f172a",
+    fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    landingHeroTitle: "",
+    landingHeroSubtitle: "",
+  });
+  useEffect(() => {
+    api.get("/platform/branding").then((res) => setBranding((s) => ({ ...s, ...(res.data || {}) }))).catch(() => {});
+  }, []);
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
-      <Navbar />
-      <HeroSection />
-      <FeaturesSection />
+    <div className="min-h-screen bg-white dark:bg-slate-950" style={{ fontFamily: branding.fontFamily || "'Segoe UI', Roboto, Helvetica, Arial, sans-serif" }}>
+      <Navbar branding={branding} />
+      <HeroSection branding={branding} />
+      <FeaturesSection branding={branding} />
       <PricingSection />
       <TestimonialsSection />
       <FAQSection />
-      <CTASection />
-      <Footer />
+      <CTASection branding={branding} />
+      <Footer branding={branding} />
     </div>
   );
 };

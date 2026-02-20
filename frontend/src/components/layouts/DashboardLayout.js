@@ -172,7 +172,7 @@ const SidebarContent = ({ collapsed, setCollapsed, onItemClick, visibleItems }) 
             <Store className="w-5 h-5 text-white" />
           </div>
           {!collapsed && (
-            <span className="text-xl font-bold text-slate-900 dark:text-white">Sitesellr</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-white">{window.__platformBrand?.brandName || "Sitesellr"}</span>
           )}
         </Link>
         {!collapsed && setCollapsed && (
@@ -270,7 +270,21 @@ export const DashboardLayout = () => {
     isStoreUser: false,
     effectivePermissions: [],
   });
+  const [brandLogo, setBrandLogo] = useState("");
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    api.get("/platform/branding")
+      .then((res) => {
+        const b = res.data || {};
+        window.__platformBrand = b;
+        setBrandLogo(b.logoUrl || "");
+        document.documentElement.style.setProperty("--platform-primary", b.primaryColor || "#2563eb");
+        document.documentElement.style.setProperty("--platform-accent", b.accentColor || "#0f172a");
+        document.documentElement.style.setProperty("--platform-font", b.fontFamily || "'Segoe UI', Roboto, Helvetica, Arial, sans-serif");
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const loadAccess = async () => {
@@ -359,7 +373,7 @@ export const DashboardLayout = () => {
       <div className={cn(
         "transition-all duration-300",
         collapsed ? "lg:pl-[72px]" : "lg:pl-64"
-      )}>
+      )} style={{ fontFamily: "var(--platform-font, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif)" }}>
         {/* Top Header */}
         <header className="sticky top-0 z-30 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between h-full px-4 lg:px-6">
@@ -424,6 +438,7 @@ export const DashboardLayout = () => {
                 </DropdownMenu>
               ) : null}
               {/* View Store */}
+              {brandLogo ? <Avatar className="h-8 w-8 hidden sm:flex"><AvatarImage src={brandLogo} /></Avatar> : null}
               <Button
                 variant="outline"
                 size="sm"

@@ -221,6 +221,14 @@ CREATE TABLE IF NOT EXISTS team_invite_tokens (
   ""CreatedByUserId"" uuid NULL
 );");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_team_invite_tokens_TokenHash ON team_invite_tokens (""TokenHash"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS platform_branding_settings (
+  ""Id"" uuid PRIMARY KEY,
+  ""Key"" character varying(120) NOT NULL,
+  ""Value"" character varying(4000) NOT NULL,
+  ""UpdatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_platform_branding_settings_Key ON platform_branding_settings (""Key"");");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""MaxVariantsPerProduct"" integer NOT NULL DEFAULT 100;");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""MaxCategories"" integer NOT NULL DEFAULT 100;");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""MaxPaymentGateways"" integer NOT NULL DEFAULT 1;");

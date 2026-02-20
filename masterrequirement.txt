@@ -328,3 +328,9 @@ UPDATE [2026-02-20] - SUBSCRIPTION = CAPABILITY ENVELOPE (PHASE 1)
 - Partial:
   - Full enforcement across all domains (gateways/plugins/communication sends) still to wire into each module endpoint.
   - Distributed cache (Redis) for capability reads not yet enabled; current service uses in-process cache.
+
+UPDATE [2026-02-20] - PLATFORM GLOBAL BRANDING
+- Developed:
+  - Platform-level branding settings service and API.
+  - Platform owner UI controls for global brand name/logo/colors/fonts and landing hero copy override.
+  - Branding effects wired to admin dashboard shell and landing page rendering.

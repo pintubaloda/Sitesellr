@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<StoreUserRole> StoreUserRoles => Set<StoreUserRole>();
     public DbSet<StoreUserPermission> StoreUserPermissions => Set<StoreUserPermission>();
     public DbSet<PlatformUserRole> PlatformUserRoles => Set<PlatformUserRole>();
+    public DbSet<PlatformBrandingSetting> PlatformBrandingSettings => Set<PlatformBrandingSetting>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();
     public DbSet<Category> Categories => Set<Category>();
@@ -148,6 +149,16 @@ public class AppDbContext : DbContext
             b.Property(p => p.CreatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(p => new { p.UserId, p.Role }).IsUnique();
             b.HasOne(p => p.User).WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PlatformBrandingSetting>(b =>
+        {
+            b.ToTable("platform_branding_settings");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Key).IsRequired().HasMaxLength(120);
+            b.Property(x => x.Value).HasMaxLength(4000);
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => x.Key).IsUnique();
         });
 
         modelBuilder.Entity<Category>(b =>

@@ -536,3 +536,6 @@ Notes:
   - new subscription and platform billing plan APIs
   - onboarding plan capability output
   - default plan capability seeding
+
+[2026-02-20] Pending Commit
+- Added platform global branding module with DB settings table + API + admin UI and landing/admin runtime application.

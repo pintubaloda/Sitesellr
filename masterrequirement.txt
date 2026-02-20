@@ -438,3 +438,10 @@ UPDATE [2026-02-20] - STORE OWNER LIVE MODULES
 UPDATE [2026-02-20] - STORE USER PERMISSION BASELINE FIX
 - Developed:
   - Store role templates now include required store settings read/write baseline permissions for proper store context loading.
+
+UPDATE [2026-02-20] - STORE CONTEXT RESOLUTION STABILITY
+- Developed:
+  - `/api/stores` now returns membership-scoped store list for authenticated store users.
+  - Platform users retain platform-wide store listing.
+- Impact:
+  - Eliminates persistent `Store is not selected` state for valid store-owner/store-staff users during login and dashboard load.

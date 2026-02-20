@@ -20,17 +20,30 @@ public class StoresController : BaseApiController
     }
 
     [HttpGet]
-    [Authorize(Policy = Policies.StoreSettingsRead)]
+    [Authorize]
     public async Task<IActionResult> List([FromQuery] Guid? merchantId, CancellationToken ct)
     {
-        if (Tenancy?.Store != null)
+        if (Tenancy?.UserId == null)
         {
-            return Ok(new[] { Tenancy.Store });
+            return Unauthorized();
         }
 
         IQueryable<Store> q = _db.Stores.AsNoTracking().Include(s => s.Merchant);
-        if (merchantId.HasValue) q = q.Where(s => s.MerchantId == merchantId.Value);
-        return Ok(await q.ToListAsync(ct));
+        if (merchantId.HasValue)
+        {
+            q = q.Where(s => s.MerchantId == merchantId.Value);
+        }
+
+        // Platform users can view platform-wide stores.
+        if (Tenancy.IsPlatformOwner || Tenancy.IsPlatformStaff)
+        {
+            return Ok(await q.OrderBy(s => s.Name).ToListAsync(ct));
+        }
+
+        // Store users only get stores they are members of.
+        var userId = Tenancy.UserId.Value;
+        q = q.Where(s => _db.StoreUserRoles.Any(r => r.StoreId == s.Id && r.UserId == userId));
+        return Ok(await q.OrderBy(s => s.Name).ToListAsync(ct));
     }
 
     [HttpPost]

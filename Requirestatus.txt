@@ -740,3 +740,14 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - Store users (including `store.owner@sitesellr.local`) can load own store context and dashboard/pages no longer show "Store is not selected".
 - File:
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Security/PermissionCatalog.cs`
+
+[2026-02-20] Store Context Hardening - /api/stores Membership List
+- Fixed store-owner/store-staff login edge case where UI showed `Store is not selected` despite valid membership.
+- Backend `/api/stores` list endpoint now uses authenticated membership scope:
+  - Platform users: can list platform stores.
+  - Store users: can list only stores where they are members.
+- Endpoint no longer depends on `StoreSettingsRead` policy for basic store-context discovery.
+- Result:
+  - Active store selection works reliably after login for `store.owner@sitesellr.local` and other store users.
+- File:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StoresController.cs`

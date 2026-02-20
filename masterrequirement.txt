@@ -376,3 +376,9 @@ UPDATE [2026-02-20] - PLATFORM OWNER MENU (SUPER ADMIN)
   - Sidebar behavior now excludes store-only modules for platform owner accounts.
 - Partial:
   - New platform sections currently provide structured module shells; deep functional implementations are still pending per module.
+
+UPDATE [2026-02-20] - MERCHANT/STORE MANAGEMENT
+- Developed:
+  - Platform owner merchant screen now displays tenant store mapping details directly under each merchant.
+- Impact:
+  - Demo merchant and demo store linkage is now visible from the same module.

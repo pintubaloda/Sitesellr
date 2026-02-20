@@ -126,6 +126,9 @@ export const Merchants = () => {
               <div key={m.id} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
                 <p className="font-medium">{m.name}</p>
                 <p className="text-sm text-slate-500">{m.primaryDomain || "-"}</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Stores: {Array.isArray(m.stores) ? m.stores.length : 0}
+                </p>
                 <div className="mt-2 flex items-center gap-2">
                   <p className="text-sm text-slate-500">Status:</p>
                   <select
@@ -139,6 +142,19 @@ export const Merchants = () => {
                     <option value="3">Expired</option>
                   </select>
                 </div>
+                {Array.isArray(m.stores) && m.stores.length > 0 ? (
+                  <div className="mt-3 rounded-md bg-slate-50 dark:bg-slate-900 p-2">
+                    {m.stores.map((s) => (
+                      <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-1 text-xs border-b border-slate-200 dark:border-slate-800 last:border-b-0">
+                        <span className="font-medium text-slate-700 dark:text-slate-200">{s.name}</span>
+                        <span className="text-slate-500">{s.subdomain || "no-subdomain"}</span>
+                        <span className="text-slate-500">status: {String(s.status)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">No stores mapped to this merchant yet.</p>
+                )}
               </div>
             ))}
             {!loading && rows.length === 0 ? <p className="text-sm text-slate-500">No merchants found.</p> : null}

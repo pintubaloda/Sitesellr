@@ -21,7 +21,30 @@ public class MerchantsController : BaseApiController
     [Authorize(Policy = Policies.PlatformStaffRead)]
     public async Task<IActionResult> List(CancellationToken ct)
     {
-        var merchants = await _db.Merchants.AsNoTracking().ToListAsync(ct);
+        var merchants = await _db.Merchants.AsNoTracking()
+            .Include(m => m.Stores)
+            .Select(m => new
+            {
+                m.Id,
+                m.Name,
+                m.PrimaryDomain,
+                m.Status,
+                m.CreatedAt,
+                m.UpdatedAt,
+                Stores = m.Stores
+                    .OrderBy(s => s.Name)
+                    .Select(s => new
+                    {
+                        s.Id,
+                        s.Name,
+                        s.Subdomain,
+                        s.Status,
+                        s.Currency,
+                        s.IsWholesaleEnabled
+                    })
+                    .ToList()
+            })
+            .ToListAsync(ct);
         return Ok(merchants);
     }
 

@@ -573,3 +573,8 @@ Notes:
 - Platform owner super-admin menu structure implemented with dedicated platform sections and routes.
 - Added placeholder module pages for payments, billing, plugins, API, risk, config, and reports.
 - Hid store-only menus for platform owner scope to avoid daily store operations in super-admin sidebar.
+
+[2026-02-20] Pending Commit
+- Merchant module fix:
+  - backend `/api/merchants` now returns nested store list per merchant.
+  - frontend merchant page now renders mapped stores under each merchant card.

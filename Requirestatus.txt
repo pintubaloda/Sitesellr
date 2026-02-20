@@ -609,3 +609,11 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/components/layouts/DashboardLayout.js`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/App.js`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformModule.js`
+
+[2026-02-20] Merchant/Store Management Visibility Fix
+- Fixed platform merchant list API to include mapped stores per merchant.
+- Updated merchant management UI to show store count and store rows (name, subdomain, status).
+- This resolves issue where demo merchant appeared but store details were not visible in platform owner screen.
+- Files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/MerchantsController.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Merchants.js`

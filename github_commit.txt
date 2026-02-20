@@ -628,3 +628,4 @@ Notes:
   - Prevents false `Store is not selected` for valid store-owner/store-staff accounts.
 - File:
   - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StoresController.cs
+- Commit: 6f1c503 (pushed to origin/main)

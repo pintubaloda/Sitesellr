@@ -568,3 +568,8 @@ Notes:
 - Fix CI hook-order failure in StorefrontPublic:
   - eliminate conditional hook execution path by shifting early returns below hook declarations.
   - add safe optional chaining for pre-load state.
+
+[2026-02-20] Pending Commit
+- Platform owner super-admin menu structure implemented with dedicated platform sections and routes.
+- Added placeholder module pages for payments, billing, plugins, API, risk, config, and reports.
+- Hid store-only menus for platform owner scope to avoid daily store operations in super-admin sidebar.

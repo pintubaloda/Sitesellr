@@ -41,6 +41,12 @@ import {
   Network,
   Brush,
   Shield,
+  Wallet,
+  PlugZap,
+  KeyRound,
+  ShieldAlert,
+  SlidersHorizontal,
+  LineChart,
   ChevronLeft,
   Menu,
   Moon,
@@ -61,7 +67,7 @@ const sidebarItems = [
     title: "Dashboard",
     icon: LayoutDashboard,
     path: "/admin",
-    scope: "store",
+    scope: "platform-owner-or-store",
     requiredAny: ["orders.read", "products.read", "customers.read", "store.settings.manage", "store.settings.read"],
   },
   {
@@ -114,32 +120,74 @@ const sidebarItems = [
     requiredAny: ["store.settings.manage", "store.settings.write", "store.settings.read"],
   },
   {
-    title: "Merchants",
+    title: "Merchant / Store Management",
     icon: Building2,
     path: "/admin/merchants",
-    scope: "platform-staff",
+    scope: "platform-owner",
     requiredAny: ["merchants.read_all", "merchants.read", "merchants.manage"],
   },
   {
-    title: "Platform RBAC",
+    title: "Payments & Transactions",
+    icon: CreditCard,
+    path: "/admin/platform-payments",
+    scope: "platform-owner",
+    requiredAny: ["payments.read_all", "transactions.read_all", "settlements.read_all"],
+  },
+  {
+    title: "Billing & Subscriptions",
+    icon: Wallet,
+    path: "/admin/platform-billing",
+    scope: "platform-owner",
+    requiredAny: ["subscriptions.manage", "plans.manage", "billing.adjust", "subscriptions.read_all"],
+  },
+  {
+    title: "Plugin / App Marketplace",
+    icon: PlugZap,
+    path: "/admin/platform-plugins",
+    scope: "platform-owner",
+    requiredAny: ["plugins.read", "plugins.approve", "plugins.suspend", "plugins.scopes.manage"],
+  },
+  {
+    title: "API & Integrations",
+    icon: KeyRound,
+    path: "/admin/platform-api",
+    scope: "platform-owner",
+    requiredAny: ["api.gateway.manage", "api.routes.manage", "api.rate_limits.manage", "api_keys.revoke"],
+  },
+  {
+    title: "Security & Audit",
+    icon: ClipboardList,
+    path: "/admin/audit-logs",
+    scope: "platform-owner",
+    requiredAny: ["security.audit_logs.read_all", "security.policies.manage", "security.sessions.revoke"],
+  },
+  {
+    title: "Risk / Fraud Monitoring",
+    icon: ShieldAlert,
+    path: "/admin/platform-risk",
+    scope: "platform-owner",
+    requiredAny: ["fraud.monitor", "risk.actions.execute", "transactions.monitor", "merchants.flag"],
+  },
+  {
+    title: "Platform Configuration",
+    icon: SlidersHorizontal,
+    path: "/admin/platform-config",
+    scope: "platform-owner",
+    requiredAny: ["platform.settings.manage", "platform.features.manage", "security.policies.manage"],
+  },
+  {
+    title: "Reporting & Intelligence",
+    icon: LineChart,
+    path: "/admin/platform-reports",
+    scope: "platform-owner",
+    requiredAny: ["payments.read_all", "transactions.read_all", "security.audit_logs.read_all", "merchants.read_all"],
+  },
+  {
+    title: "Role / Permission Governance",
     icon: ShieldCheck,
     path: "/admin/platform-rbac",
     scope: "platform-owner",
     requiredAny: ["security.policies.manage", "platform.settings.manage"],
-  },
-  {
-    title: "Audit Logs",
-    icon: ClipboardList,
-    path: "/admin/audit-logs",
-    scope: "platform-staff-or-store",
-    requiredAny: ["security.audit_logs.read_all", "security.audit_logs.read", "orders.read"],
-  },
-  {
-    title: "Merchant Ops",
-    icon: Network,
-    path: "/admin/merchant-ops",
-    scope: "platform-staff",
-    requiredAny: ["merchants.suspend", "merchants.manage", "fraud.monitor", "merchants.read"],
   },
   {
     title: "Platform Themes",
@@ -322,6 +370,8 @@ export const DashboardLayout = () => {
     return sidebarItems.filter((item) => {
       if (!hasAnyPermission(item.requiredAny)) return false;
       switch (item.scope) {
+        case "platform-owner-or-store":
+          return access.isPlatformOwner || access.isStoreUser;
         case "platform-owner":
           return access.isPlatformOwner;
         case "platform-staff":
@@ -329,6 +379,8 @@ export const DashboardLayout = () => {
         case "platform-staff-or-store":
           return access.isPlatformStaff || access.isStoreUser;
         case "store":
+          if (access.isPlatformOwner) return false;
+          return access.isStoreUser;
         default:
           return access.isStoreUser;
       }

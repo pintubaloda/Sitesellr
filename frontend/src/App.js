@@ -26,6 +26,7 @@ import MerchantOps from "./pages/admin/MerchantOps";
 import PlatformThemes from "./pages/admin/PlatformThemes";
 import StorefrontPublic from "./pages/storefront/StorefrontPublic";
 import DomainsSsl from "./pages/admin/DomainsSsl";
+import PlatformModule from "./pages/admin/PlatformModule";
 import { getStoredAccessToken } from "./lib/session";
 
 const ProtectedRoute = ({ children }) => {
@@ -74,6 +75,13 @@ function App() {
             <Route path="merchant-ops" element={<MerchantOps />} />
             <Route path="platform-themes" element={<PlatformThemes />} />
             <Route path="domains-ssl" element={<DomainsSsl />} />
+            <Route path="platform-payments" element={<PlatformModule moduleKey="payments" />} />
+            <Route path="platform-billing" element={<PlatformModule moduleKey="billing" />} />
+            <Route path="platform-plugins" element={<PlatformModule moduleKey="plugins" />} />
+            <Route path="platform-api" element={<PlatformModule moduleKey="api" />} />
+            <Route path="platform-risk" element={<PlatformModule moduleKey="risk" />} />
+            <Route path="platform-config" element={<PlatformModule moduleKey="config" />} />
+            <Route path="platform-reports" element={<PlatformModule moduleKey="reports" />} />
           </Route>
 
           {/* Catch all - redirect to home */}

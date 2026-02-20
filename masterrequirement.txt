@@ -368,3 +368,11 @@ UPDATE [2026-02-20] - PLATFORM USER CATEGORY ASSIGNMENT UI
 UPDATE [2026-02-20] - FRONTEND STABILITY FIX (CI)
 - Developed:
   - Fixed React hooks ordering violations on storefront page; frontend lint/build gate no longer fails on those hook-rule errors.
+
+UPDATE [2026-02-20] - PLATFORM OWNER MENU (SUPER ADMIN)
+- Developed:
+  - Platform-owner sidebar now follows governance/risk/configuration-first structure.
+  - Added dedicated platform section routes for critical super-admin surfaces.
+  - Sidebar behavior now excludes store-only modules for platform owner accounts.
+- Partial:
+  - New platform sections currently provide structured module shells; deep functional implementations are still pending per module.

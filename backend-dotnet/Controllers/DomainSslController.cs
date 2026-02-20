@@ -16,12 +16,16 @@ public class DomainSslController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ISslProviderFactory _sslProviders;
+    private readonly ICloudflareDnsService _cloudflareDns;
+    private readonly IConfiguration _config;
     private TenancyContext? Tenancy => HttpContext.Items["Tenancy"] as TenancyContext;
 
-    public DomainSslController(AppDbContext db, ISslProviderFactory sslProviders)
+    public DomainSslController(AppDbContext db, ISslProviderFactory sslProviders, ICloudflareDnsService cloudflareDns, IConfiguration config)
     {
         _db = db;
         _sslProviders = sslProviders;
+        _cloudflareDns = cloudflareDns;
+        _config = config;
     }
 
     [HttpGet]
@@ -52,12 +56,20 @@ public class DomainSslController : ControllerBase
             Hostname = hostname,
             VerificationToken = token,
             IsVerified = false,
+            DnsManagedByCloudflare = false,
+            DnsStatus = "pending",
             SslProvider = string.IsNullOrWhiteSpace(req.SslProvider) ? "letsencrypt" : req.SslProvider.Trim().ToLowerInvariant(),
-            SslStatus = "pending",
+            SslPurchased = !IsSslMarketplacePurchaseRequired(),
+            SslStatus = IsSslMarketplacePurchaseRequired() ? "payment_required" : "pending",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
         _db.StoreDomains.Add(row);
+        await _db.SaveChangesAsync(ct);
+        var dns = await _cloudflareDns.EnsureCustomDomainAsync(row.Hostname, row.VerificationToken, ct);
+        row.DnsManagedByCloudflare = dns.ManagedByCloudflare;
+        row.DnsStatus = dns.Success ? "configured" : "pending";
+        row.LastError = dns.Error;
         await _db.SaveChangesAsync(ct);
         var auto = await TryAutoVerifyAndIssueAsync(row, ct);
         return Ok(new
@@ -66,6 +78,9 @@ public class DomainSslController : ControllerBase
             row.Hostname,
             row.SslProvider,
             row.IsVerified,
+            row.DnsManagedByCloudflare,
+            row.DnsStatus,
+            row.SslPurchased,
             row.SslStatus,
             row.LastError,
             verification = new
@@ -73,6 +88,12 @@ public class DomainSslController : ControllerBase
                 type = "txt",
                 host = $"_sitesellr-verify.{hostname}",
                 value = token
+            },
+            mapping = new
+            {
+                type = "cname",
+                host = hostname,
+                target = dns.TargetHost
             },
             notes = "Auto verify/issue attempted. If failed, use Verify DNS and Issue SSL buttons.",
             autoAttempt = auto
@@ -86,16 +107,24 @@ public class DomainSslController : ControllerBase
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         var row = await _db.StoreDomains.FirstOrDefaultAsync(x => x.Id == domainId && x.StoreId == storeId, ct);
         if (row == null) return NotFound();
-        var verified = await CheckDomainResolvableAsync(row.Hostname);
+        var dnsState = await _cloudflareDns.CheckCustomDomainAsync(row.Hostname, row.VerificationToken, ct);
+        row.DnsManagedByCloudflare = dnsState.ManagedByCloudflare;
+        row.DnsStatus = dnsState.Success ? "configured" : "pending";
+        var verified = dnsState.Success || await CheckDomainResolvableAsync(row.Hostname);
         row.IsVerified = verified;
         row.UpdatedAt = DateTimeOffset.UtcNow;
-        row.LastError = verified ? null : "DNS not resolving to platform yet.";
+        row.LastError = verified ? null : (dnsState.Error ?? "DNS not resolving to platform yet.");
         await _db.SaveChangesAsync(ct);
-        if (verified && row.SslStatus != "active")
+        if (verified && row.SslPurchased && row.SslStatus != "active")
         {
             await RunIssueAsync(row, ct);
         }
-        return Ok(new { verified = row.IsVerified, row.SslStatus, row.LastError });
+        if (verified && !row.SslPurchased)
+        {
+            row.SslStatus = "payment_required";
+            await _db.SaveChangesAsync(ct);
+        }
+        return Ok(new { verified = row.IsVerified, row.DnsStatus, row.DnsManagedByCloudflare, row.SslPurchased, row.SslStatus, row.LastError });
     }
 
     [HttpPost("{domainId:guid}/issue-ssl")]
@@ -105,6 +134,7 @@ public class DomainSslController : ControllerBase
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         var row = await _db.StoreDomains.FirstOrDefaultAsync(x => x.Id == domainId && x.StoreId == storeId, ct);
         if (row == null) return NotFound();
+        if (!row.SslPurchased) return BadRequest(new { error = "ssl_purchase_required" });
         if (!row.IsVerified) return BadRequest(new { error = "domain_not_verified" });
         await RunIssueAsync(row, ct);
 
@@ -113,6 +143,41 @@ public class DomainSslController : ControllerBase
             success = row.SslStatus == "active",
             row.SslStatus,
             row.SslExpiresAt,
+            row.LastError
+        });
+    }
+
+    [HttpPost("{domainId:guid}/purchase-ssl")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> PurchaseSsl(Guid storeId, Guid domainId, [FromBody] PurchaseSslRequest req, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var row = await _db.StoreDomains.FirstOrDefaultAsync(x => x.Id == domainId && x.StoreId == storeId, ct);
+        if (row == null) return NotFound();
+        req ??= new PurchaseSslRequest();
+
+        row.SslPurchased = true;
+        row.SslPurchasedAt = DateTimeOffset.UtcNow;
+        row.SslPurchaseReference = string.IsNullOrWhiteSpace(req.PaymentReference)
+            ? $"ssl_{Guid.NewGuid().ToString("N")[..16]}"
+            : req.PaymentReference.Trim();
+        row.SslStatus = row.IsVerified ? "pending" : "pending_verification";
+        row.LastError = null;
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        if (row.IsVerified)
+        {
+            await RunIssueAsync(row, ct);
+        }
+
+        return Ok(new
+        {
+            purchased = true,
+            row.SslPurchased,
+            row.SslPurchaseReference,
+            row.SslPurchasedAt,
+            row.SslStatus,
             row.LastError
         });
     }
@@ -132,13 +197,22 @@ public class DomainSslController : ControllerBase
 
     private async Task<object> TryAutoVerifyAndIssueAsync(StoreDomain row, CancellationToken ct)
     {
-        var verified = await CheckDomainResolvableAsync(row.Hostname);
+        var dnsState = await _cloudflareDns.CheckCustomDomainAsync(row.Hostname, row.VerificationToken, ct);
+        row.DnsManagedByCloudflare = dnsState.ManagedByCloudflare;
+        row.DnsStatus = dnsState.Success ? "configured" : "pending";
+        var verified = dnsState.Success || await CheckDomainResolvableAsync(row.Hostname);
         row.IsVerified = verified;
         row.UpdatedAt = DateTimeOffset.UtcNow;
-        row.LastError = verified ? null : "Auto-verify failed: DNS not ready.";
+        row.LastError = verified ? null : (dnsState.Error ?? "Auto-verify failed: DNS not ready.");
         await _db.SaveChangesAsync(ct);
 
-        if (!verified) return new { verified = false, sslIssued = false };
+        if (!verified) return new { verified = false, sslIssued = false, row.DnsStatus, row.LastError };
+        if (!row.SslPurchased)
+        {
+            row.SslStatus = "payment_required";
+            await _db.SaveChangesAsync(ct);
+            return new { verified = true, sslIssued = false, paymentRequired = true, row.SslStatus };
+        }
         await RunIssueAsync(row, ct);
         return new { verified = row.IsVerified, sslIssued = row.SslStatus == "active", row.SslStatus, row.LastError };
     }
@@ -166,6 +240,11 @@ public class DomainSslController : ControllerBase
         row.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
     }
+
+    private bool IsSslMarketplacePurchaseRequired()
+    {
+        return _config.GetValue("SSL_REQUIRE_MARKETPLACE_PURCHASE", true);
+    }
 }
 
 public class AddDomainRequest
@@ -174,4 +253,10 @@ public class AddDomainRequest
     public string Hostname { get; set; } = string.Empty;
     [RegularExpression("^(letsencrypt)$", ErrorMessage = "Supported: letsencrypt")]
     public string? SslProvider { get; set; }
+}
+
+public class PurchaseSslRequest
+{
+    [MaxLength(120)]
+    public string? PaymentReference { get; set; }
 }

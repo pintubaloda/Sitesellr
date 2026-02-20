@@ -789,3 +789,35 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/storefront/StorefrontPublic.js`
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PublicStorefrontController.cs`
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/SubscriptionCapabilityService.cs`
+
+[2026-02-20] Domains, Cloudflare Mapping, SSL Purchase + Issue Flow
+- Implemented automatic DNS provisioning for custom domains via Cloudflare API:
+  - Auto CNAME mapping for custom hostname -> platform ingress.
+  - Auto TXT verification record `_sitesellr-verify.<hostname>`.
+  - Added Cloudflare DNS check API path for verify/retry status.
+- Implemented marketplace-style SSL purchase gate for custom domains:
+  - New domain fields: DNS management status, SSL purchased flag, purchase reference/time.
+  - Custom domain SSL issuance now requires purchase first (`ssl_purchase_required`) when enabled.
+  - Added endpoint: `POST /api/stores/{storeId}/domains/{domainId}/purchase-ssl`.
+- Enhanced domain verification flow:
+  - Verify now checks Cloudflare DNS record state (CNAME + TXT) and updates domain status.
+  - If verified and SSL is purchased, cert issuance is auto-triggered.
+- Subdomain automation updates:
+  - Store creation now auto-generates unique subdomain from store name when blank.
+  - Onboarding store setup now auto-generates unique subdomain if user does not enter one.
+  - On onboarding complete, tenant subdomain DNS provisioning is triggered automatically.
+- Tenancy host resolution update:
+  - Added verified custom-domain lookup in tenancy resolver (store domain -> store context).
+- Frontend Domains & SSL page wiring updates:
+  - Added DNS record hint card (CNAME + TXT fallback values).
+  - Added `Buy SSL` action for custom domain.
+  - Added better status display (`dnsStatus`, `sslPurchased`, `sslStatus`) and guarded `Issue SSL` button.
+- Files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/CloudflareDnsService.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/DomainSslController.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Models/Storefront.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Data/AppDbContext.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StoresController.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/TenancyContext.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/DomainsSsl.js`

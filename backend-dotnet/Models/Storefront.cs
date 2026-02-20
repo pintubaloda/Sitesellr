@@ -245,6 +245,13 @@ public class StoreDomain
     public string SslStatus { get; set; } = "pending";
     [MaxLength(500)]
     public string? LastError { get; set; }
+    public bool DnsManagedByCloudflare { get; set; }
+    [MaxLength(40)]
+    public string DnsStatus { get; set; } = "pending";
+    public bool SslPurchased { get; set; }
+    [MaxLength(120)]
+    public string? SslPurchaseReference { get; set; }
+    public DateTimeOffset? SslPurchasedAt { get; set; }
     public DateTimeOffset? SslExpiresAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;

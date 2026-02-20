@@ -77,6 +77,17 @@ public class TenancyResolver : ITenancyResolver
                     .FirstOrDefaultAsync(s => s.Merchant.PrimaryDomain == host, ct);
                 merchant = store?.Merchant;
             }
+
+            if (store == null)
+            {
+                store = await _db.StoreDomains
+                    .Include(d => d.Store)
+                    .ThenInclude(s => s.Merchant)
+                    .Where(d => d.IsVerified && d.Hostname == host)
+                    .Select(d => d.Store)
+                    .FirstOrDefaultAsync(ct);
+                merchant = store?.Merchant;
+            }
         }
 
         Guid? userId = null;

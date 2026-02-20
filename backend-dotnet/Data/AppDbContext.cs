@@ -577,7 +577,10 @@ public class AppDbContext : DbContext
             b.Property(x => x.VerificationToken).HasMaxLength(120);
             b.Property(x => x.SslProvider).HasMaxLength(40);
             b.Property(x => x.SslStatus).HasMaxLength(30);
+            b.Property(x => x.DnsStatus).HasMaxLength(40);
+            b.Property(x => x.SslPurchaseReference).HasMaxLength(120);
             b.Property(x => x.LastError).HasMaxLength(500);
+            b.Property(x => x.SslPurchasedAt).HasColumnType("timestamp with time zone");
             b.Property(x => x.SslExpiresAt).HasColumnType("timestamp with time zone");
             b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
             b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");

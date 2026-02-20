@@ -659,3 +659,21 @@ Notes:
   - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PublicStorefrontController.cs
   - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/SubscriptionCapabilityService.cs
 - Commit: cd79496 (pushed to origin/main)
+
+[2026-02-20] Pending Commit
+- Domain + SSL platform pass:
+  - Cloudflare custom-domain DNS automation (CNAME + verification TXT upsert/check).
+  - Custom-domain SSL marketplace purchase gate + purchase endpoint.
+  - Domain verify flow now checks Cloudflare DNS status and auto-issues SSL after purchase.
+  - Store/onboarding auto-subdomain generation + onboarding subdomain DNS provisioning.
+  - Tenancy resolver now supports verified custom-domain host mapping.
+  - Domains UI updated with buy-ssl flow and DNS fallback hints.
+- Files:
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/CloudflareDnsService.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/DomainSslController.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Models/Storefront.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Data/AppDbContext.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StoresController.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/TenancyContext.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/DomainsSsl.js

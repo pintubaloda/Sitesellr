@@ -513,8 +513,13 @@ CREATE TABLE IF NOT EXISTS store_domains (
   ""Hostname"" character varying(255) NOT NULL,
   ""VerificationToken"" character varying(120) NOT NULL,
   ""IsVerified"" boolean NOT NULL,
+  ""DnsManagedByCloudflare"" boolean NOT NULL DEFAULT false,
+  ""DnsStatus"" character varying(40) NOT NULL DEFAULT 'pending',
   ""SslProvider"" character varying(40) NOT NULL,
   ""SslStatus"" character varying(30) NOT NULL,
+  ""SslPurchased"" boolean NOT NULL DEFAULT false,
+  ""SslPurchaseReference"" character varying(120) NULL,
+  ""SslPurchasedAt"" timestamp with time zone NULL,
   ""LastError"" character varying(500) NULL,
   ""SslExpiresAt"" timestamp with time zone NULL,
   ""CreatedAt"" timestamp with time zone NOT NULL,
@@ -522,6 +527,11 @@ CREATE TABLE IF NOT EXISTS store_domains (
 );");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_domains_Hostname ON store_domains (""Hostname"");");
     await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_store_domains_StoreId_IsVerified ON store_domains (""StoreId"", ""IsVerified"");");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_domains ADD COLUMN IF NOT EXISTS ""DnsManagedByCloudflare"" boolean NOT NULL DEFAULT false;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_domains ADD COLUMN IF NOT EXISTS ""DnsStatus"" character varying(40) NOT NULL DEFAULT 'pending';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_domains ADD COLUMN IF NOT EXISTS ""SslPurchased"" boolean NOT NULL DEFAULT false;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_domains ADD COLUMN IF NOT EXISTS ""SslPurchaseReference"" character varying(120) NULL;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_domains ADD COLUMN IF NOT EXISTS ""SslPurchasedAt"" timestamp with time zone NULL;");
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS store_quote_inquiries (
   ""Id"" uuid PRIMARY KEY,
@@ -1476,6 +1486,38 @@ string GenerateOtp()
 
 var onboardingSessions = new ConcurrentDictionary<Guid, OnboardingMemorySession>();
 
+string SanitizeSubdomain(string? input)
+{
+    if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+    var chars = input.Trim().ToLowerInvariant()
+        .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')
+        .ToArray();
+    var normalized = new string(chars);
+    while (normalized.Contains("--", StringComparison.Ordinal))
+    {
+        normalized = normalized.Replace("--", "-", StringComparison.Ordinal);
+    }
+    normalized = normalized.Trim('-');
+    return normalized.Length > 50 ? normalized[..50] : normalized;
+}
+
+async Task<string> EnsureUniqueStoreSubdomainAsync(AppDbContext db, string? requested, string? fallbackName, CancellationToken ct)
+{
+    var seed = SanitizeSubdomain(string.IsNullOrWhiteSpace(requested) ? fallbackName : requested);
+    if (string.IsNullOrWhiteSpace(seed))
+    {
+        seed = "store";
+    }
+
+    var candidate = seed;
+    var suffix = 1;
+    while (await db.Stores.AnyAsync(s => s.Subdomain == candidate, ct))
+    {
+        candidate = $"{seed}{suffix++}";
+    }
+    return candidate;
+}
+
 api.MapPost("/onboarding/start", async (AppDbContext db, OnboardingStartRequest req, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Mobile) || string.IsNullOrWhiteSpace(req.Password))
@@ -1611,8 +1653,7 @@ api.MapPost("/onboarding/setup-store", async (AppDbContext db, SetupStoreRequest
     if (session == null) return Results.NotFound();
     if (session.PaymentRequired && !session.PaymentDone) return Results.BadRequest(new { error = "payment_required" });
 
-    var sub = req.Subdomain.Trim().ToLowerInvariant();
-    if (await db.Stores.AnyAsync(s => s.Subdomain == sub, ct)) return Results.Conflict(new { error = "subdomain_taken" });
+    var sub = await EnsureUniqueStoreSubdomainAsync(db, req.Subdomain, req.StoreName, ct);
 
     session.StoreName = req.StoreName.Trim();
     session.Subdomain = sub;
@@ -1621,7 +1662,7 @@ api.MapPost("/onboarding/setup-store", async (AppDbContext db, SetupStoreRequest
     return Results.Ok(new { storeName = session.StoreName, subdomain = session.Subdomain });
 });
 
-api.MapPost("/onboarding/complete", async (AppDbContext db, SessionOnlyRequest req, ITokenService tokenService, HttpContext httpContext, CancellationToken ct) =>
+api.MapPost("/onboarding/complete", async (AppDbContext db, SessionOnlyRequest req, ITokenService tokenService, ICloudflareDnsService cloudflareDns, HttpContext httpContext, CancellationToken ct) =>
 {
     onboardingSessions.TryGetValue(req.SessionId, out var session);
     if (session == null) return Results.NotFound();
@@ -1680,6 +1721,10 @@ api.MapPost("/onboarding/complete", async (AppDbContext db, SessionOnlyRequest r
     }
 
     await db.SaveChangesAsync(ct);
+    if (!string.IsNullOrWhiteSpace(store.Subdomain))
+    {
+        await cloudflareDns.EnsureTenantSubdomainAsync(store.Subdomain, ct);
+    }
     onboardingSessions.TryRemove(req.SessionId, out _);
 
     var ip = httpContext.Connection.RemoteIpAddress?.ToString();

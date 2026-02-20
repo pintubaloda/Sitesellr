@@ -51,6 +51,7 @@ public class StoresController : BaseApiController
     public async Task<IActionResult> Create([FromBody] Store input, CancellationToken ct)
     {
         if (Tenancy?.Store != null && Tenancy.Store.MerchantId != input.MerchantId) return Forbid();
+        input.Subdomain = await EnsureUniqueSubdomainAsync(input.Subdomain, input.Name, null, ct);
         input.Id = Guid.NewGuid();
         input.CreatedAt = DateTimeOffset.UtcNow;
         input.UpdatedAt = DateTimeOffset.UtcNow;
@@ -84,7 +85,7 @@ public class StoresController : BaseApiController
         if (store == null) return NotFound();
 
         store.Name = input.Name;
-        store.Subdomain = input.Subdomain;
+        store.Subdomain = await EnsureUniqueSubdomainAsync(input.Subdomain, input.Name, id, ct);
         store.Currency = input.Currency;
         store.Timezone = input.Timezone;
         store.Status = input.Status;
@@ -97,5 +98,39 @@ public class StoresController : BaseApiController
             await _cloudflareDns.EnsureTenantSubdomainAsync(store.Subdomain, ct);
         }
         return Ok(store);
+    }
+
+    private async Task<string> EnsureUniqueSubdomainAsync(string? requested, string? fallbackName, Guid? excludingStoreId, CancellationToken ct)
+    {
+        var seed = SanitizeSubdomain(string.IsNullOrWhiteSpace(requested) ? fallbackName : requested);
+        if (string.IsNullOrWhiteSpace(seed))
+        {
+            seed = "store";
+        }
+
+        var candidate = seed;
+        var suffix = 1;
+        while (await _db.Stores.AsNoTracking().AnyAsync(
+                   s => s.Subdomain == candidate && (!excludingStoreId.HasValue || s.Id != excludingStoreId.Value), ct))
+        {
+            candidate = $"{seed}{suffix++}";
+        }
+
+        return candidate;
+    }
+
+    private static string SanitizeSubdomain(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var chars = value.Trim().ToLowerInvariant()
+            .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')
+            .ToArray();
+        var normalized = new string(chars);
+        while (normalized.Contains("--", StringComparison.Ordinal))
+        {
+            normalized = normalized.Replace("--", "-", StringComparison.Ordinal);
+        }
+        normalized = normalized.Trim('-');
+        return normalized.Length > 50 ? normalized[..50] : normalized;
     }
 }

@@ -463,3 +463,14 @@ UPDATE [2026-02-20] - THEME MARKETPLACE ACTIVATION/PREVIEW STABILITY
   - Public storefront + static-page preview APIs now support store lookup by id during preview.
 - Impact:
   - Store owner can activate/preview themes reliably in dev/demo environments.
+
+UPDATE [2026-02-20] - SUBDOMAIN, CUSTOM DOMAIN, CLOUDFARE DNS, SSL PURCHASE FLOW
+- Developed:
+  - Automatic tenant subdomain generation and Cloudflare provisioning on first store creation/onboarding complete.
+  - Automatic custom-domain DNS mapping via Cloudflare (CNAME + verification TXT) with retry/verify flow.
+  - Marketplace-style SSL purchase gate for custom domains before Let’s Encrypt issuance.
+  - Verified custom domain host is now recognized by tenancy resolver.
+- Partial:
+  - Real payment-gateway callback/reconciliation for SSL purchase reference is still placeholder (purchase endpoint currently stores payment reference and triggers issuance flow).
+- Pending:
+  - Full invoice/chargeback lifecycle for SSL marketplace purchases.

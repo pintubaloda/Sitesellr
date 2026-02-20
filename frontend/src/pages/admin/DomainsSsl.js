@@ -11,6 +11,7 @@ export default function DomainsSsl() {
   const [hostname, setHostname] = useState("");
   const [rows, setRows] = useState([]);
   const [message, setMessage] = useState("");
+  const [dnsHint, setDnsHint] = useState(null);
 
   const load = async () => {
     if (!storeId) return;
@@ -29,11 +30,18 @@ export default function DomainsSsl() {
   const add = async () => {
     if (!storeId || !hostname.trim()) return;
     setMessage("");
+    setDnsHint(null);
     try {
       const res = await api.post(`/stores/${storeId}/domains`, { hostname: hostname.trim(), sslProvider: "letsencrypt" });
       setHostname("");
       await load();
-      setMessage(`Domain added. Auto verify/SSL attempted. TXT fallback: ${res.data?.verification?.host} = ${res.data?.verification?.value}`);
+      setDnsHint({
+        verificationHost: res.data?.verification?.host,
+        verificationValue: res.data?.verification?.value,
+        mappingHost: res.data?.mapping?.host,
+        mappingTarget: res.data?.mapping?.target,
+      });
+      setMessage("Domain added. DNS mapping + TXT verification attempted automatically via Cloudflare.");
     } catch (err) {
       setMessage(err?.response?.data?.error || "Could not add domain.");
     }
@@ -63,6 +71,18 @@ export default function DomainsSsl() {
     }
   };
 
+  const purchaseSsl = async (id) => {
+    if (!storeId) return;
+    setMessage("");
+    try {
+      await api.post(`/stores/${storeId}/domains/${id}/purchase-ssl`, { paymentReference: `ui_${Date.now()}` });
+      await load();
+      setMessage("SSL purchase recorded. If DNS is verified, issuance starts automatically.");
+    } catch (err) {
+      setMessage(err?.response?.data?.error || "Could not complete SSL purchase.");
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="domains-ssl-page">
       <div>
@@ -71,6 +91,18 @@ export default function DomainsSsl() {
       </div>
 
       {message ? <p className="text-sm text-slate-600 dark:text-slate-300">{message}</p> : null}
+      {dnsHint ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>DNS Records</CardTitle>
+            <CardDescription>If auto-provision did not complete, add these manually in Cloudflare and click Verify Now.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p><span className="font-medium">CNAME:</span> {dnsHint.mappingHost} -> {dnsHint.mappingTarget}</p>
+            <p><span className="font-medium">TXT:</span> {dnsHint.verificationHost} = {dnsHint.verificationValue}</p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -95,12 +127,15 @@ export default function DomainsSsl() {
             <div key={d.id} className="p-3 border rounded-lg flex items-center justify-between gap-3">
               <div>
                 <p className="font-medium">{d.hostname}</p>
-                <p className="text-xs text-slate-500">verified: {String(d.isVerified)} · ssl: {d.sslStatus} · expires: {d.sslExpiresAt || "-"}</p>
+                <p className="text-xs text-slate-500">
+                  dns: {d.dnsStatus || "-"} · verified: {String(d.isVerified)} · ssl-purchased: {String(d.sslPurchased)} · ssl: {d.sslStatus} · expires: {d.sslExpiresAt || "-"}
+                </p>
                 {d.lastError ? <p className="text-xs text-red-600">{d.lastError}</p> : null}
               </div>
               <div className="flex items-center gap-2">
+                {!d.sslPurchased ? <Button variant="outline" onClick={() => purchaseSsl(d.id)}>Buy SSL</Button> : null}
                 <Button variant="outline" onClick={() => verify(d.id)}>Verify Now</Button>
-                <Button onClick={() => issueSsl(d.id)}>Issue SSL</Button>
+                <Button onClick={() => issueSsl(d.id)} disabled={!d.sslPurchased || !d.isVerified}>Issue SSL</Button>
               </div>
             </div>
           ))}

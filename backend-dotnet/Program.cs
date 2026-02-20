@@ -319,9 +319,9 @@ CREATE TABLE IF NOT EXISTS theme_catalog_items (
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""TypographyPack"" character varying(60) NOT NULL DEFAULT 'modern-sans';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""LayoutVariant"" character varying(60) NOT NULL DEFAULT 'default';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""RuntimePackageJson"" character varying(4000) NOT NULL DEFAULT '{{}}';");
-    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""TemplatesJson"" character varying(2000) NOT NULL DEFAULT '[\"\"homepage\"\",\"\"product_listing\"\",\"\"product_detail\"\",\"\"cart\"\",\"\"static_page\"\",\"\"checkout\"\"]';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""TemplatesJson"" character varying(2000) NOT NULL DEFAULT '[""homepage"",""product_listing"",""product_detail"",""cart"",""static_page"",""checkout""]';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""SectionSchemasJson"" character varying(4000) NOT NULL DEFAULT '[]';");
-    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""HookPointsJson"" character varying(2000) NOT NULL DEFAULT '[\"\"BeforePrice\"\",\"\"AfterPrice\"\",\"\"BeforeAddToCart\"\",\"\"AfterDescription\"\"]';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""HookPointsJson"" character varying(2000) NOT NULL DEFAULT '[""BeforePrice"",""AfterPrice"",""BeforeAddToCart"",""AfterDescription""]';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""ThemeVersion"" character varying(40) NOT NULL DEFAULT '1.0.0';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""PlpVariantsJson"" character varying(4000) NOT NULL DEFAULT '[]';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""PdpVariantsJson"" character varying(4000) NOT NULL DEFAULT '[]';");

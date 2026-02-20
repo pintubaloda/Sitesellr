@@ -518,3 +518,7 @@ Notes:
   - Enforced contract in platform theme lifecycle APIs.
   - Updated startup SQL alters for new theme contract columns.
   - Updated platform theme admin UI to manage contract JSON.
+
+[2026-02-20] Pending Commit (build fix)
+- Fixed Program.cs invalid escaping in SQL default JSON literals causing Docker publish compile errors.
+- File: /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs

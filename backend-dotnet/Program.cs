@@ -318,8 +318,44 @@ CREATE TABLE IF NOT EXISTS theme_catalog_items (
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""TypographyPack"" character varying(60) NOT NULL DEFAULT 'modern-sans';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""LayoutVariant"" character varying(60) NOT NULL DEFAULT 'default';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""RuntimePackageJson"" character varying(4000) NOT NULL DEFAULT '{{}}';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""PlpVariantsJson"" character varying(4000) NOT NULL DEFAULT '[]';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""PdpVariantsJson"" character varying(4000) NOT NULL DEFAULT '[]';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE theme_catalog_items ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT now();");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_theme_catalog_items_Slug ON theme_catalog_items (""Slug"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS campaign_template_catalog_items (
+  ""Id"" uuid PRIMARY KEY,
+  ""Name"" character varying(140) NOT NULL,
+  ""Slug"" character varying(140) NOT NULL,
+  ""Category"" character varying(80) NULL,
+  ""Description"" character varying(1200) NULL,
+  ""SectionsJson"" character varying(4000) NOT NULL DEFAULT '[]',
+  ""IsPaid"" boolean NOT NULL,
+  ""Price"" numeric(18,2) NOT NULL,
+  ""AllowedPlanCodesCsv"" character varying(500) NULL,
+  ""IsActive"" boolean NOT NULL,
+  ""IsFeatured"" boolean NOT NULL DEFAULT false,
+  ""FeaturedRank"" integer NOT NULL DEFAULT 0,
+  ""CreatedAt"" timestamp with time zone NOT NULL,
+  ""UpdatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_campaign_template_catalog_items_Slug ON campaign_template_catalog_items (""Slug"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS store_campaign_template_subscriptions (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""TemplateId"" uuid NOT NULL,
+  ""Status"" character varying(30) NOT NULL,
+  ""BillingMode"" character varying(40) NOT NULL,
+  ""BillingStatus"" character varying(40) NOT NULL,
+  ""ChargedAmount"" numeric(18,2) NOT NULL,
+  ""Currency"" character varying(8) NOT NULL,
+  ""PlanCodeAtPurchase"" character varying(80) NOT NULL,
+  ""PaymentReference"" character varying(80) NOT NULL,
+  ""PurchasedAt"" timestamp with time zone NOT NULL,
+  ""UpdatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_campaign_template_subscriptions_Store_Template ON store_campaign_template_subscriptions (""StoreId"", ""TemplateId"");");
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS store_theme_configs (
   ""Id"" uuid PRIMARY KEY,
@@ -444,6 +480,33 @@ CREATE TABLE IF NOT EXISTS store_quote_inquiries (
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_quote_inquiries ADD COLUMN IF NOT EXISTS ""LastNotifiedAt"" timestamp with time zone NULL;");
     await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_store_quote_inquiries_StoreId_CreatedAt ON store_quote_inquiries (""StoreId"", ""CreatedAt"");");
     await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS store_customer_credentials (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""CustomerId"" uuid NOT NULL,
+  ""Email"" character varying(320) NOT NULL,
+  ""PasswordHash"" character varying(400) NOT NULL,
+  ""IsActive"" boolean NOT NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL,
+  ""UpdatedAt"" timestamp with time zone NOT NULL,
+  ""LastLoginAt"" timestamp with time zone NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_customer_credentials_Store_Email ON store_customer_credentials (""StoreId"", ""Email"");");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_customer_credentials_Store_Customer ON store_customer_credentials (""StoreId"", ""CustomerId"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS store_customer_sessions (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""CustomerId"" uuid NOT NULL,
+  ""TokenHash"" character varying(128) NOT NULL,
+  ""UserAgent"" character varying(60) NULL,
+  ""ClientIp"" character varying(64) NULL,
+  ""ExpiresAt"" timestamp with time zone NOT NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_customer_sessions_TokenHash ON store_customer_sessions (""TokenHash"");");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_store_customer_sessions_Store_Customer_ExpiresAt ON store_customer_sessions (""StoreId"", ""CustomerId"", ""ExpiresAt"");");
+    await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS customer_groups (
   ""Id"" uuid PRIMARY KEY,
   ""StoreId"" uuid NOT NULL,
@@ -532,7 +595,10 @@ using (var scope = app.Services.CreateScope())
         decimal price,
         string allowedPlanCodesCsv,
         bool isFeatured,
-        int featuredRank)
+        int featuredRank,
+        string? runtimePackageJson = null,
+        string? plpVariantsJson = null,
+        string? pdpVariantsJson = null)
     {
         if (await db.ThemeCatalogItems.AnyAsync(x => x.Slug == slug)) return;
         db.ThemeCatalogItems.Add(new ThemeCatalogItem
@@ -548,6 +614,9 @@ using (var scope = app.Services.CreateScope())
             IsActive = true,
             IsFeatured = isFeatured,
             FeaturedRank = featuredRank,
+            RuntimePackageJson = string.IsNullOrWhiteSpace(runtimePackageJson) ? "{}" : runtimePackageJson,
+            PlpVariantsJson = string.IsNullOrWhiteSpace(plpVariantsJson) ? "[\"default\",\"cards\"]" : plpVariantsJson,
+            PdpVariantsJson = string.IsNullOrWhiteSpace(pdpVariantsJson) ? "[\"default\",\"split\"]" : pdpVariantsJson,
             UpdatedAt = DateTimeOffset.UtcNow
         });
     }
@@ -663,6 +732,32 @@ using (var scope = app.Services.CreateScope())
         true,
         6);
 
+    await db.SaveChangesAsync();
+
+    async Task EnsureCampaignTemplateAsync(string name, string slug, string category, string description, string sectionsJson, bool isPaid, decimal price, string allowedPlanCodesCsv, bool isFeatured, int featuredRank)
+    {
+        if (await db.CampaignTemplateCatalogItems.AnyAsync(x => x.Slug == slug)) return;
+        db.CampaignTemplateCatalogItems.Add(new CampaignTemplateCatalogItem
+        {
+            Name = name,
+            Slug = slug,
+            Category = category,
+            Description = description,
+            SectionsJson = sectionsJson,
+            IsPaid = isPaid,
+            Price = price,
+            AllowedPlanCodesCsv = allowedPlanCodesCsv,
+            IsActive = true,
+            IsFeatured = isFeatured,
+            FeaturedRank = featuredRank,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        });
+    }
+
+    await EnsureCampaignTemplateAsync("Flash Sale Campaign", "flash-sale-campaign", "Seasonal", "Urgency-led campaign blocks for sales windows.", "[\"announcement-bar-pro\",\"hero-banner-basic\",\"featured-products\"]", true, 599, "growth,pro,enterprise", true, 10);
+    await EnsureCampaignTemplateAsync("Festival Launch Campaign", "festival-launch-campaign", "Seasonal", "Festival storefront launch template with premium storytelling sections.", "[\"hero-banner-basic\",\"video-story-pro\",\"featured-products\",\"testimonial-carousel-pro\"]", true, 899, "pro,enterprise", true, 9);
+    await EnsureCampaignTemplateAsync("New Arrivals Campaign", "new-arrivals-campaign", "Catalog", "Fast campaign for new arrivals with hero + product shelves.", "[\"hero-banner-basic\",\"featured-products\",\"category-grid\"]", false, 0, "", false, 0);
     await db.SaveChangesAsync();
 }
 

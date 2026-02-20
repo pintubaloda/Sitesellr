@@ -28,8 +28,94 @@ public class ThemeCatalogItem
     public string LayoutVariant { get; set; } = "default";
     [MaxLength(4000)]
     public string RuntimePackageJson { get; set; } = "{}";
+    [MaxLength(4000)]
+    public string PlpVariantsJson { get; set; } = "[]";
+    [MaxLength(4000)]
+    public string PdpVariantsJson { get; set; } = "[]";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class CampaignTemplateCatalogItem
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    [Required, MaxLength(140)]
+    public string Name { get; set; } = string.Empty;
+    [Required, MaxLength(140)]
+    public string Slug { get; set; } = string.Empty;
+    [MaxLength(80)]
+    public string Category { get; set; } = "Marketing";
+    [MaxLength(1200)]
+    public string Description { get; set; } = string.Empty;
+    [MaxLength(4000)]
+    public string SectionsJson { get; set; } = "[]";
+    public bool IsPaid { get; set; }
+    public decimal Price { get; set; }
+    [MaxLength(500)]
+    public string AllowedPlanCodesCsv { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public bool IsFeatured { get; set; }
+    public int FeaturedRank { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class StoreCampaignTemplateSubscription
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    public Guid TemplateId { get; set; }
+    public CampaignTemplateCatalogItem Template { get; set; } = default!;
+    [MaxLength(30)]
+    public string Status { get; set; } = "active";
+    [MaxLength(40)]
+    public string BillingMode { get; set; } = "one_time";
+    [MaxLength(40)]
+    public string BillingStatus { get; set; } = "paid";
+    public decimal ChargedAmount { get; set; }
+    [MaxLength(8)]
+    public string Currency { get; set; } = "INR";
+    [MaxLength(80)]
+    public string PlanCodeAtPurchase { get; set; } = string.Empty;
+    [MaxLength(80)]
+    public string PaymentReference { get; set; } = string.Empty;
+    public DateTimeOffset PurchasedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class StoreCustomerCredential
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    public Guid CustomerId { get; set; }
+    public Customer Customer { get; set; } = default!;
+    [Required, MaxLength(320)]
+    public string Email { get; set; } = string.Empty;
+    [Required, MaxLength(400)]
+    public string PasswordHash { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? LastLoginAt { get; set; }
+}
+
+public class StoreCustomerSession
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    public Guid CustomerId { get; set; }
+    public Customer Customer { get; set; } = default!;
+    [Required, MaxLength(128)]
+    public string TokenHash { get; set; } = string.Empty;
+    [MaxLength(60)]
+    public string? UserAgent { get; set; }
+    [MaxLength(64)]
+    public string? ClientIp { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 public class StoreThemeConfig

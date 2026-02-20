@@ -477,3 +477,18 @@ Notes:
   - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/storefront/StorefrontPublic.js
 - Notes:
   - Build not executed successfully in local sandbox because frontend dependencies are missing (`craco: command not found`).
+
+[2026-02-20] Pending Commit (local)
+- Scope: Theme variant engine + campaign template billing orchestration + storefront customer auth/session
+- Backend changed:
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Models/Storefront.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Data/AppDbContext.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StorefrontController.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PublicStorefrontController.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs
+- Frontend changed:
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/storefront/StorefrontPublic.js
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/StoreBuilder.js
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformThemes.js
+- Verification note:
+  - Local backend build not executable in current shell (`dotnet` missing).

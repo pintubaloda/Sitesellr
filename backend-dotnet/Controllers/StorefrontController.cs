@@ -64,6 +64,9 @@ public class StorefrontController : ControllerBase
                 t.IsPaid,
                 t.Price,
                 t.AllowedPlanCodesCsv,
+                t.RuntimePackageJson,
+                t.PlpVariantsJson,
+                t.PdpVariantsJson,
                 PlanAllowed = planAllowed
             };
         });
@@ -613,6 +616,83 @@ public class StorefrontController : ControllerBase
         return Ok(new { processed = rows.Count, notificationsSent = sent });
     }
 
+    [HttpGet("campaign-templates")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> ListCampaignTemplates(Guid storeId, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var entitlements = await ResolveSectionEntitlements(storeId, ct);
+        var rows = await _db.CampaignTemplateCatalogItems.AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderByDescending(x => x.IsFeatured)
+            .ThenByDescending(x => x.FeaturedRank)
+            .ThenBy(x => x.Name)
+            .ToListAsync(ct);
+        var purchased = await _db.StoreCampaignTemplateSubscriptions.AsNoTracking()
+            .Where(x => x.StoreId == storeId && x.Status == "active")
+            .Select(x => x.TemplateId)
+            .ToListAsync(ct);
+        var purchasedSet = purchased.ToHashSet();
+
+        var items = rows.Select(x =>
+        {
+            var allowedCodes = ParseCodes(x.AllowedPlanCodesCsv);
+            var planAllowed = !x.IsPaid || allowedCodes.Count == 0 || allowedCodes.Contains(entitlements.PlanCode);
+            var active = purchasedSet.Contains(x.Id) || !x.IsPaid || planAllowed;
+            return new
+            {
+                x.Id,
+                x.Name,
+                x.Slug,
+                x.Category,
+                x.Description,
+                x.SectionsJson,
+                x.IsPaid,
+                x.Price,
+                x.AllowedPlanCodesCsv,
+                x.IsFeatured,
+                x.FeaturedRank,
+                PlanAllowed = planAllowed,
+                IsActiveForStore = active
+            };
+        });
+        return Ok(items);
+    }
+
+    [HttpPost("campaign-templates/{templateId:guid}/purchase")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> PurchaseCampaignTemplate(Guid storeId, Guid templateId, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var tpl = await _db.CampaignTemplateCatalogItems.AsNoTracking().FirstOrDefaultAsync(x => x.Id == templateId && x.IsActive, ct);
+        if (tpl == null) return NotFound(new { error = "template_not_found" });
+        var existing = await _db.StoreCampaignTemplateSubscriptions.FirstOrDefaultAsync(x => x.StoreId == storeId && x.TemplateId == templateId, ct);
+        if (existing != null && existing.Status == "active") return Ok(new { purchased = true, existing = true, existing.Id });
+
+        var entitlements = await ResolveSectionEntitlements(storeId, ct);
+        var allowedCodes = ParseCodes(tpl.AllowedPlanCodesCsv);
+        if (tpl.IsPaid && allowedCodes.Count > 0 && !allowedCodes.Contains(entitlements.PlanCode))
+            return BadRequest(new { error = "plan_not_eligible_for_template" });
+
+        var row = existing ?? new StoreCampaignTemplateSubscription
+        {
+            StoreId = storeId,
+            TemplateId = templateId,
+            PurchasedAt = DateTimeOffset.UtcNow
+        };
+        row.Status = "active";
+        row.BillingMode = "one_time";
+        row.BillingStatus = tpl.IsPaid ? "paid" : "free";
+        row.ChargedAmount = tpl.IsPaid ? tpl.Price : 0;
+        row.PlanCodeAtPurchase = entitlements.PlanCode;
+        row.Currency = "INR";
+        row.PaymentReference = $"tmpl_{Guid.NewGuid():N}"[..24];
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        if (existing == null) _db.StoreCampaignTemplateSubscriptions.Add(row);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { purchased = true, row.Id, row.BillingStatus, row.ChargedAmount, row.Currency, row.PaymentReference });
+    }
+
     private static HashSet<string> ParseCodes(string csv)
     {
         return csv.Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -848,6 +928,8 @@ public class PlatformThemesController : ControllerBase
             TypographyPack = string.IsNullOrWhiteSpace(req.TypographyPack) ? "modern-sans" : req.TypographyPack.Trim().ToLowerInvariant(),
             LayoutVariant = string.IsNullOrWhiteSpace(req.LayoutVariant) ? "default" : req.LayoutVariant.Trim().ToLowerInvariant(),
             RuntimePackageJson = string.IsNullOrWhiteSpace(req.RuntimePackageJson) ? "{}" : req.RuntimePackageJson.Trim(),
+            PlpVariantsJson = string.IsNullOrWhiteSpace(req.PlpVariantsJson) ? "[]" : req.PlpVariantsJson.Trim(),
+            PdpVariantsJson = string.IsNullOrWhiteSpace(req.PdpVariantsJson) ? "[]" : req.PdpVariantsJson.Trim(),
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -880,6 +962,8 @@ public class PlatformThemesController : ControllerBase
         row.TypographyPack = string.IsNullOrWhiteSpace(req.TypographyPack) ? "modern-sans" : req.TypographyPack.Trim().ToLowerInvariant();
         row.LayoutVariant = string.IsNullOrWhiteSpace(req.LayoutVariant) ? "default" : req.LayoutVariant.Trim().ToLowerInvariant();
         row.RuntimePackageJson = string.IsNullOrWhiteSpace(req.RuntimePackageJson) ? "{}" : req.RuntimePackageJson.Trim();
+        row.PlpVariantsJson = string.IsNullOrWhiteSpace(req.PlpVariantsJson) ? "[]" : req.PlpVariantsJson.Trim();
+        row.PdpVariantsJson = string.IsNullOrWhiteSpace(req.PdpVariantsJson) ? "[]" : req.PdpVariantsJson.Trim();
         row.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
@@ -972,6 +1056,104 @@ public class StaticPageRequest
     public bool IsPublished { get; set; }
 }
 
+[ApiController]
+[Route("api/platform/campaign-templates")]
+[Authorize(Policy = Policies.PlatformOwner)]
+public class PlatformCampaignTemplatesController : ControllerBase
+{
+    private readonly AppDbContext _db;
+
+    public PlatformCampaignTemplatesController(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> List(CancellationToken ct)
+    {
+        var rows = await _db.CampaignTemplateCatalogItems.AsNoTracking()
+            .OrderByDescending(x => x.IsFeatured)
+            .ThenByDescending(x => x.FeaturedRank)
+            .ThenBy(x => x.Name)
+            .ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CampaignTemplateCatalogRequest req, CancellationToken ct)
+    {
+        var slug = req.Slug.Trim().ToLowerInvariant();
+        var exists = await _db.CampaignTemplateCatalogItems.AsNoTracking().AnyAsync(x => x.Slug == slug, ct);
+        if (exists) return Conflict(new { error = "slug_exists" });
+        var row = new CampaignTemplateCatalogItem
+        {
+            Name = req.Name.Trim(),
+            Slug = slug,
+            Category = req.Category?.Trim() ?? "Marketing",
+            Description = req.Description?.Trim() ?? string.Empty,
+            SectionsJson = string.IsNullOrWhiteSpace(req.SectionsJson) ? "[]" : req.SectionsJson.Trim(),
+            IsPaid = req.IsPaid,
+            Price = req.Price,
+            AllowedPlanCodesCsv = req.AllowedPlanCodesCsv?.Trim().ToLowerInvariant() ?? string.Empty,
+            IsActive = req.IsActive,
+            IsFeatured = req.IsFeatured,
+            FeaturedRank = req.FeaturedRank,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        _db.CampaignTemplateCatalogItems.Add(row);
+        await _db.SaveChangesAsync(ct);
+        return Ok(row);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] CampaignTemplateCatalogRequest req, CancellationToken ct)
+    {
+        var row = await _db.CampaignTemplateCatalogItems.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (row == null) return NotFound(new { error = "template_not_found" });
+        var slug = req.Slug.Trim().ToLowerInvariant();
+        var exists = await _db.CampaignTemplateCatalogItems.AsNoTracking().AnyAsync(x => x.Slug == slug && x.Id != id, ct);
+        if (exists) return Conflict(new { error = "slug_exists" });
+        row.Name = req.Name.Trim();
+        row.Slug = slug;
+        row.Category = req.Category?.Trim() ?? "Marketing";
+        row.Description = req.Description?.Trim() ?? string.Empty;
+        row.SectionsJson = string.IsNullOrWhiteSpace(req.SectionsJson) ? "[]" : req.SectionsJson.Trim();
+        row.IsPaid = req.IsPaid;
+        row.Price = req.Price;
+        row.AllowedPlanCodesCsv = req.AllowedPlanCodesCsv?.Trim().ToLowerInvariant() ?? string.Empty;
+        row.IsActive = req.IsActive;
+        row.IsFeatured = req.IsFeatured;
+        row.FeaturedRank = req.FeaturedRank;
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(row);
+    }
+}
+
+public class CampaignTemplateCatalogRequest
+{
+    [Required, StringLength(140, MinimumLength = 2)]
+    public string Name { get; set; } = string.Empty;
+    [Required, RegularExpression("^[a-z0-9-]+$", ErrorMessage = "Slug allows a-z, 0-9 and -.")]
+    public string Slug { get; set; } = string.Empty;
+    [StringLength(80)]
+    public string? Category { get; set; }
+    [StringLength(1200)]
+    public string? Description { get; set; }
+    [StringLength(4000)]
+    public string? SectionsJson { get; set; }
+    public bool IsPaid { get; set; }
+    [Range(0, 999999)]
+    public decimal Price { get; set; }
+    [StringLength(500)]
+    public string? AllowedPlanCodesCsv { get; set; }
+    public bool IsActive { get; set; } = true;
+    public bool IsFeatured { get; set; }
+    [Range(0, 9999)]
+    public int FeaturedRank { get; set; }
+}
+
 public class ThemeCatalogCreateRequest
 {
     [Required, StringLength(120, MinimumLength = 2)]
@@ -999,6 +1181,10 @@ public class ThemeCatalogCreateRequest
     public string? LayoutVariant { get; set; }
     [StringLength(4000)]
     public string? RuntimePackageJson { get; set; }
+    [StringLength(4000)]
+    public string? PlpVariantsJson { get; set; }
+    [StringLength(4000)]
+    public string? PdpVariantsJson { get; set; }
 }
 
 public class ThemeCatalogUpdateRequest
@@ -1028,6 +1214,10 @@ public class ThemeCatalogUpdateRequest
     public string? LayoutVariant { get; set; }
     [StringLength(4000)]
     public string? RuntimePackageJson { get; set; }
+    [StringLength(4000)]
+    public string? PlpVariantsJson { get; set; }
+    [StringLength(4000)]
+    public string? PdpVariantsJson { get; set; }
 }
 
 public class ThemeFeatureRequest

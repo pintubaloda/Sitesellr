@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Nodes;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace backend_dotnet.Controllers;
 
@@ -94,7 +96,9 @@ public class PublicStorefrontController : ControllerBase
                     theme.ActiveTheme.Category,
                     theme.ActiveTheme.TypographyPack,
                     theme.ActiveTheme.LayoutVariant,
-                    theme.ActiveTheme.RuntimePackageJson
+                    theme.ActiveTheme.RuntimePackageJson,
+                    theme.ActiveTheme.PlpVariantsJson,
+                    theme.ActiveTheme.PdpVariantsJson
                 },
                 theme.LogoUrl,
                 theme.FaviconUrl,
@@ -130,6 +134,133 @@ public class PublicStorefrontController : ControllerBase
         if (page == null) return NotFound(new { error = "page_not_found" });
 
         return Ok(page);
+    }
+
+    [HttpPost("{subdomain}/customer-auth/register")]
+    public async Task<IActionResult> CustomerRegister(string subdomain, [FromBody] CustomerRegisterRequest req, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+
+        var email = req.Email.Trim().ToLowerInvariant();
+        var exists = await _db.StoreCustomerCredentials.AsNoTracking().AnyAsync(x => x.StoreId == store.Id && x.Email == email, ct);
+        if (exists) return Conflict(new { error = "customer_exists" });
+
+        var customer = await _db.Customers.FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Email == email, ct);
+        if (customer == null)
+        {
+            customer = new Models.Customer
+            {
+                StoreId = store.Id,
+                Name = req.Name.Trim(),
+                Email = email,
+                Phone = req.Phone.Trim(),
+                Type = Models.CustomerType.Retail,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            _db.Customers.Add(customer);
+            await _db.SaveChangesAsync(ct);
+        }
+
+        _db.StoreCustomerCredentials.Add(new Models.StoreCustomerCredential
+        {
+            StoreId = store.Id,
+            CustomerId = customer.Id,
+            Email = email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password, workFactor: 12),
+            IsActive = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        });
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { registered = true });
+    }
+
+    [HttpPost("{subdomain}/customer-auth/login")]
+    public async Task<IActionResult> CustomerLogin(string subdomain, [FromBody] CustomerLoginRequest req, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        var email = req.Email.Trim().ToLowerInvariant();
+
+        var credential = await _db.StoreCustomerCredentials
+            .Include(x => x.Customer)
+            .FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Email == email && x.IsActive, ct);
+        if (credential == null || !BCrypt.Net.BCrypt.Verify(req.Password, credential.PasswordHash))
+            return Unauthorized(new { error = "invalid_credentials" });
+
+        var rawToken = Convert.ToHexString(Guid.NewGuid().ToByteArray()) + Convert.ToHexString(Guid.NewGuid().ToByteArray());
+        var session = new Models.StoreCustomerSession
+        {
+            StoreId = store.Id,
+            CustomerId = credential.CustomerId,
+            TokenHash = HashToken(rawToken),
+            UserAgent = Request.Headers.UserAgent.ToString().Length > 60 ? Request.Headers.UserAgent.ToString()[..60] : Request.Headers.UserAgent.ToString(),
+            ClientIp = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(15),
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        _db.StoreCustomerSessions.Add(session);
+        credential.LastLoginAt = DateTimeOffset.UtcNow;
+        credential.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        Response.Cookies.Append("sf_customer_session", rawToken, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = Request.IsHttps,
+            SameSite = SameSiteMode.Lax,
+            Expires = session.ExpiresAt
+        });
+
+        return Ok(new
+        {
+            authenticated = true,
+            customer = new { credential.Customer.Id, credential.Customer.Name, credential.Customer.Email, credential.Customer.Phone }
+        });
+    }
+
+    [HttpGet("{subdomain}/customer-auth/me")]
+    public async Task<IActionResult> CustomerMe(string subdomain, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        if (!Request.Cookies.TryGetValue("sf_customer_session", out var rawToken) || string.IsNullOrWhiteSpace(rawToken))
+            return Ok(new { authenticated = false });
+        var hash = HashToken(rawToken);
+        var now = DateTimeOffset.UtcNow;
+        var session = await _db.StoreCustomerSessions.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.StoreId == store.Id && x.TokenHash == hash && x.ExpiresAt > now, ct);
+        if (session == null) return Ok(new { authenticated = false });
+        var customer = await _db.Customers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == session.CustomerId, ct);
+        if (customer == null) return Ok(new { authenticated = false });
+        return Ok(new { authenticated = true, customer = new { customer.Id, customer.Name, customer.Email, customer.Phone } });
+    }
+
+    [HttpPost("{subdomain}/customer-auth/logout")]
+    public async Task<IActionResult> CustomerLogout(string subdomain, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+
+        if (Request.Cookies.TryGetValue("sf_customer_session", out var rawToken) && !string.IsNullOrWhiteSpace(rawToken))
+        {
+            var hash = HashToken(rawToken);
+            var rows = await _db.StoreCustomerSessions.Where(x => x.StoreId == store.Id && x.TokenHash == hash).ToListAsync(ct);
+            if (rows.Count > 0)
+            {
+                _db.StoreCustomerSessions.RemoveRange(rows);
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+
+        Response.Cookies.Delete("sf_customer_session");
+        return Ok(new { loggedOut = true });
     }
 
     [HttpPost("{subdomain}/quote-inquiries")]
@@ -323,6 +454,13 @@ public class PublicStorefrontController : ControllerBase
             return json;
         }
     }
+
+    private static string HashToken(string token)
+    {
+        using var sha = SHA256.Create();
+        var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
 }
 
 public class QuoteInquiryCreateRequest
@@ -364,4 +502,24 @@ public class PublicPaymentCallbackRequest
 {
     [Required, RegularExpression("^(paid|failed)$")]
     public string Status { get; set; } = "paid";
+}
+
+public class CustomerRegisterRequest
+{
+    [Required, StringLength(200, MinimumLength = 2)]
+    public string Name { get; set; } = string.Empty;
+    [Required, EmailAddress, StringLength(320)]
+    public string Email { get; set; } = string.Empty;
+    [Required, StringLength(20, MinimumLength = 8)]
+    public string Phone { get; set; } = string.Empty;
+    [Required, StringLength(80, MinimumLength = 8)]
+    public string Password { get; set; } = string.Empty;
+}
+
+public class CustomerLoginRequest
+{
+    [Required, EmailAddress, StringLength(320)]
+    public string Email { get; set; } = string.Empty;
+    [Required, StringLength(80, MinimumLength = 8)]
+    public string Password { get; set; } = string.Empty;
 }

@@ -39,6 +39,8 @@ public class AppDbContext : DbContext
     public DbSet<FranchiseStore> FranchiseStores => Set<FranchiseStore>();
     public DbSet<BackofficeAssignment> BackofficeAssignments => Set<BackofficeAssignment>();
     public DbSet<ThemeCatalogItem> ThemeCatalogItems => Set<ThemeCatalogItem>();
+    public DbSet<CampaignTemplateCatalogItem> CampaignTemplateCatalogItems => Set<CampaignTemplateCatalogItem>();
+    public DbSet<StoreCampaignTemplateSubscription> StoreCampaignTemplateSubscriptions => Set<StoreCampaignTemplateSubscription>();
     public DbSet<StoreThemeConfig> StoreThemeConfigs => Set<StoreThemeConfig>();
     public DbSet<StoreHomepageLayout> StoreHomepageLayouts => Set<StoreHomepageLayout>();
     public DbSet<StorefrontLayoutVersion> StorefrontLayoutVersions => Set<StorefrontLayoutVersion>();
@@ -48,6 +50,8 @@ public class AppDbContext : DbContext
     public DbSet<StoreMediaAsset> StoreMediaAssets => Set<StoreMediaAsset>();
     public DbSet<StoreDomain> StoreDomains => Set<StoreDomain>();
     public DbSet<StoreQuoteInquiry> StoreQuoteInquiries => Set<StoreQuoteInquiry>();
+    public DbSet<StoreCustomerCredential> StoreCustomerCredentials => Set<StoreCustomerCredential>();
+    public DbSet<StoreCustomerSession> StoreCustomerSessions => Set<StoreCustomerSession>();
     public DbSet<CustomerGroup> CustomerGroups => Set<CustomerGroup>();
     public DbSet<CustomerGroupMember> CustomerGroupMembers => Set<CustomerGroupMember>();
     public DbSet<VisibilityRule> VisibilityRules => Set<VisibilityRule>();
@@ -382,9 +386,45 @@ public class AppDbContext : DbContext
             b.Property(x => x.TypographyPack).HasMaxLength(60);
             b.Property(x => x.LayoutVariant).HasMaxLength(60);
             b.Property(x => x.RuntimePackageJson).HasMaxLength(4000);
+            b.Property(x => x.PlpVariantsJson).HasMaxLength(4000);
+            b.Property(x => x.PdpVariantsJson).HasMaxLength(4000);
             b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
             b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(x => x.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<CampaignTemplateCatalogItem>(b =>
+        {
+            b.ToTable("campaign_template_catalog_items");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(140);
+            b.Property(x => x.Slug).IsRequired().HasMaxLength(140);
+            b.Property(x => x.Category).HasMaxLength(80);
+            b.Property(x => x.Description).HasMaxLength(1200);
+            b.Property(x => x.SectionsJson).HasMaxLength(4000);
+            b.Property(x => x.Price).HasColumnType("numeric(18,2)");
+            b.Property(x => x.AllowedPlanCodesCsv).HasMaxLength(500);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => x.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<StoreCampaignTemplateSubscription>(b =>
+        {
+            b.ToTable("store_campaign_template_subscriptions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Status).HasMaxLength(30);
+            b.Property(x => x.BillingMode).HasMaxLength(40);
+            b.Property(x => x.BillingStatus).HasMaxLength(40);
+            b.Property(x => x.ChargedAmount).HasColumnType("numeric(18,2)");
+            b.Property(x => x.Currency).HasMaxLength(8);
+            b.Property(x => x.PlanCodeAtPurchase).HasMaxLength(80);
+            b.Property(x => x.PaymentReference).HasMaxLength(80);
+            b.Property(x => x.PurchasedAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.TemplateId }).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.Template).WithMany().HasForeignKey(x => x.TemplateId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<StoreThemeConfig>(b =>
@@ -512,6 +552,36 @@ public class AppDbContext : DbContext
             b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
             b.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.SetNull);
             b.HasOne(x => x.AssignedToUser).WithMany().HasForeignKey(x => x.AssignedToUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<StoreCustomerCredential>(b =>
+        {
+            b.ToTable("store_customer_credentials");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Email).IsRequired().HasMaxLength(320);
+            b.Property(x => x.PasswordHash).IsRequired().HasMaxLength(400);
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.LastLoginAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.Email }).IsUnique();
+            b.HasIndex(x => new { x.StoreId, x.CustomerId }).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StoreCustomerSession>(b =>
+        {
+            b.ToTable("store_customer_sessions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TokenHash).IsRequired().HasMaxLength(128);
+            b.Property(x => x.UserAgent).HasMaxLength(60);
+            b.Property(x => x.ClientIp).HasMaxLength(64);
+            b.Property(x => x.ExpiresAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => x.TokenHash).IsUnique();
+            b.HasIndex(x => new { x.StoreId, x.CustomerId, x.ExpiresAt });
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<CustomerGroup>(b =>

@@ -368,3 +368,38 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - Real customer auth/session workflow behind storefront login form.
 - Verification:
   - Frontend build check blocked in local env because frontend deps are not installed (craco missing).
+
+[2026-02-20] Phase Update - Theme Variant Engine + Campaign Billing + Customer Storefront Auth
+- Module: Deep per-theme PLP/PDP variant engine (category-grade)
+- Status: Developed (runtime-driven variant resolution implemented)
+- Done:
+  - Added theme metadata support for PLP/PDP variant maps (`PlpVariantsJson`, `PdpVariantsJson`).
+  - Exposed variant maps via public storefront API response for runtime rendering.
+  - Storefront runtime now resolves category-based PLP/PDP variants and applies variant-aware layouts.
+
+- Module: Visual drag-drop/runtime editor polish
+- Status: Partial (existing polished editor retained; enterprise freeform canvas still pending)
+- Done:
+  - Kept and integrated current advanced editor features (history, publish versions, diff, collaboration session hooks).
+  - Strengthened campaign/template apply flow from backend catalog into editor.
+- Pending:
+  - Full freeform WYSIWYG canvas with deep nested drag targets + advanced inspector/collaboration timeline UX.
+
+- Module: Campaign/template marketplace billing orchestration
+- Status: Developed (v1 orchestration)
+- Done:
+  - Added campaign template catalog + store subscription/purchase models.
+  - Added store APIs: list campaign templates and purchase/activate template with plan eligibility checks.
+  - Added platform owner APIs: campaign template lifecycle create/update/list.
+  - Wired Store Builder UI to load campaign templates from API and execute Purchase + Apply flow.
+
+- Module: Real customer auth/session behind storefront login
+- Status: Developed (v1 session auth)
+- Done:
+  - Added customer credential and session models (opaque hashed session token).
+  - Added public APIs: customer register/login/me/logout scoped by storefront subdomain.
+  - Added secure session cookie (`sf_customer_session`) flow with server-side session storage.
+  - Wired storefront `/login` page to real auth APIs and live auth state.
+
+- Verification:
+  - `dotnet build` could not run in this local environment (`dotnet: command not found`).

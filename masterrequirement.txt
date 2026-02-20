@@ -270,3 +270,20 @@ Module: Storefront System (Retail + Wholesale Ready)
   - Full drag-drop builder polish for enterprise editor behavior.
 - Pending:
   - Production-grade customer storefront auth/session lifecycle (beyond layout login form).
+
+UPDATE [2026-02-20] - SHOPIFY-GRADE STOREFRONT ENGINE INCREMENT
+Module: Deep per-theme PLP/PDP runtime variants
+- Developed: Theme model + API + storefront runtime now support category-grade PLP/PDP variant selection.
+- Partial: Expanded theme-pack matrix and per-theme fully independent runtime package isolation still in progress.
+
+Module: Campaign/template marketplace with billing
+- Developed: Campaign template catalog, plan-mapping, store purchase/activation subscription records, and Store Builder Purchase+Apply flow.
+- Partial: Full payment callback settlement and accounting reconciliation layer still pending.
+
+Module: Real customer auth/session behind storefront login
+- Developed: Register/login/me/logout with opaque hashed session cookie and DB-backed customer sessions.
+- Partial: Forgot-password, MFA/2FA for customers, and device/session management UI pending.
+
+Module: Visual drag-drop builder polish
+- Partial: Existing structured drag-drop + undo/redo + version publish + collaboration hooks retained and integrated with campaign runtime.
+- Need to develop: Enterprise freeform canvas, deep nested target inspector, advanced timeline/replay collaboration UX.

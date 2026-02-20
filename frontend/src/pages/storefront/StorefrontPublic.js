@@ -70,6 +70,9 @@ export default function StorefrontPublic() {
   const [search, setSearch] = useState("");
   const [checkoutForm, setCheckoutForm] = useState({ name: "", email: "", phone: "", paymentMethod: "cod" });
   const [checkoutMessage, setCheckoutMessage] = useState("");
+  const [authForm, setAuthForm] = useState({ name: "", email: "", phone: "", password: "" });
+  const [authMode, setAuthMode] = useState("login");
+  const [authState, setAuthState] = useState({ loading: true, authenticated: false, customer: null, message: "" });
 
   const slug = useMemo(() => {
     const path = location.pathname.replace(`/s/${subdomain}`, "").replace(/^\//, "");
@@ -106,6 +109,18 @@ export default function StorefrontPublic() {
     };
     run();
   }, [slug, subdomain]);
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const res = await api.get(`/public/storefront/${subdomain}/customer-auth/me`, { withCredentials: true });
+        setAuthState({ loading: false, authenticated: !!res.data?.authenticated, customer: res.data?.customer || null, message: "" });
+      } catch {
+        setAuthState({ loading: false, authenticated: false, customer: null, message: "" });
+      }
+    };
+    run();
+  }, [subdomain]);
 
   if (error) return <div className="min-h-screen p-10">{error}</div>;
   if (!data) return <div className="min-h-screen p-10">Loading storefront...</div>;
@@ -161,6 +176,24 @@ export default function StorefrontPublic() {
     });
   };
 
+  const resolveCategoryVariant = (variantsJson, categoryId) => {
+    try {
+      const parsed = JSON.parse(variantsJson || "[]");
+      const rows = Array.isArray(parsed) ? parsed : [];
+      const category = categories.find((c) => c.id === categoryId);
+      const categorySlug = (category?.slug || "").toLowerCase();
+      const categoryName = (category?.name || "").toLowerCase();
+      const direct = rows.find((x) => String(x?.categoryId || "").toLowerCase() === String(categoryId || "").toLowerCase());
+      if (direct?.variant) return String(direct.variant).toLowerCase();
+      const bySlug = rows.find((x) => String(x?.category || "").toLowerCase() === categorySlug || String(x?.category || "").toLowerCase() === categoryName);
+      if (bySlug?.variant) return String(bySlug.variant).toLowerCase();
+      const fallback = rows.find((x) => String(x?.category || "").toLowerCase() === "default");
+      return String(fallback?.variant || "default").toLowerCase();
+    } catch {
+      return "default";
+    }
+  };
+
   const updateCartQty = (id, quantity) => {
     setCart((prev) => prev
       .map((x) => (x.id === id ? { ...x, quantity: Math.max(1, quantity) } : x))
@@ -213,6 +246,33 @@ export default function StorefrontPublic() {
     }
   };
 
+  const customerAuthSubmit = async () => {
+    const endpoint = authMode === "register" ? "register" : "login";
+    try {
+      const payload = authMode === "register"
+        ? { name: authForm.name, email: authForm.email, phone: authForm.phone, password: authForm.password }
+        : { email: authForm.email, password: authForm.password };
+      const res = await api.post(`/public/storefront/${subdomain}/customer-auth/${endpoint}`, payload, { withCredentials: true });
+      if (authMode === "register") {
+        setAuthState((s) => ({ ...s, message: "Registered. You can log in now." }));
+        setAuthMode("login");
+      } else {
+        setAuthState({ loading: false, authenticated: !!res.data?.authenticated, customer: res.data?.customer || null, message: "Logged in." });
+      }
+    } catch (err) {
+      setAuthState((s) => ({ ...s, message: err?.response?.data?.error || "Authentication failed." }));
+    }
+  };
+
+  const customerLogout = async () => {
+    try {
+      await api.post(`/public/storefront/${subdomain}/customer-auth/logout`, {}, { withCredentials: true });
+    } catch {
+      // ignore
+    }
+    setAuthState({ loading: false, authenticated: false, customer: null, message: "Logged out." });
+  };
+
   const slugParts = slug.split("/").filter(Boolean);
   const mode = !slug ? "home" : slug === "cart" ? "cart" : slug === "checkout" ? "checkout" : slug === "login" ? "login" : slugParts[0] === "products" && slugParts[1] ? "pdp" : "page";
   const pdp = mode === "pdp" ? (data.products || []).find((x) => x.id === slugParts[1]) : null;
@@ -225,6 +285,8 @@ export default function StorefrontPublic() {
   })();
   const primary = tokens.primaryColor || "#2563eb";
   const accent = tokens.accentColor || "#f59e0b";
+  const plpVariant = resolveCategoryVariant(data.theme?.activeTheme?.plpVariantsJson, categoryId === "all" ? categories[0]?.id : categoryId);
+  const pdpVariant = pdp ? resolveCategoryVariant(data.theme?.activeTheme?.pdpVariantsJson, pdp.categoryId) : "default";
 
   return (
     <div className={`min-h-screen bg-white text-slate-900 ${layoutVariant === "immersive" ? "bg-slate-50" : ""}`} style={{ fontFamily }}>
@@ -241,7 +303,11 @@ export default function StorefrontPublic() {
           </div>
           <nav className="hidden md:block">{renderMenu(menu.length ? menu : [{ label: "Home", path: "/" }], subdomain, { customerType, isLoggedIn, device })}</nav>
           <div className="flex items-center gap-2">
-            <Link to={`/s/${subdomain}/login`} className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">Login</Link>
+            {authState.authenticated ? (
+              <button type="button" onClick={customerLogout} className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">Logout</button>
+            ) : (
+              <Link to={`/s/${subdomain}/login`} className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">Login</Link>
+            )}
             <Link to={`/s/${subdomain}/cart`} className="text-sm px-3 py-2 rounded-lg text-white" style={{ backgroundColor: primary }}>Cart ({cartCount})</Link>
           </div>
         </div>
@@ -293,9 +359,9 @@ export default function StorefrontPublic() {
                 <button className={`px-2 py-1 rounded border text-xs ${listLayout === "list" ? "bg-slate-900 text-white" : ""}`} onClick={() => setListLayout("list")}>List</button>
               </div>
             </div>
-            <div className={listLayout === "grid" ? "grid sm:grid-cols-2 lg:grid-cols-4 gap-4" : "space-y-3"}>
+            <div className={listLayout === "grid" ? (plpVariant === "magazine" ? "grid sm:grid-cols-2 lg:grid-cols-3 gap-5" : "grid sm:grid-cols-2 lg:grid-cols-4 gap-4") : "space-y-3"}>
               {searchedProducts.map((p) => (
-                <div key={p.id} className={`border p-3 bg-white ${runtimePackage.cardStyle === "sharp" ? "rounded-md" : "rounded-xl"} ${layoutVariant === "minimal" ? "shadow-sm" : "hover:shadow-lg"} transition`}>
+                <div key={p.id} className={`border p-3 bg-white ${runtimePackage.cardStyle === "sharp" ? "rounded-md" : "rounded-xl"} ${layoutVariant === "minimal" ? "shadow-sm" : "hover:shadow-lg"} transition ${plpVariant === "magazine" ? "lg:p-5" : ""}`}>
                   <Link to={`/s/${subdomain}/products/${p.id}`} className="block h-40 rounded-lg bg-slate-100 mb-3" />
                   <Link to={`/s/${subdomain}/products/${p.id}`} className="font-medium hover:text-blue-700">{p.title}</Link>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2 min-h-8">{p.description}</p>
@@ -319,7 +385,7 @@ export default function StorefrontPublic() {
           </section>
         </main>
       ) : mode === "pdp" && pdp ? (
-        <main className="max-w-7xl mx-auto px-4 py-8 grid lg:grid-cols-2 gap-8">
+        <main className={`max-w-7xl mx-auto px-4 py-8 grid gap-8 ${pdpVariant === "stacked" ? "lg:grid-cols-1" : "lg:grid-cols-2"}`}>
           <div className="rounded-2xl border bg-slate-100 min-h-[420px]" />
           <div>
             <p className="text-xs uppercase tracking-wider text-slate-500">Product details</p>
@@ -383,12 +449,25 @@ export default function StorefrontPublic() {
       ) : mode === "login" ? (
         <main className="max-w-md mx-auto px-4 py-10">
           <div className="rounded-2xl border bg-white p-6">
-            <h2 className="text-2xl font-bold">Customer login</h2>
-            <p className="text-sm text-slate-600 mt-1">Sign in to track orders and save checkout details.</p>
+            <h2 className="text-2xl font-bold">{authMode === "register" ? "Create customer account" : "Customer login"}</h2>
+            <p className="text-sm text-slate-600 mt-1">Secure customer session for order tracking and faster checkout.</p>
+            {authState.authenticated ? (
+              <div className="mt-4 p-3 rounded-lg bg-emerald-50 text-emerald-700 text-sm">
+                Logged in as {authState.customer?.email}
+              </div>
+            ) : null}
             <div className="mt-5 space-y-3">
-              <input className="w-full h-11 border rounded-lg px-3" placeholder="Email or mobile" />
-              <input className="w-full h-11 border rounded-lg px-3" placeholder="Password" type="password" />
-              <button className="w-full h-11 rounded-lg text-white font-medium" style={{ backgroundColor: primary }}>Login</button>
+              {authMode === "register" ? <input className="w-full h-11 border rounded-lg px-3" placeholder="Full name" value={authForm.name} onChange={(e) => setAuthForm((s) => ({ ...s, name: e.target.value }))} /> : null}
+              <input className="w-full h-11 border rounded-lg px-3" placeholder="Email" value={authForm.email} onChange={(e) => setAuthForm((s) => ({ ...s, email: e.target.value }))} />
+              {authMode === "register" ? <input className="w-full h-11 border rounded-lg px-3" placeholder="Phone" value={authForm.phone} onChange={(e) => setAuthForm((s) => ({ ...s, phone: e.target.value }))} /> : null}
+              <input className="w-full h-11 border rounded-lg px-3" placeholder="Password" type="password" value={authForm.password} onChange={(e) => setAuthForm((s) => ({ ...s, password: e.target.value }))} />
+              <button className="w-full h-11 rounded-lg text-white font-medium" style={{ backgroundColor: primary }} onClick={customerAuthSubmit}>
+                {authMode === "register" ? "Register" : "Login"}
+              </button>
+              <button className="w-full h-10 rounded-lg border font-medium" onClick={() => setAuthMode((m) => (m === "register" ? "login" : "register"))}>
+                {authMode === "register" ? "Switch to login" : "Create new account"}
+              </button>
+              {authState.message ? <p className="text-sm text-slate-600">{authState.message}</p> : null}
             </div>
           </div>
         </main>

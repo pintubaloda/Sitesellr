@@ -21,6 +21,8 @@ const initialForm = {
   typographyPack: "modern-sans",
   layoutVariant: "default",
   runtimePackageJson: "{}",
+  plpVariantsJson: "[]",
+  pdpVariantsJson: "[]",
 };
 
 export default function PlatformThemes() {
@@ -73,6 +75,8 @@ export default function PlatformThemes() {
       typographyPack: row.typographyPack || "modern-sans",
       layoutVariant: row.layoutVariant || "default",
       runtimePackageJson: row.runtimePackageJson || "{}",
+      plpVariantsJson: row.plpVariantsJson || "[]",
+      pdpVariantsJson: row.pdpVariantsJson || "[]",
     });
   };
 
@@ -144,6 +148,8 @@ export default function PlatformThemes() {
           <div className="space-y-2"><Label>Typography pack</Label><Input value={form.typographyPack} onChange={(e) => setForm((s) => ({ ...s, typographyPack: e.target.value }))} /></div>
           <div className="space-y-2"><Label>Layout variant</Label><Input value={form.layoutVariant} onChange={(e) => setForm((s) => ({ ...s, layoutVariant: e.target.value }))} /></div>
           <div className="space-y-2 md:col-span-2"><Label>Runtime package JSON</Label><Input value={form.runtimePackageJson} onChange={(e) => setForm((s) => ({ ...s, runtimePackageJson: e.target.value }))} /></div>
+          <div className="space-y-2 md:col-span-2"><Label>PLP variants JSON</Label><Input value={form.plpVariantsJson} onChange={(e) => setForm((s) => ({ ...s, plpVariantsJson: e.target.value }))} placeholder='[{"category":"default","variant":"cards"}]' /></div>
+          <div className="space-y-2 md:col-span-2"><Label>PDP variants JSON</Label><Input value={form.pdpVariantsJson} onChange={(e) => setForm((s) => ({ ...s, pdpVariantsJson: e.target.value }))} placeholder='[{"category":"default","variant":"split"}]' /></div>
           <div className="flex items-center gap-2"><Switch checked={form.isPaid} onCheckedChange={(v) => setForm((s) => ({ ...s, isPaid: v }))} /><Label>Paid theme</Label></div>
           <div className="flex items-center gap-2"><Switch checked={form.isActive} onCheckedChange={(v) => setForm((s) => ({ ...s, isActive: v }))} /><Label>Active</Label></div>
           <div className="flex items-center gap-2"><Switch checked={form.isFeatured} onCheckedChange={(v) => setForm((s) => ({ ...s, isFeatured: v }))} /><Label>Featured</Label></div>

@@ -258,6 +258,7 @@ export const StoreBuilder = () => {
   const [sectionEntitlements, setSectionEntitlements] = useState({ planCode: "", allowedPremiumKeys: [] });
   const [quoteInquiries, setQuoteInquiries] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [campaignTemplates, setCampaignTemplates] = useState(CAMPAIGN_TEMPLATES.map((x) => ({ ...x, id: x.key, isPaid: false, isActiveForStore: true })));
   const [newGroupName, setNewGroupName] = useState("");
   const [ruleForm, setRuleForm] = useState({ customerGroupId: "", targetType: "product", targetKey: "", effect: "deny" });
   const [previewGroupId, setPreviewGroupId] = useState("");
@@ -295,7 +296,7 @@ export const StoreBuilder = () => {
     setLoading(true);
     setStatus("");
     try {
-      const [themesRes, settingsRes, layoutRes, navRes, pagesRes, versionsRes, groupsRes, rulesRes, entitlementsRes, quoteRes, teamRes] = await Promise.all([
+      const [themesRes, settingsRes, layoutRes, navRes, pagesRes, versionsRes, groupsRes, rulesRes, entitlementsRes, quoteRes, teamRes, campaignRes] = await Promise.all([
         api.get(`/stores/${storeId}/storefront/themes`),
         api.get(`/stores/${storeId}/storefront/settings`),
         api.get(`/stores/${storeId}/storefront/homepage-layout`),
@@ -307,6 +308,7 @@ export const StoreBuilder = () => {
         api.get(`/stores/${storeId}/storefront/section-entitlements`),
         api.get(`/stores/${storeId}/storefront/quote-inquiries`),
         api.get(`/stores/${storeId}/team`),
+        api.get(`/stores/${storeId}/storefront/campaign-templates`),
       ]);
 
       const themeRows = Array.isArray(themesRes.data) ? themesRes.data : [];
@@ -340,6 +342,7 @@ export const StoreBuilder = () => {
       });
       setQuoteInquiries(Array.isArray(quoteRes.data) ? quoteRes.data : []);
       setTeamMembers(Array.isArray(teamRes.data) ? teamRes.data : []);
+      setCampaignTemplates(Array.isArray(campaignRes.data) && campaignRes.data.length > 0 ? campaignRes.data : CAMPAIGN_TEMPLATES.map((x) => ({ ...x, id: x.key, isPaid: false, isActiveForStore: true })));
     } catch (err) {
       setStatus(err?.response?.status === 403 ? "You are not authorized." : "Could not load storefront settings.");
     } finally {
@@ -814,9 +817,25 @@ export const StoreBuilder = () => {
     setStatus(`Applied branding preset: ${preset.name}`);
   };
 
-  const applyCampaignTemplate = (tpl) => {
+  const applyCampaignTemplate = async (tpl) => {
+    if (!storeId) return;
+    if (tpl.isPaid && !tpl.isActiveForStore) {
+      try {
+        await api.post(`/stores/${storeId}/storefront/campaign-templates/${tpl.id}/purchase`);
+      } catch (err) {
+        setStatus(err?.response?.data?.error || "Could not activate campaign template.");
+        return;
+      }
+    }
+    let keys = [];
+    try {
+      const parsed = JSON.parse(tpl.sectionsJson || "[]");
+      keys = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      keys = Array.isArray(tpl.sections) ? tpl.sections : [];
+    }
     const allowed = new Set(sectionEntitlements.allowedPremiumKeys);
-    const keys = tpl.sections.filter((k) => !k.endsWith("-pro") || allowed.has(k));
+    keys = keys.filter((k) => !String(k).endsWith("-pro") || allowed.has(k));
     const toAdd = SECTION_MARKETPLACE.filter((x) => keys.includes(x.key));
     pushHistory();
     setSections((prev) => [
@@ -830,6 +849,7 @@ export const StoreBuilder = () => {
       })),
     ]);
     setStatus(`Applied campaign template: ${tpl.name}`);
+    await loadData();
   };
 
   const previewTheme = (themeId) => {
@@ -1416,13 +1436,19 @@ export const StoreBuilder = () => {
               <CardDescription>Quickly apply prebuilt marketing block combinations.</CardDescription>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-3">
-              {CAMPAIGN_TEMPLATES.map((tpl) => (
-                <div key={tpl.key} className="p-3 border rounded-lg flex items-center justify-between gap-2">
+              {campaignTemplates.map((tpl) => (
+                <div key={tpl.id || tpl.key} className="p-3 border rounded-lg flex items-center justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium">{tpl.name}</p>
-                    <p className="text-xs text-slate-500">{tpl.sections.join(", ")}</p>
+                    <p className="text-xs text-slate-500">
+                      {tpl.isPaid
+                        ? (tpl.isActiveForStore ? `Paid template active • INR ${Number(tpl.price || 0).toLocaleString()}` : `Purchase required • INR ${Number(tpl.price || 0).toLocaleString()}`)
+                        : "Free template"}
+                    </p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => applyCampaignTemplate(tpl)}>Apply</Button>
+                  <Button size="sm" variant={tpl.isPaid ? "outline" : "default"} onClick={() => applyCampaignTemplate(tpl)}>
+                    {tpl.isPaid && !tpl.isActiveForStore ? "Purchase + Apply" : "Apply"}
+                  </Button>
                 </div>
               ))}
             </CardContent>

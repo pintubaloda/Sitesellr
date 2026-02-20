@@ -112,6 +112,35 @@ public class TenancyResolver : ITenancyResolver
                         permissions.Add(permission);
                     }
                 }
+                else
+                {
+                    // Auto-bind first store membership so store users get menu/permissions right after login
+                    // even when no store header is provided yet.
+                    var fallback = await _db.StoreUserRoles
+                        .Include(r => r.Store)
+                        .ThenInclude(s => s.Merchant)
+                        .FirstOrDefaultAsync(r => r.UserId == access.UserId, ct);
+                    if (fallback != null)
+                    {
+                        store = fallback.Store;
+                        merchant = fallback.Store.Merchant;
+                        role = fallback.Role;
+
+                        foreach (var permission in PermissionCatalog.GetTemplatePermissions(role))
+                        {
+                            permissions.Add(permission);
+                        }
+
+                        var explicitPermissions = await _db.StoreUserPermissions.AsNoTracking()
+                            .Where(p => p.StoreId == store.Id && p.UserId == access.UserId)
+                            .Select(p => p.Permission)
+                            .ToListAsync(ct);
+                        foreach (var permission in explicitPermissions)
+                        {
+                            permissions.Add(permission);
+                        }
+                    }
+                }
 
                 var platformRoleValues = await _db.PlatformUserRoles.AsNoTracking()
                     .Where(r => r.UserId == access.UserId)

@@ -688,3 +688,12 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Files:
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformRbacController.cs`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformRbac.js`
+
+[2026-02-20] Auto Menu by Role on Login (No Manual Store Selection Needed)
+- Fixed role/menu auto-loading issue after login for store-role users.
+- Backend tenancy resolver now auto-binds first store membership when request has no store context header.
+- Result:
+  - Store role + permissions are resolved immediately at login.
+  - Dashboard sidebar/menu now appears automatically as per assigned role.
+- File:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/TenancyContext.cs`

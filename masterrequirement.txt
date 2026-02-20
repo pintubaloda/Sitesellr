@@ -415,3 +415,9 @@ UPDATE [2026-02-20] - RBAC ROLE VISIBILITY
   - Role list now matches selected user type context (platform roles vs store roles).
 - Impact:
   - Avoids misleading `No Platform Role` message when browsing Store Users.
+
+UPDATE [2026-02-20] - AUTO ROLE MENU ON LOGIN
+- Developed:
+  - Role-based dashboard menu now auto-resolves at login without requiring manual store selection/header.
+- Impact:
+  - Assigned roles reflect instantly in visible menus for store users.

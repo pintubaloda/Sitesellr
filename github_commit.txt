@@ -603,3 +603,8 @@ Notes:
 - RBAC role badge fix:
   - Added store role data in `/platform/rbac/users` response.
   - Updated UI labels to show Store Role in Store Users tab.
+
+[2026-02-20] Pending Commit
+- Auto role-based menu fix on login:
+  - Tenancy resolver fallback to first store membership when no store header exists.
+  - Ensures immediate role permissions and sidebar rendering for store users.

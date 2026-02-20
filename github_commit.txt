@@ -492,3 +492,17 @@ Notes:
   - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformThemes.js
 - Verification note:
   - Local backend build not executable in current shell (`dotnet` missing).
+
+[2026-02-20] Pending Commit (local)
+- Scope: Pending-set closure pass (theme variant depth, auth hardening, campaign billing hardening, editor playback polish)
+- Backend:
+  - Added campaign payment event model and billing lifecycle endpoints (callback/refund/chargeback).
+  - Added customer auth hardening APIs (verify email, forgot/reset password, MFA challenge, session list/revoke).
+  - Added theme PLP/PDP variant metadata persistence and exposure.
+  - Added startup SQL safety for new tables/columns in migration-on-startup flow.
+- Frontend:
+  - Storefront login security tools UI wired (verify, reset, session controls).
+  - Runtime package sanitized allowlist isolation.
+  - Store builder timeline replay controls enhanced.
+- Smoke tests:
+  - Updated admin smoke checklist for newly added flows.

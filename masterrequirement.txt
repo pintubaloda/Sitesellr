@@ -287,3 +287,24 @@ Module: Real customer auth/session behind storefront login
 Module: Visual drag-drop builder polish
 - Partial: Existing structured drag-drop + undo/redo + version publish + collaboration hooks retained and integrated with campaign runtime.
 - Need to develop: Enterprise freeform canvas, deep nested target inspector, advanced timeline/replay collaboration UX.
+
+UPDATE [2026-02-20] - PENDING CLOSURE PASS
+- Theme Runtime Engine:
+  - Developed: Category-grade PLP/PDP variant metadata and runtime resolver implemented.
+  - Developed: Runtime package key allowlist enforcement in storefront renderer.
+
+- Visual Builder:
+  - Partial: Timeline playback controls upgraded (play/pause/reset/scrubber) with existing collaboration/versions.
+  - Pending: Full enterprise freeform nested canvas parity remains (advanced target matrix/CRDT depth).
+
+- Campaign Billing Orchestration:
+  - Developed: Callback/refund/chargeback endpoints with payment event ledger entries.
+  - Partial: Gateway-native webhook signature verification and deep reconciliation automation still pending.
+
+- Customer Auth Hardening:
+  - Developed: Email verification, forgot/reset password, session list/revoke, MFA challenge endpoints + storefront security UI.
+  - Partial: production-grade external email/SMS OTP provider + strong MFA factors rollout pending.
+
+- Ops/Deployment:
+  - Developed: Smoke-test checklist expanded for campaign billing + customer auth + variant runtime scenarios.
+  - Required on deployment: run one migration-on-startup cycle and execute smoke tests.

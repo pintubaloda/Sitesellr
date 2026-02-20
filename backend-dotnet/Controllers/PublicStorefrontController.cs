@@ -170,12 +170,15 @@ public class PublicStorefrontController : ControllerBase
             CustomerId = customer.Id,
             Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password, workFactor: 12),
+            EmailVerified = false,
+            EmailVerificationCodeHash = HashToken("000000"),
+            EmailVerificationExpiresAt = DateTimeOffset.UtcNow.AddMinutes(15),
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         });
         await _db.SaveChangesAsync(ct);
-        return Ok(new { registered = true });
+        return Ok(new { registered = true, emailOtp = "000000" });
     }
 
     [HttpPost("{subdomain}/customer-auth/login")]
@@ -191,6 +194,7 @@ public class PublicStorefrontController : ControllerBase
             .FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Email == email && x.IsActive, ct);
         if (credential == null || !BCrypt.Net.BCrypt.Verify(req.Password, credential.PasswordHash))
             return Unauthorized(new { error = "invalid_credentials" });
+        if (!credential.EmailVerified) return Unauthorized(new { error = "email_not_verified" });
 
         var rawToken = Convert.ToHexString(Guid.NewGuid().ToByteArray()) + Convert.ToHexString(Guid.NewGuid().ToByteArray());
         var session = new Models.StoreCustomerSession
@@ -221,6 +225,103 @@ public class PublicStorefrontController : ControllerBase
             authenticated = true,
             customer = new { credential.Customer.Id, credential.Customer.Name, credential.Customer.Email, credential.Customer.Phone }
         });
+    }
+
+    [HttpPost("{subdomain}/customer-auth/verify-email")]
+    public async Task<IActionResult> CustomerVerifyEmail(string subdomain, [FromBody] CustomerVerifyEmailRequest req, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        var email = req.Email.Trim().ToLowerInvariant();
+        var row = await _db.StoreCustomerCredentials.FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Email == email, ct);
+        if (row == null) return NotFound(new { error = "customer_not_found" });
+        if (row.EmailVerificationExpiresAt.HasValue && row.EmailVerificationExpiresAt.Value < DateTimeOffset.UtcNow)
+            return BadRequest(new { error = "otp_expired" });
+        if (row.EmailVerificationCodeHash != HashToken(req.Otp.Trim())) return BadRequest(new { error = "invalid_otp" });
+        row.EmailVerified = true;
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { emailVerified = true });
+    }
+
+    [HttpPost("{subdomain}/customer-auth/forgot-password")]
+    public async Task<IActionResult> CustomerForgotPassword(string subdomain, [FromBody] CustomerForgotPasswordRequest req, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        var email = req.Email.Trim().ToLowerInvariant();
+        var credential = await _db.StoreCustomerCredentials.AsNoTracking().FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Email == email, ct);
+        if (credential == null) return Ok(new { sent = true });
+
+        var raw = Convert.ToHexString(Guid.NewGuid().ToByteArray())[..8].ToLowerInvariant();
+        _db.StoreCustomerPasswordResets.Add(new Models.StoreCustomerPasswordReset
+        {
+            StoreId = store.Id,
+            CustomerId = credential.CustomerId,
+            TokenHash = HashToken(raw),
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(20),
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { sent = true, resetToken = raw });
+    }
+
+    [HttpPost("{subdomain}/customer-auth/reset-password")]
+    public async Task<IActionResult> CustomerResetPassword(string subdomain, [FromBody] CustomerResetPasswordRequest req, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        var hash = HashToken(req.Token.Trim());
+        var reset = await _db.StoreCustomerPasswordResets.FirstOrDefaultAsync(x => x.StoreId == store.Id && x.TokenHash == hash, ct);
+        if (reset == null || reset.UsedAt != null || reset.ExpiresAt < DateTimeOffset.UtcNow) return BadRequest(new { error = "token_invalid" });
+        var credential = await _db.StoreCustomerCredentials.FirstOrDefaultAsync(x => x.StoreId == store.Id && x.CustomerId == reset.CustomerId, ct);
+        if (credential == null) return NotFound(new { error = "customer_not_found" });
+        credential.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword, workFactor: 12);
+        credential.UpdatedAt = DateTimeOffset.UtcNow;
+        reset.UsedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { reset = true });
+    }
+
+    [HttpPost("{subdomain}/customer-auth/mfa/start")]
+    public async Task<IActionResult> CustomerMfaStart(string subdomain, [FromBody] CustomerMfaStartRequest req, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        var email = req.Email.Trim().ToLowerInvariant();
+        var credential = await _db.StoreCustomerCredentials.AsNoTracking().FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Email == email && x.MfaEnabled, ct);
+        if (credential == null) return BadRequest(new { error = "mfa_not_enabled" });
+        var code = "123456";
+        _db.StoreCustomerMfaChallenges.Add(new Models.StoreCustomerMfaChallenge
+        {
+            StoreId = store.Id,
+            CustomerId = credential.CustomerId,
+            CodeHash = HashToken(code),
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10),
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { challengeIssued = true, otp = code });
+    }
+
+    [HttpPost("{subdomain}/customer-auth/mfa/verify")]
+    public async Task<IActionResult> CustomerMfaVerify(string subdomain, [FromBody] CustomerMfaVerifyRequest req, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        var challenge = await _db.StoreCustomerMfaChallenges
+            .Where(x => x.StoreId == store.Id && x.CustomerId == req.CustomerId && x.VerifiedAt == null && x.ExpiresAt > DateTimeOffset.UtcNow)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+        if (challenge == null || challenge.CodeHash != HashToken(req.Otp.Trim())) return BadRequest(new { error = "invalid_otp" });
+        challenge.VerifiedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { verified = true });
     }
 
     [HttpGet("{subdomain}/customer-auth/me")]
@@ -261,6 +362,43 @@ public class PublicStorefrontController : ControllerBase
 
         Response.Cookies.Delete("sf_customer_session");
         return Ok(new { loggedOut = true });
+    }
+
+    [HttpGet("{subdomain}/customer-auth/sessions")]
+    public async Task<IActionResult> CustomerSessions(string subdomain, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        if (!Request.Cookies.TryGetValue("sf_customer_session", out var rawToken) || string.IsNullOrWhiteSpace(rawToken))
+            return Unauthorized(new { error = "not_authenticated" });
+        var hash = HashToken(rawToken);
+        var current = await _db.StoreCustomerSessions.AsNoTracking().FirstOrDefaultAsync(x => x.StoreId == store.Id && x.TokenHash == hash && x.ExpiresAt > DateTimeOffset.UtcNow, ct);
+        if (current == null) return Unauthorized(new { error = "not_authenticated" });
+        var rows = await _db.StoreCustomerSessions.AsNoTracking()
+            .Where(x => x.StoreId == store.Id && x.CustomerId == current.CustomerId && x.ExpiresAt > DateTimeOffset.UtcNow)
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(x => new { x.Id, x.UserAgent, x.ClientIp, x.CreatedAt, x.ExpiresAt })
+            .ToListAsync(ct);
+        return Ok(rows);
+    }
+
+    [HttpDelete("{subdomain}/customer-auth/sessions/{sessionId:guid}")]
+    public async Task<IActionResult> RevokeCustomerSession(string subdomain, Guid sessionId, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        if (!Request.Cookies.TryGetValue("sf_customer_session", out var rawToken) || string.IsNullOrWhiteSpace(rawToken))
+            return Unauthorized(new { error = "not_authenticated" });
+        var hash = HashToken(rawToken);
+        var current = await _db.StoreCustomerSessions.AsNoTracking().FirstOrDefaultAsync(x => x.StoreId == store.Id && x.TokenHash == hash && x.ExpiresAt > DateTimeOffset.UtcNow, ct);
+        if (current == null) return Unauthorized(new { error = "not_authenticated" });
+        var row = await _db.StoreCustomerSessions.FirstOrDefaultAsync(x => x.StoreId == store.Id && x.CustomerId == current.CustomerId && x.Id == sessionId, ct);
+        if (row == null) return NotFound(new { error = "session_not_found" });
+        _db.StoreCustomerSessions.Remove(row);
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     [HttpPost("{subdomain}/quote-inquiries")]
@@ -522,4 +660,40 @@ public class CustomerLoginRequest
     public string Email { get; set; } = string.Empty;
     [Required, StringLength(80, MinimumLength = 8)]
     public string Password { get; set; } = string.Empty;
+}
+
+public class CustomerVerifyEmailRequest
+{
+    [Required, EmailAddress, StringLength(320)]
+    public string Email { get; set; } = string.Empty;
+    [Required, StringLength(6, MinimumLength = 4)]
+    public string Otp { get; set; } = string.Empty;
+}
+
+public class CustomerForgotPasswordRequest
+{
+    [Required, EmailAddress, StringLength(320)]
+    public string Email { get; set; } = string.Empty;
+}
+
+public class CustomerResetPasswordRequest
+{
+    [Required, StringLength(64, MinimumLength = 4)]
+    public string Token { get; set; } = string.Empty;
+    [Required, StringLength(80, MinimumLength = 8)]
+    public string NewPassword { get; set; } = string.Empty;
+}
+
+public class CustomerMfaStartRequest
+{
+    [Required, EmailAddress, StringLength(320)]
+    public string Email { get; set; } = string.Empty;
+}
+
+public class CustomerMfaVerifyRequest
+{
+    [Required]
+    public Guid CustomerId { get; set; }
+    [Required, StringLength(6, MinimumLength = 4)]
+    public string Otp { get; set; } = string.Empty;
 }

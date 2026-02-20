@@ -84,6 +84,29 @@ public class StoreCampaignTemplateSubscription
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public class CampaignPaymentEvent
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    public Guid? SubscriptionId { get; set; }
+    public StoreCampaignTemplateSubscription? Subscription { get; set; }
+    [MaxLength(40)]
+    public string EventType { get; set; } = "payment_captured";
+    [MaxLength(80)]
+    public string Reference { get; set; } = string.Empty;
+    [MaxLength(40)]
+    public string Gateway { get; set; } = "manual";
+    [MaxLength(40)]
+    public string Status { get; set; } = "success";
+    public decimal Amount { get; set; }
+    [MaxLength(8)]
+    public string Currency { get; set; } = "INR";
+    [MaxLength(4000)]
+    public string PayloadJson { get; set; } = "{}";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public class StoreCustomerCredential
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -95,10 +118,43 @@ public class StoreCustomerCredential
     public string Email { get; set; } = string.Empty;
     [Required, MaxLength(400)]
     public string PasswordHash { get; set; } = string.Empty;
+    public bool EmailVerified { get; set; }
+    [MaxLength(128)]
+    public string EmailVerificationCodeHash { get; set; } = string.Empty;
+    public DateTimeOffset? EmailVerificationExpiresAt { get; set; }
+    public bool MfaEnabled { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? LastLoginAt { get; set; }
+}
+
+public class StoreCustomerPasswordReset
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    public Guid CustomerId { get; set; }
+    public Customer Customer { get; set; } = default!;
+    [Required, MaxLength(128)]
+    public string TokenHash { get; set; } = string.Empty;
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? UsedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class StoreCustomerMfaChallenge
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    public Guid CustomerId { get; set; }
+    public Customer Customer { get; set; } = default!;
+    [Required, MaxLength(128)]
+    public string CodeHash { get; set; } = string.Empty;
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? VerifiedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 public class StoreCustomerSession

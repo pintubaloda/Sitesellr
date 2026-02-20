@@ -357,6 +357,21 @@ CREATE TABLE IF NOT EXISTS store_campaign_template_subscriptions (
 );");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_campaign_template_subscriptions_Store_Template ON store_campaign_template_subscriptions (""StoreId"", ""TemplateId"");");
     await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS campaign_payment_events (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""SubscriptionId"" uuid NULL,
+  ""EventType"" character varying(40) NOT NULL,
+  ""Reference"" character varying(80) NOT NULL,
+  ""Gateway"" character varying(40) NOT NULL,
+  ""Status"" character varying(40) NOT NULL,
+  ""Amount"" numeric(18,2) NOT NULL,
+  ""Currency"" character varying(8) NOT NULL,
+  ""PayloadJson"" character varying(4000) NOT NULL DEFAULT '{{}}',
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_campaign_payment_events_Store_Reference ON campaign_payment_events (""StoreId"", ""Reference"");");
+    await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS store_theme_configs (
   ""Id"" uuid PRIMARY KEY,
   ""StoreId"" uuid NOT NULL,
@@ -491,6 +506,10 @@ CREATE TABLE IF NOT EXISTS store_customer_credentials (
   ""UpdatedAt"" timestamp with time zone NOT NULL,
   ""LastLoginAt"" timestamp with time zone NULL
 );");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_customer_credentials ADD COLUMN IF NOT EXISTS ""EmailVerified"" boolean NOT NULL DEFAULT false;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_customer_credentials ADD COLUMN IF NOT EXISTS ""EmailVerificationCodeHash"" character varying(128) NOT NULL DEFAULT '';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_customer_credentials ADD COLUMN IF NOT EXISTS ""EmailVerificationExpiresAt"" timestamp with time zone NULL;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_customer_credentials ADD COLUMN IF NOT EXISTS ""MfaEnabled"" boolean NOT NULL DEFAULT false;");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_customer_credentials_Store_Email ON store_customer_credentials (""StoreId"", ""Email"");");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_customer_credentials_Store_Customer ON store_customer_credentials (""StoreId"", ""CustomerId"");");
     await db.Database.ExecuteSqlRawAsync(@"
@@ -506,6 +525,27 @@ CREATE TABLE IF NOT EXISTS store_customer_sessions (
 );");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_customer_sessions_TokenHash ON store_customer_sessions (""TokenHash"");");
     await db.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS IX_store_customer_sessions_Store_Customer_ExpiresAt ON store_customer_sessions (""StoreId"", ""CustomerId"", ""ExpiresAt"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS store_customer_password_resets (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""CustomerId"" uuid NOT NULL,
+  ""TokenHash"" character varying(128) NOT NULL,
+  ""ExpiresAt"" timestamp with time zone NOT NULL,
+  ""UsedAt"" timestamp with time zone NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_customer_password_resets_TokenHash ON store_customer_password_resets (""TokenHash"");");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS store_customer_mfa_challenges (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""CustomerId"" uuid NOT NULL,
+  ""CodeHash"" character varying(128) NOT NULL,
+  ""ExpiresAt"" timestamp with time zone NOT NULL,
+  ""VerifiedAt"" timestamp with time zone NULL,
+  ""CreatedAt"" timestamp with time zone NOT NULL
+);");
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS customer_groups (
   ""Id"" uuid PRIMARY KEY,

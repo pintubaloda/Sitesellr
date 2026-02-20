@@ -50,3 +50,37 @@
 - [ ] `POST /api/stores/{storeId}/role-templates` rejects malformed permission CSV.
 - [ ] `POST /api/stores/{storeId}/team` rejects bad email/role.
 - [ ] `POST /api/team-invites/accept` rejects short token/password.
+
+## 2026-02-20 Added Smoke Tests (Storefront Engine + Customer Auth Hardening)
+
+### 1) Campaign Template Purchase + Apply
+1. Login as store owner/admin.
+2. Open Store Builder -> Pages tab -> Campaign Templates.
+3. Choose a paid template not yet active and click `Purchase + Apply`.
+4. Confirm new sections are inserted into homepage section list.
+5. Save layout and verify sections render at `/s/{subdomain}`.
+
+### 2) Customer Register / Verify / Login / Session
+1. Open `/s/{subdomain}/login` and switch to register.
+2. Register with name/email/phone/password and capture returned OTP (`000000`).
+3. Verify email using the security tool panel.
+4. Login and confirm authenticated state appears.
+5. Load active sessions and revoke one non-current session.
+
+### 3) Forgot/Reset Password
+1. In login page security tools, run `Forgot Password`.
+2. Capture reset token from API response message.
+3. Use reset token + new password.
+4. Re-login using new password.
+
+### 4) PLP/PDP Variant by Category
+1. In Platform Themes, set `PlpVariantsJson` and `PdpVariantsJson` for active theme.
+2. Apply theme in Store Builder.
+3. Open category-filtered PLP and check variant layout behavior changes.
+4. Open PDP for product category and verify PDP variant selection.
+
+### 5) Campaign Billing Callback/Refund/Chargeback APIs
+1. Create purchase via store campaign purchase endpoint.
+2. Call payment callback endpoint with `paid/failed/pending` and check subscription `BillingStatus`.
+3. Call refund endpoint and confirm status switches to `refunded` + payment event row exists.
+4. Call chargeback endpoint and confirm status switches to `chargeback` + event row exists.

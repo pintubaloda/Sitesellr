@@ -693,6 +693,90 @@ public class StorefrontController : ControllerBase
         return Ok(new { purchased = true, row.Id, row.BillingStatus, row.ChargedAmount, row.Currency, row.PaymentReference });
     }
 
+    [HttpPost("campaign-templates/{subscriptionId:guid}/payment-callback")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> CampaignTemplatePaymentCallback(Guid storeId, Guid subscriptionId, [FromBody] CampaignPaymentCallbackRequest req, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var sub = await _db.StoreCampaignTemplateSubscriptions.FirstOrDefaultAsync(x => x.StoreId == storeId && x.Id == subscriptionId, ct);
+        if (sub == null) return NotFound(new { error = "subscription_not_found" });
+
+        sub.BillingStatus = req.Status.Trim().ToLowerInvariant();
+        sub.PaymentReference = string.IsNullOrWhiteSpace(req.Reference) ? sub.PaymentReference : req.Reference.Trim();
+        sub.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var evt = new CampaignPaymentEvent
+        {
+            StoreId = storeId,
+            SubscriptionId = sub.Id,
+            EventType = "payment_callback",
+            Reference = string.IsNullOrWhiteSpace(req.Reference) ? $"evt_{Guid.NewGuid():N}"[..24] : req.Reference.Trim(),
+            Gateway = string.IsNullOrWhiteSpace(req.Gateway) ? "manual" : req.Gateway.Trim().ToLowerInvariant(),
+            Status = sub.BillingStatus,
+            Amount = sub.ChargedAmount,
+            Currency = sub.Currency,
+            PayloadJson = string.IsNullOrWhiteSpace(req.PayloadJson) ? "{}" : req.PayloadJson.Trim(),
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        _db.CampaignPaymentEvents.Add(evt);
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { updated = true, sub.Id, sub.BillingStatus, evt.Id });
+    }
+
+    [HttpPost("campaign-templates/{subscriptionId:guid}/refund")]
+    [Authorize(Policy = Policies.RefundsOverride)]
+    public async Task<IActionResult> CampaignTemplateRefund(Guid storeId, Guid subscriptionId, [FromBody] CampaignRefundRequest req, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var sub = await _db.StoreCampaignTemplateSubscriptions.FirstOrDefaultAsync(x => x.StoreId == storeId && x.Id == subscriptionId, ct);
+        if (sub == null) return NotFound(new { error = "subscription_not_found" });
+        sub.BillingStatus = "refunded";
+        sub.Status = "inactive";
+        sub.UpdatedAt = DateTimeOffset.UtcNow;
+        _db.CampaignPaymentEvents.Add(new CampaignPaymentEvent
+        {
+            StoreId = storeId,
+            SubscriptionId = sub.Id,
+            EventType = "refund",
+            Reference = string.IsNullOrWhiteSpace(req.Reference) ? $"refund_{Guid.NewGuid():N}"[..24] : req.Reference.Trim(),
+            Gateway = "manual",
+            Status = "refunded",
+            Amount = Math.Min(Math.Max(req.Amount, 0), sub.ChargedAmount),
+            Currency = sub.Currency,
+            PayloadJson = $"{{\"reason\":\"{(req.Reason ?? string.Empty).Replace("\"", "")}\"}}",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { refunded = true, sub.Id, sub.BillingStatus });
+    }
+
+    [HttpPost("campaign-templates/{subscriptionId:guid}/chargeback")]
+    [Authorize(Policy = Policies.RefundsOverride)]
+    public async Task<IActionResult> CampaignTemplateChargeback(Guid storeId, Guid subscriptionId, [FromBody] CampaignChargebackRequest req, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var sub = await _db.StoreCampaignTemplateSubscriptions.FirstOrDefaultAsync(x => x.StoreId == storeId && x.Id == subscriptionId, ct);
+        if (sub == null) return NotFound(new { error = "subscription_not_found" });
+        sub.BillingStatus = "chargeback";
+        sub.Status = "inactive";
+        sub.UpdatedAt = DateTimeOffset.UtcNow;
+        _db.CampaignPaymentEvents.Add(new CampaignPaymentEvent
+        {
+            StoreId = storeId,
+            SubscriptionId = sub.Id,
+            EventType = "chargeback",
+            Reference = string.IsNullOrWhiteSpace(req.Reference) ? $"cb_{Guid.NewGuid():N}"[..24] : req.Reference.Trim(),
+            Gateway = "manual",
+            Status = "chargeback",
+            Amount = sub.ChargedAmount,
+            Currency = sub.Currency,
+            PayloadJson = $"{{\"note\":\"{(req.Note ?? string.Empty).Replace("\"", "")}\"}}",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { chargeback = true, sub.Id, sub.BillingStatus });
+    }
+
     private static HashSet<string> ParseCodes(string csv)
     {
         return csv.Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -1152,6 +1236,36 @@ public class CampaignTemplateCatalogRequest
     public bool IsFeatured { get; set; }
     [Range(0, 9999)]
     public int FeaturedRank { get; set; }
+}
+
+public class CampaignPaymentCallbackRequest
+{
+    [Required, RegularExpression("^(paid|failed|pending)$")]
+    public string Status { get; set; } = "paid";
+    [StringLength(80)]
+    public string? Reference { get; set; }
+    [StringLength(40)]
+    public string? Gateway { get; set; }
+    [StringLength(4000)]
+    public string? PayloadJson { get; set; }
+}
+
+public class CampaignRefundRequest
+{
+    [Range(0, 999999)]
+    public decimal Amount { get; set; }
+    [StringLength(300)]
+    public string? Reason { get; set; }
+    [StringLength(80)]
+    public string? Reference { get; set; }
+}
+
+public class CampaignChargebackRequest
+{
+    [StringLength(300)]
+    public string? Note { get; set; }
+    [StringLength(80)]
+    public string? Reference { get; set; }
 }
 
 public class ThemeCatalogCreateRequest

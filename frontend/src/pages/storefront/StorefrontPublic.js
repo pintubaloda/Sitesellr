@@ -12,6 +12,22 @@ const parseJsonArray = (value) => {
   }
 };
 
+const sanitizeRuntimePackage = (value) => {
+  let parsed = {};
+  try {
+    parsed = JSON.parse(value || "{}");
+  } catch {
+    parsed = {};
+  }
+  // Storefront runtime isolation: only allowlisted keys are honored.
+  return {
+    cardStyle: parsed.cardStyle === "sharp" ? "sharp" : "rounded",
+    heroStyle: parsed.heroStyle === "split" ? "split" : "default",
+    plpDensity: parsed.plpDensity === "compact" ? "compact" : "comfortable",
+    pdpLayout: parsed.pdpLayout === "stacked" ? "stacked" : "split",
+  };
+};
+
 const renderMenu = (items, subdomain, context, depth = 0) => {
   if (!Array.isArray(items) || items.length === 0) return null;
   const visible = items.filter((m) => {
@@ -73,6 +89,8 @@ export default function StorefrontPublic() {
   const [authForm, setAuthForm] = useState({ name: "", email: "", phone: "", password: "" });
   const [authMode, setAuthMode] = useState("login");
   const [authState, setAuthState] = useState({ loading: true, authenticated: false, customer: null, message: "" });
+  const [securityForm, setSecurityForm] = useState({ email: "", otp: "", token: "", newPassword: "" });
+  const [sessions, setSessions] = useState([]);
 
   const slug = useMemo(() => {
     const path = location.pathname.replace(`/s/${subdomain}`, "").replace(/^\//, "");
@@ -154,12 +172,7 @@ export default function StorefrontPublic() {
   const cartTotal = cart.reduce((n, i) => n + (Number(i.price || 0) * i.quantity), 0);
   const typographyPack = (data.theme?.activeTheme?.typographyPack || "modern-sans").toLowerCase();
   const layoutVariant = (data.theme?.activeTheme?.layoutVariant || "default").toLowerCase();
-  let runtimePackage = {};
-  try {
-    runtimePackage = JSON.parse(data.theme?.activeTheme?.runtimePackageJson || "{}");
-  } catch {
-    runtimePackage = {};
-  }
+  const runtimePackage = sanitizeRuntimePackage(data.theme?.activeTheme?.runtimePackageJson || "{}");
   const fontFamily = typographyPack === "merchant-serif"
     ? "Georgia, Cambria, 'Times New Roman', Times, serif"
     : typographyPack === "luxury-display"
@@ -271,6 +284,51 @@ export default function StorefrontPublic() {
       // ignore
     }
     setAuthState({ loading: false, authenticated: false, customer: null, message: "Logged out." });
+  };
+
+  const verifyEmailOtp = async () => {
+    try {
+      await api.post(`/public/storefront/${subdomain}/customer-auth/verify-email`, { email: securityForm.email || authForm.email, otp: securityForm.otp });
+      setAuthState((s) => ({ ...s, message: "Email verified. Login now." }));
+    } catch (err) {
+      setAuthState((s) => ({ ...s, message: err?.response?.data?.error || "Email verification failed." }));
+    }
+  };
+
+  const forgotPassword = async () => {
+    try {
+      const res = await api.post(`/public/storefront/${subdomain}/customer-auth/forgot-password`, { email: securityForm.email || authForm.email });
+      setAuthState((s) => ({ ...s, message: `Reset token: ${res.data?.resetToken || "sent"}` }));
+    } catch (err) {
+      setAuthState((s) => ({ ...s, message: err?.response?.data?.error || "Could not start reset." }));
+    }
+  };
+
+  const resetPassword = async () => {
+    try {
+      await api.post(`/public/storefront/${subdomain}/customer-auth/reset-password`, { token: securityForm.token, newPassword: securityForm.newPassword });
+      setAuthState((s) => ({ ...s, message: "Password reset complete." }));
+    } catch (err) {
+      setAuthState((s) => ({ ...s, message: err?.response?.data?.error || "Could not reset password." }));
+    }
+  };
+
+  const loadSessions = async () => {
+    try {
+      const res = await api.get(`/public/storefront/${subdomain}/customer-auth/sessions`, { withCredentials: true });
+      setSessions(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setSessions([]);
+    }
+  };
+
+  const revokeSession = async (sessionId) => {
+    try {
+      await api.delete(`/public/storefront/${subdomain}/customer-auth/sessions/${sessionId}`, { withCredentials: true });
+      await loadSessions();
+    } catch {
+      // ignore
+    }
   };
 
   const slugParts = slug.split("/").filter(Boolean);
@@ -467,6 +525,31 @@ export default function StorefrontPublic() {
               <button className="w-full h-10 rounded-lg border font-medium" onClick={() => setAuthMode((m) => (m === "register" ? "login" : "register"))}>
                 {authMode === "register" ? "Switch to login" : "Create new account"}
               </button>
+              <div className="border-t pt-3 space-y-2">
+                <p className="text-xs font-semibold text-slate-600">Security tools</p>
+                <input className="w-full h-10 border rounded-lg px-3" placeholder="Email for OTP/reset" value={securityForm.email} onChange={(e) => setSecurityForm((s) => ({ ...s, email: e.target.value }))} />
+                <div className="grid grid-cols-2 gap-2">
+                  <input className="h-10 border rounded-lg px-3" placeholder="OTP" value={securityForm.otp} onChange={(e) => setSecurityForm((s) => ({ ...s, otp: e.target.value }))} />
+                  <button className="h-10 rounded-lg border text-sm" onClick={verifyEmailOtp}>Verify Email</button>
+                </div>
+                <button className="w-full h-10 rounded-lg border text-sm" onClick={forgotPassword}>Forgot Password</button>
+                <div className="grid grid-cols-2 gap-2">
+                  <input className="h-10 border rounded-lg px-3" placeholder="Reset token" value={securityForm.token} onChange={(e) => setSecurityForm((s) => ({ ...s, token: e.target.value }))} />
+                  <input className="h-10 border rounded-lg px-3" placeholder="New password" type="password" value={securityForm.newPassword} onChange={(e) => setSecurityForm((s) => ({ ...s, newPassword: e.target.value }))} />
+                </div>
+                <button className="w-full h-10 rounded-lg border text-sm" onClick={resetPassword}>Reset Password</button>
+              </div>
+              {authState.authenticated ? (
+                <div className="border-t pt-3 space-y-2">
+                  <button className="w-full h-10 rounded-lg border text-sm" onClick={loadSessions}>Load Active Sessions</button>
+                  {sessions.map((s) => (
+                    <div key={s.id} className="text-xs p-2 border rounded flex items-center justify-between gap-2">
+                      <span className="truncate">{s.userAgent || "session"} · {s.clientIp || "ip"}</span>
+                      <button className="text-red-600" onClick={() => revokeSession(s.id)}>Revoke</button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               {authState.message ? <p className="text-sm text-slate-600">{authState.message}</p> : null}
             </div>
           </div>

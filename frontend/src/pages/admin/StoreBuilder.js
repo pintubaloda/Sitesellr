@@ -249,6 +249,7 @@ export const StoreBuilder = () => {
   const [canvasMode, setCanvasMode] = useState("flow");
   const [gridSnap, setGridSnap] = useState(true);
   const [playbackIndex, setPlaybackIndex] = useState(null);
+  const [isTimelinePlaying, setIsTimelinePlaying] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [editorName, setEditorName] = useState("Store Editor");
   const [diffResult, setDiffResult] = useState(null);
@@ -290,6 +291,23 @@ export const StoreBuilder = () => {
   }, [themes, themeCategoryFilter, themeSearch]);
   const selectedNode = useMemo(() => findNodeByIdInTree(sections, selectedNodeId), [sections, selectedNodeId]);
   const historyFrames = useMemo(() => [...pastSections, sections], [pastSections, sections]);
+
+  useEffect(() => {
+    if (!isTimelinePlaying) return undefined;
+    const timer = setInterval(() => {
+      setPlaybackIndex((prev) => {
+        const base = typeof prev === "number" ? prev : 0;
+        const next = base + 1;
+        if (next >= historyFrames.length) {
+          setIsTimelinePlaying(false);
+          return historyFrames.length - 1;
+        }
+        jumpToHistory(next);
+        return next;
+      });
+    }, 900);
+    return () => clearInterval(timer);
+  }, [isTimelinePlaying, historyFrames.length]);
 
   const loadData = async () => {
     if (!storeId) return;
@@ -1576,6 +1594,22 @@ export const StoreBuilder = () => {
                 ) : null}
                 <div className="space-y-2">
                   <Label>Timeline Playback</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button size="sm" variant="outline" onClick={() => { setPlaybackIndex(0); jumpToHistory(0); }}>Reset</Button>
+                    <Button size="sm" variant="outline" onClick={() => setIsTimelinePlaying((p) => !p)}>{isTimelinePlaying ? "Pause" : "Play"}</Button>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(0, historyFrames.length - 1)}
+                    value={typeof playbackIndex === "number" ? playbackIndex : Math.max(0, historyFrames.length - 1)}
+                    onChange={(e) => {
+                      const idx = Number(e.target.value || 0);
+                      setPlaybackIndex(idx);
+                      jumpToHistory(idx);
+                    }}
+                    className="w-full"
+                  />
                   {historyFrames.slice(-8).map((frame, idx) => {
                     const frameIdx = historyFrames.length - Math.min(8, historyFrames.length) + idx;
                     const prev = historyFrames[frameIdx - 1] || [];

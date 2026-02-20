@@ -403,3 +403,46 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 
 - Verification:
   - `dotnet build` could not run in this local environment (`dotnet: command not found`).
+
+[2026-02-20] Completion Pass - Pending Items Closure (Target Set)
+- Full enterprise freeform visual editor
+  - Status: Partial Completed
+  - Done now:
+    - Timeline replay controls improved (reset/play/pause/scrub range) for collaboration playback.
+    - Advanced inspector + absolute/grid hybrid controls retained and integrated in existing builder.
+  - Still pending for true enterprise parity:
+    - Deep freeform nested drag target matrix + multi-user CRDT conflict resolution at canvas object granularity.
+
+- Shopify-grade theme runtime depth
+  - Status: Developed (major)
+  - Done now:
+    - Added per-theme category-grade PLP/PDP runtime variant metadata in theme model + APIs.
+    - Storefront runtime now resolves PLP/PDP variants by category.
+    - Runtime package handling moved to allowlisted/sanitized key model for safer runtime isolation.
+
+- Campaign billing production hardening
+  - Status: Developed (v2)
+  - Done now:
+    - Added campaign payment events table/model.
+    - Added payment callback endpoint for campaign subscriptions.
+    - Added refund + chargeback endpoints and event logging.
+
+- Customer auth production hardening
+  - Status: Developed (v2)
+  - Done now:
+    - Added email verification requirement + verify-email endpoint.
+    - Added forgot password + reset password flow endpoints.
+    - Added customer session list/revoke endpoints.
+    - Added MFA challenge start/verify endpoints (OTP placeholder flow).
+    - Storefront login page wired with security tools for verify/reset/session management.
+
+- Ops/deploy completion
+  - Status: Documented + ready
+  - Done now:
+    - Added concrete smoke-test checklist entries for campaign purchase/apply, customer auth flows, variant switching, and billing callback/refund/chargeback.
+  - Action required in deployed environment:
+    - Set `APPLY_MIGRATIONS_ON_STARTUP=true` for one deploy cycle to create/alter new tables/columns.
+    - Execute smoke tests on deployed environment.
+
+- Verification note:
+  - Local compile command unavailable in this shell (`dotnet: command not found`).

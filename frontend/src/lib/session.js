@@ -25,3 +25,7 @@ export const setStoredStoreId = (storeId) => {
     localStorage.setItem(STORE_ID_KEY, storeId);
   }
 };
+
+export const clearStoredStoreId = () => {
+  localStorage.removeItem(STORE_ID_KEY);
+};

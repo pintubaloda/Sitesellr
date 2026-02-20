@@ -73,6 +73,9 @@ public class TokenResponse
 
     [JsonPropertyName("expires_in")]
     public int ExpiresInSeconds { get; set; }
+
+    [JsonPropertyName("default_store_id")]
+    public Guid? DefaultStoreId { get; set; }
 }
 
 public class RefreshRequest

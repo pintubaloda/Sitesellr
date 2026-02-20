@@ -7,7 +7,7 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { Card, CardContent } from "../../components/ui/card";
 import { useTheme } from "../../context/ThemeContext";
 import api, { setAuthToken } from "../../lib/api";
-import { setStoredTokens } from "../../lib/session";
+import { clearStoredStoreId, setStoredStoreId, setStoredTokens } from "../../lib/session";
 import TurnstileWidget from "../../components/security/TurnstileWidget";
 import {
   Store,
@@ -51,8 +51,16 @@ export const Login = () => {
       });
       const accessToken = response?.data?.access_token;
       const refreshToken = response?.data?.refresh_token;
+      const defaultStoreId = response?.data?.default_store_id;
       setStoredTokens({ accessToken, refreshToken });
       setAuthToken(accessToken);
+      if (defaultStoreId) {
+        setStoredStoreId(defaultStoreId);
+        api.defaults.headers.common["X-Store-Id"] = defaultStoreId;
+      } else {
+        clearStoredStoreId();
+        delete api.defaults.headers.common["X-Store-Id"];
+      }
       navigate("/admin");
     } catch (err) {
       const reason =

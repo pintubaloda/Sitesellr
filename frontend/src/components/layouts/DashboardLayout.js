@@ -24,7 +24,7 @@ import { cn } from "../../lib/utils";
 import { notifications } from "../../lib/mock-data";
 import useActiveStore from "../../hooks/useActiveStore";
 import api, { setAuthToken } from "../../lib/api";
-import { clearStoredTokens, getStoredRefreshToken } from "../../lib/session";
+import { clearStoredStoreId, clearStoredTokens, getStoredRefreshToken } from "../../lib/session";
 import {
   Store,
   LayoutDashboard,
@@ -397,6 +397,8 @@ export const DashboardLayout = () => {
       // Ignore network/logout errors on client-side logout.
     } finally {
       clearStoredTokens();
+      clearStoredStoreId();
+      delete api.defaults.headers.common["X-Store-Id"];
       setAuthToken("");
       navigate("/auth/login");
     }

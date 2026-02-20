@@ -751,3 +751,22 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - Active store selection works reliably after login for `store.owner@sitesellr.local` and other store users.
 - File:
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StoresController.cs`
+
+[2026-02-20] Login Store Binding - Default Store ID from Auth
+- Implemented store binding in auth flow so store users get store context directly at login.
+- Backend token response now includes `default_store_id` (first mapped store by role priority).
+- Applied to:
+  - `/api/auth/login`
+  - `/api/auth/refresh`
+  - `/api/auth/webauthn/login/verify`
+- Frontend now persists and applies `default_store_id` immediately after login.
+- Logout now clears stored store context to prevent stale-store leakage between users.
+- Also aligned onboarding/invite flows to set `X-Store-Id` immediately after store assignment.
+- Files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Models/User.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/auth/Login.js`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/lib/session.js`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/components/layouts/DashboardLayout.js`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/auth/Onboarding.js`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/auth/AcceptInvite.js`

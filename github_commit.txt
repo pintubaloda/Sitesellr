@@ -629,3 +629,18 @@ Notes:
 - File:
   - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StoresController.cs
 - Commit: 6f1c503 (pushed to origin/main)
+
+[2026-02-20] Pending Commit
+- Auth/store binding hardening:
+  - Token response now includes `default_store_id` for login/refresh/webauthn login.
+  - Frontend login persists store id and sets `X-Store-Id` immediately.
+  - Logout clears persisted store context/header to avoid stale store carryover.
+  - Invite/onboarding completion flows also set `X-Store-Id` immediately.
+- Files:
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Models/User.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/auth/Login.js
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/lib/session.js
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/components/layouts/DashboardLayout.js
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/auth/Onboarding.js
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/auth/AcceptInvite.js

@@ -445,3 +445,12 @@ UPDATE [2026-02-20] - STORE CONTEXT RESOLUTION STABILITY
   - Platform users retain platform-wide store listing.
 - Impact:
   - Eliminates persistent `Store is not selected` state for valid store-owner/store-staff users during login and dashboard load.
+
+UPDATE [2026-02-20] - STORE CONTEXT BINDING ON LOGIN
+- Developed:
+  - Auth token response now includes default mapped store id for store users.
+  - Frontend applies store id immediately after login/refresh-compatible auth flows.
+  - Logout now clears previous store context to prevent stale tenant scope.
+- Impact:
+  - Store owner/staff can enter dashboard without manual `REACT_APP_STORE_ID`.
+  - Reduces cross-user store-context conflicts in shared browser sessions.

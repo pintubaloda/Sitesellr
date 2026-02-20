@@ -1200,6 +1200,11 @@ api.MapPost("/auth/login", async (LoginRequest req, AppDbContext db, ITokenServi
     await db.SaveChangesAsync(ct);
 
     var (access, refresh, _, refreshRec) = await tokenService.IssueAsync(user, scope: null, clientIp: ip, userAgent: ua, ct);
+    var defaultStoreId = await db.StoreUserRoles.AsNoTracking()
+        .Where(r => r.UserId == user.Id)
+        .OrderBy(r => r.Role == StoreRole.Owner ? 0 : r.Role == StoreRole.Admin ? 1 : r.Role == StoreRole.Staff ? 2 : 3)
+        .Select(r => (Guid?)r.StoreId)
+        .FirstOrDefaultAsync(ct);
 
     // Set HttpOnly secure cookie for session-style usage
     httpContext.Response.Cookies.Append("session", refresh, new CookieOptions
@@ -1222,7 +1227,8 @@ api.MapPost("/auth/login", async (LoginRequest req, AppDbContext db, ITokenServi
     {
         AccessToken = access,
         RefreshToken = refresh,
-        ExpiresInSeconds = 15 * 60
+        ExpiresInSeconds = 15 * 60,
+        DefaultStoreId = defaultStoreId
     });
 }).WithName("Login");
 
@@ -1243,6 +1249,11 @@ api.MapPost("/auth/refresh", async (RefreshRequest req, AppDbContext db, ITokenS
     await tokenService.RevokeRefreshFamilyAsync(refresh.Id, ct);
 
     var (access, newRefresh, _, refreshRec) = await tokenService.IssueAsync(refresh.User, scope: null, clientIp: ip, userAgent: ua, ct);
+    var defaultStoreId = await db.StoreUserRoles.AsNoTracking()
+        .Where(r => r.UserId == refresh.UserId)
+        .OrderBy(r => r.Role == StoreRole.Owner ? 0 : r.Role == StoreRole.Admin ? 1 : r.Role == StoreRole.Staff ? 2 : 3)
+        .Select(r => (Guid?)r.StoreId)
+        .FirstOrDefaultAsync(ct);
 
     httpContext.Response.Cookies.Append("session", newRefresh, new CookieOptions
     {
@@ -1264,7 +1275,8 @@ api.MapPost("/auth/refresh", async (RefreshRequest req, AppDbContext db, ITokenS
     {
         AccessToken = access,
         RefreshToken = newRefresh,
-        ExpiresInSeconds = 15 * 60
+        ExpiresInSeconds = 15 * 60,
+        DefaultStoreId = defaultStoreId
     });
 }).WithName("Refresh");
 
@@ -1329,6 +1341,11 @@ api.MapPost("/auth/webauthn/login/verify", async (HttpContext ctx, AppDbContext 
     var ip = ctx.Connection.RemoteIpAddress?.ToString();
     var ua = ctx.Request.Headers.UserAgent.ToString();
     var (access, refresh, _, refreshRec) = await tokenService.IssueAsync(user, scope: null, clientIp: ip, userAgent: ua, ct);
+    var defaultStoreId = await db.StoreUserRoles.AsNoTracking()
+        .Where(r => r.UserId == user.Id)
+        .OrderBy(r => r.Role == StoreRole.Owner ? 0 : r.Role == StoreRole.Admin ? 1 : r.Role == StoreRole.Staff ? 2 : 3)
+        .Select(r => (Guid?)r.StoreId)
+        .FirstOrDefaultAsync(ct);
 
     ctx.Response.Cookies.Append("session", refresh, new CookieOptions
     {
@@ -1350,7 +1367,8 @@ api.MapPost("/auth/webauthn/login/verify", async (HttpContext ctx, AppDbContext 
     {
         AccessToken = access,
         RefreshToken = refresh,
-        ExpiresInSeconds = 15 * 60
+        ExpiresInSeconds = 15 * 60,
+        DefaultStoreId = defaultStoreId
     });
 }).WithName("WebAuthnLoginVerify");
 

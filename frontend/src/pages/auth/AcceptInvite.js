@@ -24,7 +24,10 @@ export const AcceptInvite = () => {
     try {
       const res = await api.post("/team-invites/accept", { token, password });
       setStoredTokens({ accessToken: res.data.access_token, refreshToken: res.data.refresh_token });
-      if (res.data.storeId) setStoredStoreId(res.data.storeId);
+      if (res.data.storeId) {
+        setStoredStoreId(res.data.storeId);
+        api.defaults.headers.common["X-Store-Id"] = res.data.storeId;
+      }
       setAuthToken(res.data.access_token);
       navigate("/admin");
     } catch (err) {

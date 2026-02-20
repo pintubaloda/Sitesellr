@@ -89,6 +89,7 @@ export const Onboarding = ({ showHeaderMenu = false }) => {
         });
         if (done.data.storeId) {
           setStoredStoreId(done.data.storeId);
+          api.defaults.headers.common["X-Store-Id"] = done.data.storeId;
         }
         setAuthToken(done.data.access_token);
         navigate("/admin");

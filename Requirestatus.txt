@@ -657,3 +657,18 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Files:
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformRbacController.cs`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformRbac.js`
+
+[2026-02-20] RBAC UI Modernization + Role-Aware Selection
+- Redesigned Platform RBAC page to a modern role-management workflow.
+- Behavior updates:
+  - Select user type -> shows related users list with role badges.
+  - Click user -> fetch and display current role.
+  - Update role directly from role selector.
+- Added backend role APIs for store-user role management:
+  - `GET /api/platform/rbac/stores/{storeId}/users/{userId}/role`
+  - `PUT /api/platform/rbac/stores/{storeId}/users/{userId}/role`
+- Platform role update now uses simple role selector (Owner/Staff) with current role preloaded.
+- Store role update now uses simple role selector (Owner/Admin/Staff) scoped by selected store.
+- Files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformRbac.js`
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformRbacController.cs`

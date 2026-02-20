@@ -396,3 +396,10 @@ UPDATE [2026-02-20] - SIMPLE RBAC MODE
   - Only two assignment targets exposed in UI: Platform Staff and Store Owner.
 - Reduced complexity:
   - Removed manual CSV permission handling from primary RBAC screen.
+
+UPDATE [2026-02-20] - RBAC UI MODERN ROLE FLOW
+- Developed:
+  - Role management UX now matches operational flow: choose type -> choose user -> see current role -> update.
+  - Platform owner role assignment no longer appears as CSV editing.
+- Impact:
+  - Cleaner and faster permission governance for platform owner.

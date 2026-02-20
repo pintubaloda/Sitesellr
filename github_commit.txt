@@ -588,3 +588,10 @@ Notes:
 - RBAC simplified for platform owner operations:
   - Added default user-type assignment endpoint.
   - Replaced complex CSV permission UI with simple default assignment actions for Platform Staff and Store Owner.
+
+[2026-02-20] Pending Commit
+- Platform RBAC UX overhaul:
+  - Modernized user-role assignment UI.
+  - Added current-role fetch on user click.
+  - Added direct role update for both platform and store scopes.
+- Backend added store-role get/update APIs for platform owner operations.

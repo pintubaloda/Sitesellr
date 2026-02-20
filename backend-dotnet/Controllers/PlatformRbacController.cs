@@ -179,6 +179,15 @@ public class PlatformRbacController : ControllerBase
         return Ok(permissions);
     }
 
+    [HttpGet("stores/{storeId:guid}/users/{userId:guid}/role")]
+    public async Task<IActionResult> GetStoreRole(Guid storeId, Guid userId, CancellationToken ct)
+    {
+        var row = await _db.StoreUserRoles.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.StoreId == storeId && x.UserId == userId, ct);
+        if (row == null) return NotFound(new { error = "store_user_role_not_found" });
+        return Ok(new { storeId, userId, role = row.Role.ToString() });
+    }
+
     [HttpPut("stores/{storeId:guid}/users/{userId:guid}/permissions")]
     public async Task<IActionResult> SetStorePermissions(Guid storeId, Guid userId, [FromBody] StorePermissionsRequest req, CancellationToken ct)
     {
@@ -220,6 +229,63 @@ public class PlatformRbacController : ControllerBase
 
         await _db.SaveChangesAsync(ct);
         return Ok(new { storeId, userId, permissions = distinctPermissions });
+    }
+
+    [HttpPut("stores/{storeId:guid}/users/{userId:guid}/role")]
+    public async Task<IActionResult> SetStoreRole(Guid storeId, Guid userId, [FromBody] StoreRoleAssignmentRequest req, CancellationToken ct)
+    {
+        var guardError = ValidateSensitiveAction("store.role.update", req.Reason);
+        if (guardError != null) return guardError;
+        if (!await _db.Stores.AnyAsync(s => s.Id == storeId, ct)) return NotFound(new { error = "store_not_found" });
+        if (!await _db.Users.AnyAsync(u => u.Id == userId, ct)) return NotFound(new { error = "user_not_found" });
+
+        if (!Enum.TryParse<StoreRole>(req.Role, true, out var role))
+            return BadRequest(new { error = "invalid_role", allowed = new[] { "Owner", "Admin", "Staff", "Custom" } });
+
+        var row = await _db.StoreUserRoles.FirstOrDefaultAsync(x => x.StoreId == storeId && x.UserId == userId, ct);
+        if (row == null)
+        {
+            row = new StoreUserRole
+            {
+                StoreId = storeId,
+                UserId = userId,
+                Role = role,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+            _db.StoreUserRoles.Add(row);
+        }
+        else
+        {
+            row.Role = role;
+            if (role != StoreRole.Custom) row.CustomRoleName = null;
+        }
+
+        var existing = _db.StoreUserPermissions.Where(x => x.StoreId == storeId && x.UserId == userId);
+        _db.StoreUserPermissions.RemoveRange(existing);
+        foreach (var permission in PermissionCatalog.GetTemplatePermissions(role).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            _db.StoreUserPermissions.Add(new StoreUserPermission
+            {
+                StoreId = storeId,
+                UserId = userId,
+                Permission = permission,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            StoreId = storeId,
+            ActorUserId = Tenancy?.UserId,
+            Action = "store.role.updated",
+            EntityType = "store_user_role",
+            EntityId = row.Id.ToString(),
+            Details = $"role={role};reason={req.Reason}",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { storeId, userId, role = role.ToString() });
     }
 
     [HttpPost("users/{userId:guid}/assign-default")]
@@ -317,3 +383,5 @@ public record PlatformRolesRequest(List<PlatformRole> Roles, string? Reason);
 public record StorePermissionsRequest(List<string> Permissions, string? Reason);
 
 public record AssignDefaultRoleRequest(string UserType, Guid? StoreId, string? Reason);
+
+public record StoreRoleAssignmentRequest(string Role, string? Reason);

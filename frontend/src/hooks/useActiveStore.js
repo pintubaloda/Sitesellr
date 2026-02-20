@@ -32,7 +32,7 @@ export const useActiveStore = () => {
         if (cancelled) return;
         const rows = Array.isArray(res.data) ? res.data : [];
         setStores(rows);
-        if (!storeId && rows[0]?.id) {
+        if ((!storeId || !rows.some((r) => r.id === storeId)) && rows[0]?.id) {
           setStoreId(rows[0].id);
         }
       })

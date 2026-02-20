@@ -421,3 +421,9 @@ UPDATE [2026-02-20] - AUTO ROLE MENU ON LOGIN
   - Role-based dashboard menu now auto-resolves at login without requiring manual store selection/header.
 - Impact:
   - Assigned roles reflect instantly in visible menus for store users.
+
+UPDATE [2026-02-20] - STORE CONTEXT AUTO-RESOLUTION
+- Developed:
+  - Store users now auto-resolve to a valid store context after login, even when stale store id exists from prior session.
+- Impact:
+  - Eliminates false `Store is not selected` blocks in store-owner admin pages.

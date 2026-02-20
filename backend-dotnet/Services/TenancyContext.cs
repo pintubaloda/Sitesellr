@@ -97,19 +97,51 @@ public class TenancyResolver : ITenancyResolver
                 if (store != null)
                 {
                     var sur = await _db.StoreUserRoles.FirstOrDefaultAsync(r => r.StoreId == store.Id && r.UserId == access.UserId, ct);
-                    role = sur?.Role;
-                    foreach (var permission in PermissionCatalog.GetTemplatePermissions(role))
+                    if (sur != null)
                     {
-                        permissions.Add(permission);
-                    }
+                        role = sur.Role;
+                        foreach (var permission in PermissionCatalog.GetTemplatePermissions(role))
+                        {
+                            permissions.Add(permission);
+                        }
 
-                    var explicitPermissions = await _db.StoreUserPermissions.AsNoTracking()
-                        .Where(p => p.StoreId == store.Id && p.UserId == access.UserId)
-                        .Select(p => p.Permission)
-                        .ToListAsync(ct);
-                    foreach (var permission in explicitPermissions)
+                        var explicitPermissions = await _db.StoreUserPermissions.AsNoTracking()
+                            .Where(p => p.StoreId == store.Id && p.UserId == access.UserId)
+                            .Select(p => p.Permission)
+                            .ToListAsync(ct);
+                        foreach (var permission in explicitPermissions)
+                        {
+                            permissions.Add(permission);
+                        }
+                    }
+                    else
                     {
-                        permissions.Add(permission);
+                        // Header store id may be stale or from another user scope.
+                        // Fallback to first valid membership so store users still resolve correctly after login.
+                        var fallback = await _db.StoreUserRoles
+                            .Include(r => r.Store)
+                            .ThenInclude(s => s.Merchant)
+                            .FirstOrDefaultAsync(r => r.UserId == access.UserId, ct);
+                        if (fallback != null)
+                        {
+                            store = fallback.Store;
+                            merchant = fallback.Store.Merchant;
+                            role = fallback.Role;
+
+                            foreach (var permission in PermissionCatalog.GetTemplatePermissions(role))
+                            {
+                                permissions.Add(permission);
+                            }
+
+                            var explicitPermissions = await _db.StoreUserPermissions.AsNoTracking()
+                                .Where(p => p.StoreId == store.Id && p.UserId == access.UserId)
+                                .Select(p => p.Permission)
+                                .ToListAsync(ct);
+                            foreach (var permission in explicitPermissions)
+                            {
+                                permissions.Add(permission);
+                            }
+                        }
                     }
                 }
                 else

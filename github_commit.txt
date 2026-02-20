@@ -608,3 +608,8 @@ Notes:
 - Auto role-based menu fix on login:
   - Tenancy resolver fallback to first store membership when no store header exists.
   - Ensures immediate role permissions and sidebar rendering for store users.
+
+[2026-02-20] Pending Commit
+- Fix store owner login store-context issue:
+  - Tenancy resolver fallback for invalid/stale store header membership.
+  - Frontend active store auto-correction when stored store id is invalid.

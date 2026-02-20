@@ -697,3 +697,13 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - Dashboard sidebar/menu now appears automatically as per assigned role.
 - File:
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/TenancyContext.cs`
+
+[2026-02-20] Store Owner Login - Store Auto-Selection Fix
+- Fixed store-owner product/settings pages showing `Store is not selected` after login.
+- Backend tenancy fallback improved:
+  - If `X-Store-Id` points to a store where user has no membership, resolver now falls back to user's first valid store membership.
+- Frontend active-store hook improved:
+  - If current stored storeId is missing/invalid against fetched stores, it auto-selects first available store.
+- Files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/TenancyContext.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/hooks/useActiveStore.js`

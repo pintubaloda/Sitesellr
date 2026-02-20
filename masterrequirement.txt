@@ -308,3 +308,12 @@ UPDATE [2026-02-20] - PENDING CLOSURE PASS
 - Ops/Deployment:
   - Developed: Smoke-test checklist expanded for campaign billing + customer auth + variant runtime scenarios.
   - Required on deployment: run one migration-on-startup cycle and execute smoke tests.
+
+UPDATE [2026-02-20] - PROFESSIONAL ECOMMERCE THEME CONTRACT
+- Developed:
+  - Mandatory template contract enforcement for every platform theme.
+  - Section/component schema contract validation (no raw HTML editing path).
+  - Mandatory plugin hook-point contract enforcement for theme/plugin compatibility.
+  - Theme version + contract metadata stored per theme and exposed to runtime APIs.
+- Partial:
+  - Per-theme runtime isolation sandbox is enforced via allowlist handling but still not a separate execution sandbox engine.

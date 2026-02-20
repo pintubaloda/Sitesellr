@@ -21,6 +21,10 @@ const initialForm = {
   typographyPack: "modern-sans",
   layoutVariant: "default",
   runtimePackageJson: "{}",
+  templatesJson: "[\"homepage\",\"product_listing\",\"product_detail\",\"cart\",\"static_page\",\"checkout\"]",
+  sectionSchemasJson: "[{\"name\":\"HeroSection\",\"fields\":[{\"key\":\"title\",\"type\":\"text\"},{\"key\":\"subtitle\",\"type\":\"text\"},{\"key\":\"backgroundImage\",\"type\":\"image\"},{\"key\":\"buttonText\",\"type\":\"text\"},{\"key\":\"buttonUrl\",\"type\":\"url\"}]},{\"name\":\"ProductGridSection\",\"fields\":[{\"key\":\"title\",\"type\":\"text\"},{\"key\":\"collection\",\"type\":\"collection\"}]},{\"name\":\"OfferBannerSection\",\"fields\":[{\"key\":\"title\",\"type\":\"text\"},{\"key\":\"offerCode\",\"type\":\"text\"}]}]",
+  hookPointsJson: "[\"BeforePrice\",\"AfterPrice\",\"BeforeAddToCart\",\"AfterDescription\"]",
+  themeVersion: "1.0.0",
   plpVariantsJson: "[]",
   pdpVariantsJson: "[]",
 };
@@ -75,6 +79,10 @@ export default function PlatformThemes() {
       typographyPack: row.typographyPack || "modern-sans",
       layoutVariant: row.layoutVariant || "default",
       runtimePackageJson: row.runtimePackageJson || "{}",
+      templatesJson: row.templatesJson || "[\"homepage\",\"product_listing\",\"product_detail\",\"cart\",\"static_page\",\"checkout\"]",
+      sectionSchemasJson: row.sectionSchemasJson || "[]",
+      hookPointsJson: row.hookPointsJson || "[\"BeforePrice\",\"AfterPrice\",\"BeforeAddToCart\",\"AfterDescription\"]",
+      themeVersion: row.themeVersion || "1.0.0",
       plpVariantsJson: row.plpVariantsJson || "[]",
       pdpVariantsJson: row.pdpVariantsJson || "[]",
     });
@@ -147,7 +155,11 @@ export default function PlatformThemes() {
           <div className="space-y-2"><Label>Featured rank</Label><Input type="number" value={form.featuredRank} onChange={(e) => setForm((s) => ({ ...s, featuredRank: e.target.value }))} /></div>
           <div className="space-y-2"><Label>Typography pack</Label><Input value={form.typographyPack} onChange={(e) => setForm((s) => ({ ...s, typographyPack: e.target.value }))} /></div>
           <div className="space-y-2"><Label>Layout variant</Label><Input value={form.layoutVariant} onChange={(e) => setForm((s) => ({ ...s, layoutVariant: e.target.value }))} /></div>
+          <div className="space-y-2"><Label>Theme version</Label><Input value={form.themeVersion} onChange={(e) => setForm((s) => ({ ...s, themeVersion: e.target.value }))} /></div>
           <div className="space-y-2 md:col-span-2"><Label>Runtime package JSON</Label><Input value={form.runtimePackageJson} onChange={(e) => setForm((s) => ({ ...s, runtimePackageJson: e.target.value }))} /></div>
+          <div className="space-y-2 md:col-span-2"><Label>Templates JSON (mandatory pages)</Label><Input value={form.templatesJson} onChange={(e) => setForm((s) => ({ ...s, templatesJson: e.target.value }))} /></div>
+          <div className="space-y-2 md:col-span-2"><Label>Section schemas JSON</Label><Input value={form.sectionSchemasJson} onChange={(e) => setForm((s) => ({ ...s, sectionSchemasJson: e.target.value }))} /></div>
+          <div className="space-y-2 md:col-span-2"><Label>Plugin hook points JSON</Label><Input value={form.hookPointsJson} onChange={(e) => setForm((s) => ({ ...s, hookPointsJson: e.target.value }))} /></div>
           <div className="space-y-2 md:col-span-2"><Label>PLP variants JSON</Label><Input value={form.plpVariantsJson} onChange={(e) => setForm((s) => ({ ...s, plpVariantsJson: e.target.value }))} placeholder='[{"category":"default","variant":"cards"}]' /></div>
           <div className="space-y-2 md:col-span-2"><Label>PDP variants JSON</Label><Input value={form.pdpVariantsJson} onChange={(e) => setForm((s) => ({ ...s, pdpVariantsJson: e.target.value }))} placeholder='[{"category":"default","variant":"split"}]' /></div>
           <div className="flex items-center gap-2"><Switch checked={form.isPaid} onCheckedChange={(v) => setForm((s) => ({ ...s, isPaid: v }))} /><Label>Paid theme</Label></div>

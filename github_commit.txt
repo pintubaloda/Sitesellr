@@ -510,3 +510,11 @@ Notes:
 [2026-02-20] Pending Commit (hotfix)
 - Fix CS0833 in StorefrontController campaign payment callback response anonymous type.
 - File: /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StorefrontController.cs
+
+[2026-02-20] Pending Commit
+- Theme system hardening for SaaS-safe ecommerce contract:
+  - Added ThemeContractService validation.
+  - Added mandatory template/hook/schema/version fields on theme model.
+  - Enforced contract in platform theme lifecycle APIs.
+  - Updated startup SQL alters for new theme contract columns.
+  - Updated platform theme admin UI to manage contract JSON.

@@ -389,6 +389,10 @@ public class AppDbContext : DbContext
             b.Property(x => x.TypographyPack).HasMaxLength(60);
             b.Property(x => x.LayoutVariant).HasMaxLength(60);
             b.Property(x => x.RuntimePackageJson).HasMaxLength(4000);
+            b.Property(x => x.TemplatesJson).HasMaxLength(2000);
+            b.Property(x => x.SectionSchemasJson).HasMaxLength(4000);
+            b.Property(x => x.HookPointsJson).HasMaxLength(2000);
+            b.Property(x => x.ThemeVersion).HasMaxLength(40);
             b.Property(x => x.PlpVariantsJson).HasMaxLength(4000);
             b.Property(x => x.PdpVariantsJson).HasMaxLength(4000);
             b.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");

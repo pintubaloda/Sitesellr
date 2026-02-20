@@ -451,3 +451,15 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Cause: duplicate anonymous property names in campaign payment callback response (`sub.Id` and `evt.Id`).
 - Fix: renamed response fields to explicit names: `subscriptionId`, `billingStatus`, `eventId`.
 - File: /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StorefrontController.cs
+
+[2026-02-20] Theme Contract Enforcement (Multi-tenant Ecommerce-safe)
+- Implemented strict platform theme contract validation service.
+- Enforced mandatory templates at theme create/update:
+  - homepage, product_listing, product_detail, cart, static_page, checkout
+- Enforced mandatory plugin hooks:
+  - BeforePrice, AfterPrice, BeforeAddToCart, AfterDescription
+- Enforced schema-driven sections and blocked raw HTML-style fields.
+- Added versioned contract metadata on themes:
+  - TemplatesJson, SectionSchemasJson, HookPointsJson, ThemeVersion
+- Wired platform theme UI fields for contract metadata input/edit.
+- Exposed theme contract metadata via storefront/public APIs for runtime compliance checks.

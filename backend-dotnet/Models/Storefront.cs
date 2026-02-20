@@ -28,6 +28,14 @@ public class ThemeCatalogItem
     public string LayoutVariant { get; set; } = "default";
     [MaxLength(4000)]
     public string RuntimePackageJson { get; set; } = "{}";
+    [MaxLength(2000)]
+    public string TemplatesJson { get; set; } = "[\"homepage\",\"product_listing\",\"product_detail\",\"cart\",\"static_page\",\"checkout\"]";
+    [MaxLength(4000)]
+    public string SectionSchemasJson { get; set; } = "[]";
+    [MaxLength(2000)]
+    public string HookPointsJson { get; set; } = "[\"BeforePrice\",\"AfterPrice\",\"BeforeAddToCart\",\"AfterDescription\"]";
+    [MaxLength(40)]
+    public string ThemeVersion { get; set; } = "1.0.0";
     [MaxLength(4000)]
     public string PlpVariantsJson { get; set; } = "[]";
     [MaxLength(4000)]

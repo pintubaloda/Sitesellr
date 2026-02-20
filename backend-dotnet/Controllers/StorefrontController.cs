@@ -65,6 +65,10 @@ public class StorefrontController : ControllerBase
                 t.Price,
                 t.AllowedPlanCodesCsv,
                 t.RuntimePackageJson,
+                t.TemplatesJson,
+                t.SectionSchemasJson,
+                t.HookPointsJson,
+                t.ThemeVersion,
                 t.PlpVariantsJson,
                 t.PdpVariantsJson,
                 PlanAllowed = planAllowed
@@ -973,10 +977,12 @@ public class StorefrontController : ControllerBase
 public class PlatformThemesController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IThemeContractService _contract;
 
-    public PlatformThemesController(AppDbContext db)
+    public PlatformThemesController(AppDbContext db, IThemeContractService contract)
     {
         _db = db;
+        _contract = contract;
     }
 
     [HttpGet]
@@ -996,6 +1002,11 @@ public class PlatformThemesController : ControllerBase
         var slug = req.Slug.Trim().ToLowerInvariant();
         var exists = await _db.ThemeCatalogItems.AsNoTracking().AnyAsync(x => x.Slug == slug, ct);
         if (exists) return Conflict(new { error = "slug_exists" });
+        var templatesJson = string.IsNullOrWhiteSpace(req.TemplatesJson) ? "[\"homepage\",\"product_listing\",\"product_detail\",\"cart\",\"static_page\",\"checkout\"]" : req.TemplatesJson.Trim();
+        var sectionSchemasJson = string.IsNullOrWhiteSpace(req.SectionSchemasJson) ? "[]" : req.SectionSchemasJson.Trim();
+        var hookPointsJson = string.IsNullOrWhiteSpace(req.HookPointsJson) ? "[\"BeforePrice\",\"AfterPrice\",\"BeforeAddToCart\",\"AfterDescription\"]" : req.HookPointsJson.Trim();
+        if (!_contract.Validate(templatesJson, sectionSchemasJson, hookPointsJson, out var contractError))
+            return BadRequest(new { error = contractError });
         var row = new ThemeCatalogItem
         {
             Name = req.Name.Trim(),
@@ -1012,6 +1023,10 @@ public class PlatformThemesController : ControllerBase
             TypographyPack = string.IsNullOrWhiteSpace(req.TypographyPack) ? "modern-sans" : req.TypographyPack.Trim().ToLowerInvariant(),
             LayoutVariant = string.IsNullOrWhiteSpace(req.LayoutVariant) ? "default" : req.LayoutVariant.Trim().ToLowerInvariant(),
             RuntimePackageJson = string.IsNullOrWhiteSpace(req.RuntimePackageJson) ? "{}" : req.RuntimePackageJson.Trim(),
+            TemplatesJson = templatesJson,
+            SectionSchemasJson = sectionSchemasJson,
+            HookPointsJson = hookPointsJson,
+            ThemeVersion = string.IsNullOrWhiteSpace(req.ThemeVersion) ? "1.0.0" : req.ThemeVersion.Trim(),
             PlpVariantsJson = string.IsNullOrWhiteSpace(req.PlpVariantsJson) ? "[]" : req.PlpVariantsJson.Trim(),
             PdpVariantsJson = string.IsNullOrWhiteSpace(req.PdpVariantsJson) ? "[]" : req.PdpVariantsJson.Trim(),
             CreatedAt = DateTimeOffset.UtcNow,
@@ -1031,6 +1046,11 @@ public class PlatformThemesController : ControllerBase
         var slug = req.Slug.Trim().ToLowerInvariant();
         var slugExists = await _db.ThemeCatalogItems.AsNoTracking().AnyAsync(x => x.Slug == slug && x.Id != id, ct);
         if (slugExists) return Conflict(new { error = "slug_exists" });
+        var templatesJson = string.IsNullOrWhiteSpace(req.TemplatesJson) ? row.TemplatesJson : req.TemplatesJson.Trim();
+        var sectionSchemasJson = string.IsNullOrWhiteSpace(req.SectionSchemasJson) ? row.SectionSchemasJson : req.SectionSchemasJson.Trim();
+        var hookPointsJson = string.IsNullOrWhiteSpace(req.HookPointsJson) ? row.HookPointsJson : req.HookPointsJson.Trim();
+        if (!_contract.Validate(templatesJson, sectionSchemasJson, hookPointsJson, out var contractError))
+            return BadRequest(new { error = contractError });
 
         row.Name = req.Name.Trim();
         row.Slug = slug;
@@ -1046,6 +1066,10 @@ public class PlatformThemesController : ControllerBase
         row.TypographyPack = string.IsNullOrWhiteSpace(req.TypographyPack) ? "modern-sans" : req.TypographyPack.Trim().ToLowerInvariant();
         row.LayoutVariant = string.IsNullOrWhiteSpace(req.LayoutVariant) ? "default" : req.LayoutVariant.Trim().ToLowerInvariant();
         row.RuntimePackageJson = string.IsNullOrWhiteSpace(req.RuntimePackageJson) ? "{}" : req.RuntimePackageJson.Trim();
+        row.TemplatesJson = templatesJson;
+        row.SectionSchemasJson = sectionSchemasJson;
+        row.HookPointsJson = hookPointsJson;
+        row.ThemeVersion = string.IsNullOrWhiteSpace(req.ThemeVersion) ? row.ThemeVersion : req.ThemeVersion.Trim();
         row.PlpVariantsJson = string.IsNullOrWhiteSpace(req.PlpVariantsJson) ? "[]" : req.PlpVariantsJson.Trim();
         row.PdpVariantsJson = string.IsNullOrWhiteSpace(req.PdpVariantsJson) ? "[]" : req.PdpVariantsJson.Trim();
         row.UpdatedAt = DateTimeOffset.UtcNow;
@@ -1295,6 +1319,14 @@ public class ThemeCatalogCreateRequest
     public string? LayoutVariant { get; set; }
     [StringLength(4000)]
     public string? RuntimePackageJson { get; set; }
+    [StringLength(2000)]
+    public string? TemplatesJson { get; set; }
+    [StringLength(4000)]
+    public string? SectionSchemasJson { get; set; }
+    [StringLength(2000)]
+    public string? HookPointsJson { get; set; }
+    [StringLength(40)]
+    public string? ThemeVersion { get; set; }
     [StringLength(4000)]
     public string? PlpVariantsJson { get; set; }
     [StringLength(4000)]
@@ -1328,6 +1360,14 @@ public class ThemeCatalogUpdateRequest
     public string? LayoutVariant { get; set; }
     [StringLength(4000)]
     public string? RuntimePackageJson { get; set; }
+    [StringLength(2000)]
+    public string? TemplatesJson { get; set; }
+    [StringLength(4000)]
+    public string? SectionSchemasJson { get; set; }
+    [StringLength(2000)]
+    public string? HookPointsJson { get; set; }
+    [StringLength(40)]
+    public string? ThemeVersion { get; set; }
     [StringLength(4000)]
     public string? PlpVariantsJson { get; set; }
     [StringLength(4000)]

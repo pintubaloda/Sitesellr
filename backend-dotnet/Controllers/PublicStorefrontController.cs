@@ -97,6 +97,10 @@ public class PublicStorefrontController : ControllerBase
                     theme.ActiveTheme.TypographyPack,
                     theme.ActiveTheme.LayoutVariant,
                     theme.ActiveTheme.RuntimePackageJson,
+                    theme.ActiveTheme.TemplatesJson,
+                    theme.ActiveTheme.SectionSchemasJson,
+                    theme.ActiveTheme.HookPointsJson,
+                    theme.ActiveTheme.ThemeVersion,
                     theme.ActiveTheme.PlpVariantsJson,
                     theme.ActiveTheme.PdpVariantsJson
                 },

@@ -32,6 +32,7 @@ export const Onboarding = ({ showHeaderMenu = false }) => {
     storeName: "",
     subdomain: "",
   });
+  const selectedPlan = plans.find((p) => p.code === form.planCode);
 
   useEffect(() => {
     api.get("/onboarding/plans").then((res) => {
@@ -252,6 +253,18 @@ export const Onboarding = ({ showHeaderMenu = false }) => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedPlan?.capabilities ? (
+                    <div className="rounded-xl border bg-slate-50 px-3 py-2 text-xs text-slate-700 space-y-1">
+                      <p><b>Products:</b> {selectedPlan.capabilities.maxProducts}</p>
+                      <p><b>Variants per product:</b> {selectedPlan.capabilities.maxVariantsPerProduct}</p>
+                      <p><b>Theme tier:</b> {selectedPlan.capabilities.allowedThemeTier}</p>
+                      <p><b>Premium themes:</b> {selectedPlan.capabilities.premiumThemeAccess ? "Yes" : "No"}</p>
+                      <p><b>Payment gateways:</b> {selectedPlan.capabilities.maxPaymentGateways}</p>
+                      <p><b>Plugins:</b> {selectedPlan.capabilities.maxPluginsInstalled}</p>
+                      <p><b>SMS quota:</b> {selectedPlan.capabilities.smsEnabled ? selectedPlan.capabilities.smsQuotaMonthly : 0}/month</p>
+                      <p><b>WhatsApp:</b> {selectedPlan.capabilities.whatsappEnabled ? selectedPlan.capabilities.whatsappFeaturesTier : "Disabled"}</p>
+                    </div>
+                  ) : null}
                 </div>
               )}
 

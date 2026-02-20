@@ -528,3 +528,11 @@ Notes:
 - Backend: `/api/platform/themes/import-zip` with manifest parse + contract validation + asset extraction.
 - Frontend: Platform Themes upload panel (`Upload & Import`).
 - Spec file: `THEME_ZIP_SPEC.md`.
+
+[2026-02-20] Pending Commit
+- Subscription capability system implementation:
+  - expanded BillingPlan capability fields + StoreUsageCounter model
+  - subscription capability service and server-side enforcement hooks
+  - new subscription and platform billing plan APIs
+  - onboarding plan capability output
+  - default plan capability seeding

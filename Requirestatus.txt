@@ -478,3 +478,26 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - Creates/updates theme catalog record automatically.
 - Added Platform UI panel for ZIP upload/import in Platform Themes page.
 - Added packaging guide: `/Volumes/Rakesh/RBproject/sitesellr/THEME_ZIP_SPEC.md`.
+
+[2026-02-20] Subscription Capability Engine (Phase-1 Implemented)
+- Added capability-centric billing plan model (limits + feature flags + capabilities JSON envelope).
+- Added usage counters table/model (`store_usage_counters`) for monthly metering.
+- Added backend service: `ISubscriptionCapabilityService` with:
+  - effective capability resolution
+  - server-side check for product creation limits
+  - server-side check for theme apply limits/tier/premium access
+  - usage counter retrieval/update
+- Enforced limits at API layer:
+  - Product create/update variant checks
+  - Theme apply checks (tier/premium/install limit)
+- Added subscription APIs:
+  - `GET /api/stores/{storeId}/subscription/capabilities`
+  - `GET /api/stores/{storeId}/subscription/usage`
+  - `POST /api/stores/{storeId}/subscription/preview-check`
+  - Platform owner billing plan management:
+    - `GET /api/platform/billing-plans`
+    - `POST /api/platform/billing-plans`
+    - `PUT /api/platform/billing-plans/{id}`
+- Onboarding plan endpoint now returns capability summary per plan.
+- Seeded/upserted default plans with capability profiles: free, growth, pro, enterprise.
+- Startup SQL migration-on-startup now includes new billing columns and usage table.

@@ -11,10 +11,12 @@ namespace backend_dotnet.Controllers;
 public class ProductsController : BaseApiController
 {
     private readonly AppDbContext _db;
+    private readonly ISubscriptionCapabilityService _caps;
 
-    public ProductsController(AppDbContext db)
+    public ProductsController(AppDbContext db, ISubscriptionCapabilityService caps)
     {
         _db = db;
+        _caps = caps;
     }
 
     [HttpGet]
@@ -43,6 +45,8 @@ public class ProductsController : BaseApiController
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
         if (input.StoreId == Guid.Empty) return BadRequest(new { error = "store_required" });
         if (Tenancy?.Store != null && Tenancy.Store.Id != input.StoreId) return Forbid();
+        var check = await _caps.CheckProductsCreateAsync(input.StoreId, input.Variants?.Count ?? 0, ct);
+        if (!check.Allowed) return StatusCode(StatusCodes.Status403Forbidden, new { error = check.Error, details = check.Details });
         input.Id = Guid.NewGuid();
         input.CreatedAt = DateTimeOffset.UtcNow;
         input.UpdatedAt = DateTimeOffset.UtcNow;
@@ -89,6 +93,13 @@ public class ProductsController : BaseApiController
         product.IsPublished = input.IsPublished;
         product.CategoryId = input.CategoryId;
         product.UpdatedAt = DateTimeOffset.UtcNow;
+        var caps = await _caps.GetCapabilitiesAsync(input.StoreId, ct);
+        if (caps.MaxVariantsPerProduct > 0 && (input.Variants?.Count ?? 0) > caps.MaxVariantsPerProduct)
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                error = "plan_limit_exceeded",
+                details = new { action = "products.variants", limit = caps.MaxVariantsPerProduct, current = input.Variants?.Count ?? 0 }
+            });
 
         if (input.Variants?.Count > 0)
         {

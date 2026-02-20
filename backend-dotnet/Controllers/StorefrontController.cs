@@ -19,12 +19,14 @@ public class StorefrontController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IEmailService _emailService;
+    private readonly ISubscriptionCapabilityService _caps;
     private TenancyContext? Tenancy => HttpContext.Items["Tenancy"] as TenancyContext;
 
-    public StorefrontController(AppDbContext db, IEmailService emailService)
+    public StorefrontController(AppDbContext db, IEmailService emailService, ISubscriptionCapabilityService caps)
     {
         _db = db;
         _emailService = emailService;
+        _caps = caps;
     }
 
     [HttpGet("themes")]
@@ -104,6 +106,10 @@ public class StorefrontController : ControllerBase
                     return BadRequest(new { error = "plan_not_eligible_for_theme" });
             }
         }
+
+        var themeTier = theme.IsPaid ? "premium" : "free";
+        var gate = await _caps.CheckThemeApplyAsync(storeId, theme.IsPaid, themeTier, ct);
+        if (!gate.Allowed) return StatusCode(StatusCodes.Status403Forbidden, new { error = gate.Error, details = gate.Details });
 
         var config = await _db.StoreThemeConfigs.FirstOrDefaultAsync(x => x.StoreId == storeId, ct);
         if (config == null)

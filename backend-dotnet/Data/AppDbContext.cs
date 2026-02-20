@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<BillingPlan> BillingPlans => Set<BillingPlan>();
     public DbSet<MerchantSubscription> MerchantSubscriptions => Set<MerchantSubscription>();
+    public DbSet<StoreUsageCounter> StoreUsageCounters => Set<StoreUsageCounter>();
     public DbSet<TeamInviteToken> TeamInviteTokens => Set<TeamInviteToken>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<MerchantOnboardingProfile> MerchantOnboardingProfiles => Set<MerchantOnboardingProfile>();
@@ -263,6 +264,11 @@ public class AppDbContext : DbContext
             b.Property(p => p.Name).IsRequired().HasMaxLength(120);
             b.Property(p => p.Code).IsRequired().HasMaxLength(50);
             b.Property(p => p.PricePerMonth).HasColumnType("numeric(18,2)");
+            b.Property(p => p.AllowedGatewayTypesJson).HasMaxLength(500);
+            b.Property(p => p.WhatsappFeaturesTier).HasMaxLength(40);
+            b.Property(p => p.AllowedPluginTiersJson).HasMaxLength(500);
+            b.Property(p => p.AllowedThemeTier).HasMaxLength(40);
+            b.Property(p => p.CapabilitiesJson).HasMaxLength(4000);
             b.Property(p => p.CreatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(p => p.Code).IsUnique();
         });
@@ -276,6 +282,16 @@ public class AppDbContext : DbContext
             b.Property(s => s.ExpiresAt).HasColumnType("timestamp with time zone");
             b.HasOne(s => s.Merchant).WithMany().HasForeignKey(s => s.MerchantId);
             b.HasOne(s => s.Plan).WithMany().HasForeignKey(s => s.PlanId);
+        });
+
+        modelBuilder.Entity<StoreUsageCounter>(b =>
+        {
+            b.ToTable("store_usage_counters");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.PeriodKey).HasMaxLength(20);
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.PeriodKey }).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<TeamInviteToken>(b =>

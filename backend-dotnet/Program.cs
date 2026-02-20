@@ -85,6 +85,7 @@ builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>()
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IThemeContractService, ThemeContractService>();
+builder.Services.AddScoped<ISubscriptionCapabilityService, SubscriptionCapabilityService>();
 builder.Services.AddHttpClient<ITurnstileService, TurnstileService>();
 builder.Services.AddScoped<IWebAuthnService, WebAuthnService>();
 builder.Services.AddScoped<ITenancyResolver, TenancyResolver>();
@@ -217,6 +218,37 @@ CREATE TABLE IF NOT EXISTS team_invite_tokens (
   ""CreatedByUserId"" uuid NULL
 );");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_team_invite_tokens_TokenHash ON team_invite_tokens (""TokenHash"");");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""MaxVariantsPerProduct"" integer NOT NULL DEFAULT 100;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""MaxCategories"" integer NOT NULL DEFAULT 100;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""MaxPaymentGateways"" integer NOT NULL DEFAULT 1;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""AllowedGatewayTypesJson"" character varying(500) NOT NULL DEFAULT '[]';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""CodEnabled"" boolean NOT NULL DEFAULT true;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""SmsEnabled"" boolean NOT NULL DEFAULT false;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""SmsQuotaMonthly"" integer NOT NULL DEFAULT 0;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""EmailEnabled"" boolean NOT NULL DEFAULT true;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""EmailQuotaMonthly"" integer NOT NULL DEFAULT 5000;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""WhatsappEnabled"" boolean NOT NULL DEFAULT false;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""WhatsappFeaturesTier"" character varying(40) NOT NULL DEFAULT 'none';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""MaxPluginsInstalled"" integer NOT NULL DEFAULT 2;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""AllowedPluginTiersJson"" character varying(500) NOT NULL DEFAULT '[]';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""PaidPluginsAllowed"" boolean NOT NULL DEFAULT false;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""AllowedThemeTier"" character varying(40) NOT NULL DEFAULT 'free';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""MaxThemeInstalls"" integer NOT NULL DEFAULT 1;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""PremiumThemeAccess"" boolean NOT NULL DEFAULT false;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS ""CapabilitiesJson"" character varying(4000) NOT NULL DEFAULT '{{}}';");
+    await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS store_usage_counters (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""PeriodKey"" character varying(20) NOT NULL,
+  ""SmsSent"" integer NOT NULL DEFAULT 0,
+  ""EmailSent"" integer NOT NULL DEFAULT 0,
+  ""WhatsappMessagesSent"" integer NOT NULL DEFAULT 0,
+  ""PluginsInstalled"" integer NOT NULL DEFAULT 0,
+  ""ThemeInstalls"" integer NOT NULL DEFAULT 0,
+  ""UpdatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_usage_counters_StoreId_PeriodKey ON store_usage_counters (""StoreId"", ""PeriodKey"");");
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS audit_logs (
   ""Id"" uuid PRIMARY KEY,
@@ -630,6 +662,44 @@ if (!string.IsNullOrWhiteSpace(platformOwnerEmail))
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    async Task EnsurePlanAsync(string code, string name, decimal price, int trialDays, int maxProducts, int maxVariantsPerProduct, int maxPaymentGateways, bool premiumThemeAccess, string allowedThemeTier, int maxPluginsInstalled, bool whatsappEnabled, string whatsappTier, bool smsEnabled, int smsQuota)
+    {
+        var row = await db.BillingPlans.FirstOrDefaultAsync(x => x.Code == code);
+        if (row == null)
+        {
+            row = new BillingPlan { Code = code, Name = name, CreatedAt = DateTimeOffset.UtcNow };
+            db.BillingPlans.Add(row);
+        }
+        row.PricePerMonth = price;
+        row.TrialDays = trialDays;
+        row.MaxProducts = maxProducts;
+        row.MaxVariantsPerProduct = maxVariantsPerProduct;
+        row.MaxPaymentGateways = maxPaymentGateways;
+        row.CodEnabled = true;
+        row.MaxCategories = Math.Max(20, maxProducts / 5);
+        row.PremiumThemeAccess = premiumThemeAccess;
+        row.AllowedThemeTier = allowedThemeTier;
+        row.MaxThemeInstalls = code == "free" ? 1 : code == "growth" ? 5 : 20;
+        row.MaxPluginsInstalled = maxPluginsInstalled;
+        row.PaidPluginsAllowed = code != "free";
+        row.AllowedPluginTiersJson = code == "free" ? "[\"free\"]" : code == "growth" ? "[\"free\",\"standard\"]" : "[\"free\",\"standard\",\"premium\"]";
+        row.AllowedGatewayTypesJson = code == "free" ? "[\"upi\"]" : "[\"upi\",\"card\",\"cod\"]";
+        row.WhatsappEnabled = whatsappEnabled;
+        row.WhatsappFeaturesTier = whatsappTier;
+        row.SmsEnabled = smsEnabled;
+        row.SmsQuotaMonthly = smsQuota;
+        row.EmailEnabled = true;
+        row.EmailQuotaMonthly = code == "free" ? 1000 : code == "growth" ? 10000 : 100000;
+        row.CapabilitiesJson = "{}";
+        row.IsActive = true;
+    }
+
+    await EnsurePlanAsync("free", "Free", 0, 14, 50, 20, 1, false, "free", 2, false, "none", false, 0);
+    await EnsurePlanAsync("growth", "Growth", 1499, 14, 500, 100, 3, true, "standard", 10, true, "basic", true, 2000);
+    await EnsurePlanAsync("pro", "Pro", 2999, 14, 5000, 250, 10, true, "premium", 50, true, "full", true, 10000);
+    await EnsurePlanAsync("enterprise", "Enterprise", 7999, 14, 100000, 1000, 50, true, "enterprise", 500, true, "full", true, 50000);
+    await db.SaveChangesAsync();
+
     async Task EnsureThemeAsync(
         string name,
         string slug,
@@ -1436,16 +1506,42 @@ api.MapGet("/onboarding/plans", async (AppDbContext db, CancellationToken ct) =>
     var plans = await db.BillingPlans.AsNoTracking()
         .Where(x => x.IsActive)
         .OrderBy(x => x.PricePerMonth)
-        .Select(x => new { x.Code, x.Name, x.PricePerMonth, x.TrialDays })
+        .Select(x => new
+        {
+            x.Code,
+            x.Name,
+            x.PricePerMonth,
+            x.TrialDays,
+            capabilities = new
+            {
+                x.MaxProducts,
+                x.MaxVariantsPerProduct,
+                x.MaxCategories,
+                x.MaxPaymentGateways,
+                x.CodEnabled,
+                x.SmsEnabled,
+                x.SmsQuotaMonthly,
+                x.EmailEnabled,
+                x.EmailQuotaMonthly,
+                x.WhatsappEnabled,
+                x.WhatsappFeaturesTier,
+                x.MaxPluginsInstalled,
+                x.PaidPluginsAllowed,
+                x.AllowedThemeTier,
+                x.MaxThemeInstalls,
+                x.PremiumThemeAccess
+            }
+        })
         .ToListAsync(ct);
 
     if (plans.Count == 0)
     {
         return Results.Ok(new[]
         {
-            new { Code = "free", Name = "Free", PricePerMonth = 0m, TrialDays = 14 },
-            new { Code = "pro", Name = "Pro", PricePerMonth = 1999m, TrialDays = 14 },
-            new { Code = "enterprise", Name = "Enterprise", PricePerMonth = 7999m, TrialDays = 14 }
+            new { Code = "free", Name = "Free", PricePerMonth = 0m, TrialDays = 14, capabilities = new { maxProducts = 50, maxVariantsPerProduct = 20, maxPaymentGateways = 1, allowedThemeTier = "free", premiumThemeAccess = false, maxPluginsInstalled = 2, smsEnabled = false, smsQuotaMonthly = 0, whatsappEnabled = false, whatsappFeaturesTier = "none" } },
+            new { Code = "growth", Name = "Growth", PricePerMonth = 1499m, TrialDays = 14, capabilities = new { maxProducts = 500, maxVariantsPerProduct = 100, maxPaymentGateways = 3, allowedThemeTier = "standard", premiumThemeAccess = true, maxPluginsInstalled = 10, smsEnabled = true, smsQuotaMonthly = 2000, whatsappEnabled = true, whatsappFeaturesTier = "basic" } },
+            new { Code = "pro", Name = "Pro", PricePerMonth = 2999m, TrialDays = 14, capabilities = new { maxProducts = 5000, maxVariantsPerProduct = 250, maxPaymentGateways = 10, allowedThemeTier = "premium", premiumThemeAccess = true, maxPluginsInstalled = 50, smsEnabled = true, smsQuotaMonthly = 10000, whatsappEnabled = true, whatsappFeaturesTier = "full" } },
+            new { Code = "enterprise", Name = "Enterprise", PricePerMonth = 7999m, TrialDays = 14, capabilities = new { maxProducts = 100000, maxVariantsPerProduct = 1000, maxPaymentGateways = 50, allowedThemeTier = "enterprise", premiumThemeAccess = true, maxPluginsInstalled = 500, smsEnabled = true, smsQuotaMonthly = 50000, whatsappEnabled = true, whatsappFeaturesTier = "full" } }
         });
     }
 

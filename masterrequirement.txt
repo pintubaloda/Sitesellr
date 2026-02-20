@@ -317,3 +317,14 @@ UPDATE [2026-02-20] - PROFESSIONAL ECOMMERCE THEME CONTRACT
   - Theme version + contract metadata stored per theme and exposed to runtime APIs.
 - Partial:
   - Per-theme runtime isolation sandbox is enforced via allowlist handling but still not a separate execution sandbox engine.
+
+UPDATE [2026-02-20] - SUBSCRIPTION = CAPABILITY ENVELOPE (PHASE 1)
+- Developed:
+  - Plan capability model implemented (theme/product/payment/sms/email/whatsapp/plugin gating attributes).
+  - API/service-layer enforcement started for critical actions (products create, theme apply).
+  - Subscription capability + usage APIs added for store-level visibility.
+  - Platform billing plan management APIs added for capability editing.
+  - Onboarding plan selection API now includes capability summaries for plan comparison.
+- Partial:
+  - Full enforcement across all domains (gateways/plugins/communication sends) still to wire into each module endpoint.
+  - Distributed cache (Redis) for capability reads not yet enabled; current service uses in-process cache.

@@ -506,3 +506,7 @@ Notes:
   - Store builder timeline replay controls enhanced.
 - Smoke tests:
   - Updated admin smoke checklist for newly added flows.
+
+[2026-02-20] Pending Commit (hotfix)
+- Fix CS0833 in StorefrontController campaign payment callback response anonymous type.
+- File: /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StorefrontController.cs

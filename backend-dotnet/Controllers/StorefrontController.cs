@@ -720,7 +720,7 @@ public class StorefrontController : ControllerBase
         };
         _db.CampaignPaymentEvents.Add(evt);
         await _db.SaveChangesAsync(ct);
-        return Ok(new { updated = true, sub.Id, sub.BillingStatus, evt.Id });
+        return Ok(new { updated = true, subscriptionId = sub.Id, billingStatus = sub.BillingStatus, eventId = evt.Id });
     }
 
     [HttpPost("campaign-templates/{subscriptionId:guid}/refund")]

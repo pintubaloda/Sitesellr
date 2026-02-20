@@ -446,3 +446,8 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 
 - Verification note:
   - Local compile command unavailable in this shell (`dotnet: command not found`).
+
+[2026-02-20] Hotfix - Docker publish compile error CS0833
+- Cause: duplicate anonymous property names in campaign payment callback response (`sub.Id` and `evt.Id`).
+- Fix: renamed response fields to explicit names: `subscriptionId`, `billingStatus`, `eventId`.
+- File: /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StorefrontController.cs

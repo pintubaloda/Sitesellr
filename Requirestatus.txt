@@ -501,3 +501,9 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Onboarding plan endpoint now returns capability summary per plan.
 - Seeded/upserted default plans with capability profiles: free, growth, pro, enterprise.
 - Startup SQL migration-on-startup now includes new billing columns and usage table.
+
+[2026-02-20] Deploy Hotfix - inotify/file watcher crash on Render
+- Issue: `System.IO.IOException` due to inotify/file watcher limit during host startup.
+- Fix: disabled host config reload-on-change watcher at process start using:
+  - `DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false`
+- File: /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs

@@ -539,3 +539,11 @@ Notes:
 
 [2026-02-20] Pending Commit
 - Added platform global branding module with DB settings table + API + admin UI and landing/admin runtime application.
+
+[2026-02-20] Pending Commit
+- Product/order hardening:
+  - variant reserved quantity + reservation/release endpoints + atomic deduction in checkout
+  - categories API with plan limit enforcement
+  - product CSV import async jobs + row validation report
+  - public storefront caching
+  - load/smoke artifacts and backend-ui wiring status sheet

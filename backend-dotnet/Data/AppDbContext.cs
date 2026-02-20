@@ -194,6 +194,7 @@ public class AppDbContext : DbContext
             b.HasKey(v => v.Id);
             b.Property(v => v.SKU).HasMaxLength(64);
             b.Property(v => v.Price).HasColumnType("numeric(18,2)");
+            b.Property(v => v.ReservedQuantity).HasDefaultValue(0);
             b.Property(v => v.AttributesJson).HasMaxLength(200);
             b.HasOne(v => v.Product).WithMany(p => p.Variants).HasForeignKey(v => v.ProductId);
         });

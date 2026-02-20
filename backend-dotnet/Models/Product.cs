@@ -68,6 +68,7 @@ public class ProductVariant
 
     public decimal Price { get; set; }
     public int Quantity { get; set; }
+    public int ReservedQuantity { get; set; }
 
     [MaxLength(200)]
     public string? AttributesJson { get; set; } // simple key/value pairs JSON

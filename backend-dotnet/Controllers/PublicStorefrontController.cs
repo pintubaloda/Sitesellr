@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace backend_dotnet.Controllers;
 
@@ -12,18 +13,23 @@ namespace backend_dotnet.Controllers;
 [Route("api/public/storefront")]
 public class PublicStorefrontController : ControllerBase
 {
+    private static readonly Dictionary<string, List<(Guid VariantId, int Qty)>> ReservationBuckets = new(StringComparer.OrdinalIgnoreCase);
     private readonly AppDbContext _db;
     private readonly backend_dotnet.Services.IEmailService _emailService;
+    private readonly IMemoryCache _cache;
 
-    public PublicStorefrontController(AppDbContext db, backend_dotnet.Services.IEmailService emailService)
+    public PublicStorefrontController(AppDbContext db, backend_dotnet.Services.IEmailService emailService, IMemoryCache cache)
     {
         _db = db;
         _emailService = emailService;
+        _cache = cache;
     }
 
     [HttpGet("{subdomain}")]
     public async Task<IActionResult> GetBySubdomain(string subdomain, [FromQuery] Guid? customerGroupId, [FromQuery] Guid? previewThemeId, CancellationToken ct)
     {
+        var cacheKey = $"sf:{subdomain.Trim().ToLowerInvariant()}:cg:{customerGroupId}:pv:{previewThemeId}";
+        if (!previewThemeId.HasValue && _cache.TryGetValue<object>(cacheKey, out var cached)) return Ok(cached);
         var normalized = subdomain.Trim().ToLowerInvariant();
         var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalized, ct);
         if (store == null) return NotFound(new { error = "store_not_found" });
@@ -83,7 +89,7 @@ public class PublicStorefrontController : ControllerBase
 
         var filteredSectionsJson = FilterThemeBlocks(homepage?.SectionsJson ?? "[]", blockRules);
 
-        return Ok(new
+        var response = new
         {
             store = new { store.Id, store.Name, store.Subdomain, store.Currency, store.Timezone },
             theme = theme == null ? null : new
@@ -122,12 +128,16 @@ public class PublicStorefrontController : ControllerBase
             products,
             categories,
             previewThemeId
-        });
+        };
+        if (!previewThemeId.HasValue) _cache.Set(cacheKey, response, TimeSpan.FromMinutes(2));
+        return Ok(response);
     }
 
     [HttpGet("{subdomain}/pages/{slug}")]
     public async Task<IActionResult> GetPage(string subdomain, string slug, CancellationToken ct)
     {
+        var cacheKey = $"sf:page:{subdomain.Trim().ToLowerInvariant()}:{slug.Trim().ToLowerInvariant()}";
+        if (_cache.TryGetValue<object>(cacheKey, out var cached)) return Ok(cached);
         var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
         var normalizedSlug = slug.Trim().ToLowerInvariant();
         var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
@@ -137,6 +147,7 @@ public class PublicStorefrontController : ControllerBase
             .FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Slug == normalizedSlug && x.IsPublished, ct);
         if (page == null) return NotFound(new { error = "page_not_found" });
 
+        _cache.Set(cacheKey, page, TimeSpan.FromMinutes(2));
         return Ok(page);
     }
 
@@ -465,6 +476,11 @@ public class PublicStorefrontController : ControllerBase
         var products = await _db.Products.AsNoTracking()
             .Where(x => x.StoreId == store.Id && req.Items.Select(i => i.ProductId).Contains(x.Id))
             .ToListAsync(ct);
+        var variants = await _db.ProductVariants
+            .Include(v => v.Product)
+            .Where(v => v.Product.StoreId == store.Id && req.Items.Select(i => i.ProductId).Contains(v.ProductId))
+            .OrderBy(v => v.IsDefault ? 0 : 1)
+            .ToListAsync(ct);
         if (products.Count == 0) return BadRequest(new { error = "products_not_found" });
 
         var customer = await _db.Customers.FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Email == req.Email.Trim().ToLowerInvariant(), ct);
@@ -491,6 +507,16 @@ public class PublicStorefrontController : ControllerBase
             var p = products.FirstOrDefault(x => x.Id == item.ProductId);
             if (p == null) continue;
             var qty = Math.Max(1, item.Quantity);
+            var v = variants.FirstOrDefault(x => x.ProductId == p.Id);
+            if (v != null)
+            {
+                var updated = await _db.Database.ExecuteSqlRawAsync(
+                    @"UPDATE product_variants
+                      SET ""Quantity"" = ""Quantity"" - {0}
+                      WHERE ""Id"" = {1} AND (""Quantity"" - ""ReservedQuantity"") >= {0};",
+                    qty, v.Id);
+                if (updated == 0) return BadRequest(new { error = "stock_unavailable", productId = p.Id });
+            }
             var total = p.Price * qty;
             subtotal += total;
             orderItems.Add(new Models.OrderItem
@@ -527,6 +553,55 @@ public class PublicStorefrontController : ControllerBase
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(ct);
         return Ok(new { success = true, orderId = order.Id, total = order.Total, currency = order.Currency });
+    }
+
+    [HttpPost("{subdomain}/cart/reserve")]
+    public async Task<IActionResult> ReserveStock(string subdomain, [FromBody] StockReservationRequest req, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+        var reservationId = Guid.NewGuid().ToString("N");
+        var reserved = new List<(Guid VariantId, int Qty)>();
+        foreach (var item in req.Items)
+        {
+            var qty = Math.Max(1, item.Quantity);
+            var variant = await _db.ProductVariants
+                .Include(v => v.Product)
+                .Where(v => v.Product.StoreId == store.Id && v.ProductId == item.ProductId)
+                .OrderBy(v => v.IsDefault ? 0 : 1)
+                .FirstOrDefaultAsync(ct);
+            if (variant == null) continue;
+            var updated = await _db.Database.ExecuteSqlRawAsync(
+                @"UPDATE product_variants
+                  SET ""ReservedQuantity"" = ""ReservedQuantity"" + {0}
+                  WHERE ""Id"" = {1} AND (""Quantity"" - ""ReservedQuantity"") >= {0};",
+                qty, variant.Id);
+            if (updated == 0)
+            {
+                foreach (var r in reserved)
+                {
+                    await _db.Database.ExecuteSqlRawAsync(@"UPDATE product_variants SET ""ReservedQuantity"" = GREATEST(0, ""ReservedQuantity"" - {0}) WHERE ""Id"" = {1};", r.Qty, r.VariantId);
+                }
+                return BadRequest(new { error = "stock_unavailable", productId = item.ProductId });
+            }
+            reserved.Add((variant.Id, qty));
+        }
+        ReservationBuckets[reservationId] = reserved;
+        return Ok(new { reservationId, expiresInSeconds = 900 });
+    }
+
+    [HttpPost("{subdomain}/cart/release")]
+    public async Task<IActionResult> ReleaseStock(string subdomain, [FromBody] StockReleaseRequest req, CancellationToken ct)
+    {
+        if (!ReservationBuckets.TryGetValue(req.ReservationId.Trim(), out var rows))
+            return Ok(new { released = true, skipped = true });
+        foreach (var r in rows)
+        {
+            await _db.Database.ExecuteSqlRawAsync(@"UPDATE product_variants SET ""ReservedQuantity"" = GREATEST(0, ""ReservedQuantity"" - {0}) WHERE ""Id"" = {1};", r.Qty, r.VariantId);
+        }
+        ReservationBuckets.Remove(req.ReservationId.Trim());
+        return Ok(new { released = true });
     }
 
     [HttpPost("{subdomain}/checkout/{orderId:guid}/payment-callback")]
@@ -700,4 +775,16 @@ public class CustomerMfaVerifyRequest
     public Guid CustomerId { get; set; }
     [Required, StringLength(6, MinimumLength = 4)]
     public string Otp { get; set; } = string.Empty;
+}
+
+public class StockReservationRequest
+{
+    [Required]
+    public List<PublicCheckoutItem> Items { get; set; } = new();
+}
+
+public class StockReleaseRequest
+{
+    [Required, StringLength(64, MinimumLength = 8)]
+    public string ReservationId { get; set; } = string.Empty;
 }

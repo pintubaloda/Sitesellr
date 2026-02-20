@@ -123,6 +123,7 @@ builder.Services.AddAntiforgery(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
+builder.Services.AddMemoryCache();
 var dataProtection = builder.Services.AddDataProtection().SetApplicationName("Sitesellr");
 var dataProtectionKeysPath = builder.Configuration["DATA_PROTECTION_KEYS_PATH"];
 if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
@@ -221,6 +222,7 @@ CREATE TABLE IF NOT EXISTS team_invite_tokens (
   ""CreatedByUserId"" uuid NULL
 );");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_team_invite_tokens_TokenHash ON team_invite_tokens (""TokenHash"");");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS ""ReservedQuantity"" integer NOT NULL DEFAULT 0;");
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS platform_branding_settings (
   ""Id"" uuid PRIMARY KEY,

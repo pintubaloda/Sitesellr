@@ -517,3 +517,32 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Applied global branding effects to:
   - Admin shell (`DashboardLayout`) brand name/logo/color/font tokens
   - Landing page (`Landing.js`) brand name/logo/primary color/font + hero text overrides
+
+[2026-02-20] Product/Order Hardening Pass
+- Inventory reservation + concurrency-safe deduction:
+  - Added `ReservedQuantity` on variants.
+  - Added reservation APIs:
+    - `POST /api/public/storefront/{subdomain}/cart/reserve`
+    - `POST /api/public/storefront/{subdomain}/cart/release`
+  - Checkout now deducts variant stock with atomic SQL condition check to prevent underflow.
+
+- Category/product/variant limit enforcement:
+  - Added categories API with subscription max category enforcement.
+  - Product create and variant update limits already enforced via capability service.
+
+- Bulk CSV import with validation report:
+  - Added async import job endpoints:
+    - `POST /api/products/import/csv?storeId=...`
+    - `GET /api/products/import/jobs/{jobId}`
+  - Includes partial success + row-level error reporting.
+
+- Storefront product/page caching:
+  - Added memory caching for public storefront listing and static pages.
+
+- Test artifacts added:
+  - `LOAD_TEST_PRODUCTS_ORDERS.md`
+  - `tests/k6_products_orders.js`
+  - `BACKEND_UI_WIRING_STATUS.md` (backend↔UI wiring coverage)
+
+- Note:
+  - Product import + reserve/release backend APIs are complete; frontend dedicated controls can be expanded next.

@@ -555,3 +555,11 @@ Notes:
 - Files:
   - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Products.js
   - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/storefront/StorefrontPublic.js
+
+[2026-02-20] Pending Commit
+- Platform RBAC category-based assignment UX:
+  - Added side user menu with `Platform Users` and `Store Users` categories.
+  - Added backend user/store listing endpoints for assignment workflows.
+- Files:
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformRbacController.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformRbac.js

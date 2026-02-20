@@ -560,3 +560,17 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Frontend files:
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Products.js`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/storefront/StorefrontPublic.js`
+
+[2026-02-20] Platform RBAC UI Wiring - User Categories + Side Menu
+- Added backend list APIs for RBAC assignment screen:
+  - `GET /api/platform/rbac/users` (email/id/platform roles/store membership count)
+  - `GET /api/platform/rbac/stores` (store id/name/subdomain/status)
+- Updated Platform RBAC frontend to include side menu style user picker with two categories:
+  - `Platform Users`
+  - `Store Users`
+- Selection now pre-fills assignment forms:
+  - Platform user -> platform role assignment
+  - Store user -> store permission assignment
+- Files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformRbacController.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformRbac.js`

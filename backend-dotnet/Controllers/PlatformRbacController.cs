@@ -67,6 +67,73 @@ public class PlatformRbacController : ControllerBase
         return Ok(PermissionCatalog.GetPlatformOwnerTemplatePermissions().OrderBy(x => x).ToArray());
     }
 
+    [HttpGet("users")]
+    public async Task<IActionResult> ListUsers([FromQuery] string? q, CancellationToken ct)
+    {
+        var query = _db.Users.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var needle = q.Trim().ToLowerInvariant();
+            query = query.Where(x => x.Email.ToLower().Contains(needle));
+        }
+
+        var users = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(200)
+            .Select(x => new
+            {
+                x.Id,
+                x.Email,
+                x.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        var userIds = users.Select(x => x.Id).ToArray();
+        var roleRows = await _db.PlatformUserRoles.AsNoTracking()
+            .Where(x => userIds.Contains(x.UserId))
+            .Select(x => new { x.UserId, x.Role })
+            .ToListAsync(ct);
+        var rolesByUser = roleRows
+            .GroupBy(x => x.UserId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Role.ToString()).OrderBy(x => x).ToArray());
+
+        var storeCounts = await _db.StoreUserRoles.AsNoTracking()
+            .Where(x => userIds.Contains(x.UserId))
+            .GroupBy(x => x.UserId)
+            .Select(g => new { UserId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        var storeCountByUser = storeCounts.ToDictionary(x => x.UserId, x => x.Count);
+
+        return Ok(users.Select(x => new
+        {
+            x.Id,
+            x.Email,
+            x.CreatedAt,
+            PlatformRoles = rolesByUser.TryGetValue(x.Id, out var roles) ? roles : Array.Empty<string>(),
+            StoreMemberships = storeCountByUser.TryGetValue(x.Id, out var count) ? count : 0
+        }));
+    }
+
+    [HttpGet("stores")]
+    public async Task<IActionResult> ListStores([FromQuery] string? q, CancellationToken ct)
+    {
+        var query = _db.Stores.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var needle = q.Trim().ToLowerInvariant();
+            query = query.Where(x =>
+                x.Name.ToLower().Contains(needle) ||
+                (x.Subdomain != null && x.Subdomain.ToLower().Contains(needle)));
+        }
+
+        var stores = await query
+            .OrderBy(x => x.Name)
+            .Take(200)
+            .Select(x => new { x.Id, x.Name, x.Subdomain, x.Status })
+            .ToListAsync(ct);
+        return Ok(stores);
+    }
+
     [HttpPut("users/{userId:guid}/platform-roles")]
     public async Task<IActionResult> SetPlatformRoles(Guid userId, [FromBody] PlatformRolesRequest req, CancellationToken ct)
     {

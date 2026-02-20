@@ -356,3 +356,11 @@ UPDATE [2026-02-20] - FRONTEND WIRING PASS (PRODUCT IMPORT + CART RESERVATION)
     - release reservation after successful checkout
 - Partial:
   - Reservation expiry countdown/recovery UX can be improved (backend currently returns expiresInSeconds but countdown is not rendered yet).
+
+UPDATE [2026-02-20] - PLATFORM USER CATEGORY ASSIGNMENT UI
+- Developed:
+  - Platform RBAC page now supports user categorization (`Platform Users`, `Store Users`) in a side menu list.
+  - Backend APIs added to fetch assignable users/stores for permission operations.
+  - User selection now drives role/permission assignment forms directly.
+- Partial:
+  - Fine-grained permission matrix UI (checkbox per permission group) is still pending; current entry remains CSV-based.

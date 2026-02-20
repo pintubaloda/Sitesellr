@@ -679,3 +679,12 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Rationale: these are token-authenticated API calls (not cookie-identity session actions), so CSRF double-submit check is not required.
 - File:
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Security/CsrfMiddleware.cs`
+
+[2026-02-20] RBAC Role Display Clarity Fix
+- Fixed user list confusion in RBAC UI:
+  - Store-user view now displays `Store Role` badges instead of `No Platform Role`.
+- Backend user list now returns `storeRoles` summary per user.
+- Frontend selected-user panel now shows both platform roles and store roles.
+- Files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PlatformRbacController.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformRbac.js`

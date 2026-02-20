@@ -173,7 +173,11 @@ export const PlatformRbac = () => {
               >
                 <p className="text-sm font-semibold text-slate-900">{u.email}</p>
                 <div className="mt-1 flex items-center gap-2">
-                  <Badge variant="secondary">{(u.platformRoles || []).join(", ") || "No Platform Role"}</Badge>
+                  <Badge variant="secondary">
+                    {category === "platform"
+                      ? ((u.platformRoles || []).join(", ") || "No Platform Role")
+                      : ((u.storeRoles || []).join(", ") || "No Store Role")}
+                  </Badge>
                   <span className="text-xs text-slate-500">stores: {u.storeMemberships || 0}</span>
                 </div>
                 <p className="mt-1 text-[11px] text-slate-400 truncate">{u.id}</p>
@@ -195,6 +199,7 @@ export const PlatformRbac = () => {
                   <p className="text-xs text-slate-500 mt-1">{selectedUser.id}</p>
                   <div className="mt-3 flex gap-2">
                     <Badge variant="secondary">Platform: {(selectedUser.platformRoles || []).join(", ") || "none"}</Badge>
+                    <Badge variant="secondary">Store Roles: {(selectedUser.storeRoles || []).join(", ") || "none"}</Badge>
                     <Badge variant="secondary">Stores: {selectedUser.storeMemberships || 0}</Badge>
                   </div>
                 </div>

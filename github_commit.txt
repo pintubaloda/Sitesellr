@@ -598,3 +598,8 @@ Notes:
 
 [2026-02-20] Pending Commit
 - Resolved RBAC/admin `csrf_invalid` issue by bypassing CSRF validation for Bearer-token authenticated unsafe methods.
+
+[2026-02-20] Pending Commit
+- RBAC role badge fix:
+  - Added store role data in `/platform/rbac/users` response.
+  - Updated UI labels to show Store Role in Store Users tab.

@@ -409,3 +409,9 @@ UPDATE [2026-02-20] - CSRF RELIABILITY FIX
   - Backend CSRF middleware adjusted to avoid blocking Bearer-token authenticated admin API updates.
 - Impact:
   - Platform RBAC role update actions no longer fail with `csrf_invalid` in token-authenticated flow.
+
+UPDATE [2026-02-20] - RBAC ROLE VISIBILITY
+- Developed:
+  - Role list now matches selected user type context (platform roles vs store roles).
+- Impact:
+  - Avoids misleading `No Platform Role` message when browsing Store Users.

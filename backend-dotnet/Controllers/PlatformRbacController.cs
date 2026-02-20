@@ -103,6 +103,13 @@ public class PlatformRbacController : ControllerBase
             .Select(g => new { UserId = g.Key, Count = g.Count() })
             .ToListAsync(ct);
         var storeCountByUser = storeCounts.ToDictionary(x => x.UserId, x => x.Count);
+        var storeRoleRows = await _db.StoreUserRoles.AsNoTracking()
+            .Where(x => userIds.Contains(x.UserId))
+            .Select(x => new { x.UserId, x.Role })
+            .ToListAsync(ct);
+        var storeRolesByUser = storeRoleRows
+            .GroupBy(x => x.UserId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Role.ToString()).Distinct().OrderBy(x => x).ToArray());
 
         return Ok(users.Select(x => new
         {
@@ -110,7 +117,8 @@ public class PlatformRbacController : ControllerBase
             x.Email,
             x.CreatedAt,
             PlatformRoles = rolesByUser.TryGetValue(x.Id, out var roles) ? roles : Array.Empty<string>(),
-            StoreMemberships = storeCountByUser.TryGetValue(x.Id, out var count) ? count : 0
+            StoreMemberships = storeCountByUser.TryGetValue(x.Id, out var count) ? count : 0,
+            StoreRoles = storeRolesByUser.TryGetValue(x.Id, out var sroles) ? sroles : Array.Empty<string>()
         }));
     }
 

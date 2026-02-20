@@ -27,8 +27,12 @@ public class CsrfMiddleware
     {
         var requestPath = context.Request.Path.Value ?? string.Empty;
         var isExempt = CsrfExemptPaths.Any(p => requestPath.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+        var hasBearer = context.Request.Headers.Authorization
+            .Any(x => x.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase));
 
-        if (!isExempt && UnsafeMethods.Contains(context.Request.Method.ToUpperInvariant()))
+        // SPA/API requests authenticated via Authorization: Bearer are not browser-cookie auth,
+        // so CSRF token validation is not required on these calls.
+        if (!isExempt && !hasBearer && UnsafeMethods.Contains(context.Request.Method.ToUpperInvariant()))
         {
             try
             {

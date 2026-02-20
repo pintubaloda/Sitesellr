@@ -595,3 +595,6 @@ Notes:
   - Added current-role fetch on user click.
   - Added direct role update for both platform and store scopes.
 - Backend added store-role get/update APIs for platform owner operations.
+
+[2026-02-20] Pending Commit
+- Resolved RBAC/admin `csrf_invalid` issue by bypassing CSRF validation for Bearer-token authenticated unsafe methods.

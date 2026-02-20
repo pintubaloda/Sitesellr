@@ -403,3 +403,9 @@ UPDATE [2026-02-20] - RBAC UI MODERN ROLE FLOW
   - Platform owner role assignment no longer appears as CSV editing.
 - Impact:
   - Cleaner and faster permission governance for platform owner.
+
+UPDATE [2026-02-20] - CSRF RELIABILITY FIX
+- Developed:
+  - Backend CSRF middleware adjusted to avoid blocking Bearer-token authenticated admin API updates.
+- Impact:
+  - Platform RBAC role update actions no longer fail with `csrf_invalid` in token-authenticated flow.

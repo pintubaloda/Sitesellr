@@ -256,3 +256,17 @@ Permission verification tooling | Added `/api/auth/permissions` endpoint for eff
 Update 2026-02-19 10:43 IST - Frontend permission gating hardening
 Module name | developed | partial developed | need to develop
 Permission-based menu rendering | Sidebar now gated by effective permission mappings from `/api/auth/permissions` for each menu item | Current mapping uses `requiredAny` pattern; some modules may need stricter `requiredAll` semantics later | Add central permission map registry + automated menu-permission consistency tests
+
+UPDATE [2026-02-20] - STOREFRONT THEME PROFESSIONALIZATION
+Module: Storefront System (Retail + Wholesale Ready)
+- Developed:
+  - Professional storefront layout with commercial header/menu/search/cart/login and full footer blocks.
+  - Product listing and detail runtime routes integrated under public storefront path.
+  - Add-to-cart flow and storefront checkout form wired to backend public checkout endpoint.
+  - Wholesale mode quote CTA retained and integrated in PLP/PDP where applicable.
+- Partial:
+  - Shopify-grade deep per-theme runtime matrix (category-level advanced template families).
+  - Theme marketplace billing automation for premium campaigns/sections.
+  - Full drag-drop builder polish for enterprise editor behavior.
+- Pending:
+  - Production-grade customer storefront auth/session lifecycle (beyond layout login form).

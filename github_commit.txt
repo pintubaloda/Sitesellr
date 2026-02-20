@@ -470,3 +470,10 @@ Files:
 Notes:
 - Menu visibility now permission-by-permission for every sidebar item.
 [Committed] 32a1438 pushed to origin/main
+
+[2026-02-20] Pending Commit (local)
+- Scope: Professional storefront theme runtime upgrade (header/menu/footer/cart/checkout/login/PDP/PLP)
+- Files changed:
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/storefront/StorefrontPublic.js
+- Notes:
+  - Build not executed successfully in local sandbox because frontend dependencies are missing (`craco: command not found`).

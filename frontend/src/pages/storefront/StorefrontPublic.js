@@ -45,10 +45,10 @@ const renderMenu = (items, subdomain, context, depth = 0) => {
   });
   if (visible.length === 0) return null;
   return (
-    <ul className={`flex ${depth > 0 ? "flex-col gap-1 mt-1 ml-4 border-l pl-3" : "items-center gap-4"} text-sm`}>
+    <ul className={`flex ${depth > 0 ? "flex-col gap-2 mt-2 ml-5 border-l border-slate-200 pl-3" : "items-center gap-5"} text-sm`}>
       {visible.map((m, idx) => (
         <li key={`${m.path || "link"}-${m.label || "item"}-${idx}`} className="text-slate-600">
-          <Link to={`/s/${subdomain}${m.path === "/" ? "" : (m.path || "")}`} className="hover:text-slate-900">
+          <Link to={`/s/${subdomain}${m.path === "/" ? "" : (m.path || "")}`} className="hover:text-slate-900 font-medium">
             {m.label || "Link"}
           </Link>
           {renderMenu(m.children || [], subdomain, context, depth + 1)}
@@ -67,6 +67,9 @@ export default function StorefrontPublic() {
   const [categoryId, setCategoryId] = useState("all");
   const [listLayout, setListLayout] = useState("grid");
   const [cart, setCart] = useState([]);
+  const [search, setSearch] = useState("");
+  const [checkoutForm, setCheckoutForm] = useState({ name: "", email: "", phone: "", paymentMethod: "cod" });
+  const [checkoutMessage, setCheckoutMessage] = useState("");
 
   const slug = useMemo(() => {
     const path = location.pathname.replace(`/s/${subdomain}`, "").replace(/^\//, "");
@@ -129,6 +132,9 @@ export default function StorefrontPublic() {
     // ignore invalid config
   }
   const filteredProducts = (data.products || []).filter((p) => categoryId === "all" || p.categoryId === categoryId);
+  const searchedProducts = filteredProducts.filter((p) =>
+    search.trim() ? `${p.title} ${p.description || ""}`.toLowerCase().includes(search.toLowerCase()) : true
+  );
   const cartCount = cart.reduce((n, i) => n + i.quantity, 0);
   const cartTotal = cart.reduce((n, i) => n + (Number(i.price || 0) * i.quantity), 0);
   const typographyPack = (data.theme?.activeTheme?.typographyPack || "modern-sans").toLowerCase();
@@ -155,6 +161,16 @@ export default function StorefrontPublic() {
     });
   };
 
+  const updateCartQty = (id, quantity) => {
+    setCart((prev) => prev
+      .map((x) => (x.id === id ? { ...x, quantity: Math.max(1, quantity) } : x))
+      .filter((x) => x.quantity > 0));
+  };
+
+  const removeFromCart = (id) => {
+    setCart((prev) => prev.filter((x) => x.id !== id));
+  };
+
   const submitQuote = async (product) => {
     const name = window.prompt("Your name");
     if (!name) return;
@@ -178,54 +194,96 @@ export default function StorefrontPublic() {
   };
 
   const checkout = async () => {
-    const name = window.prompt("Checkout: Your name");
-    if (!name) return;
-    const email = window.prompt("Checkout: Your email");
-    if (!email) return;
-    const phone = window.prompt("Checkout: Your phone");
-    if (!phone) return;
-    const paymentMethod = window.prompt("Payment method (cod/upi/card)", "cod") || "cod";
+    if (!checkoutForm.name || !checkoutForm.email || !checkoutForm.phone) {
+      setCheckoutMessage("Fill name, email, and phone.");
+      return;
+    }
     try {
       const res = await api.post(`/public/storefront/${subdomain}/checkout`, {
-        name,
-        email,
-        phone,
-        paymentMethod,
+        name: checkoutForm.name,
+        email: checkoutForm.email,
+        phone: checkoutForm.phone,
+        paymentMethod: checkoutForm.paymentMethod,
         items: cart.map((x) => ({ productId: x.id, quantity: x.quantity })),
       });
-      window.alert(`Order created: ${res.data?.orderId}`);
+      setCheckoutMessage(`Order created: ${res.data?.orderId}`);
       setCart([]);
     } catch {
-      window.alert("Checkout failed.");
+      setCheckoutMessage("Checkout failed.");
     }
   };
 
+  const slugParts = slug.split("/").filter(Boolean);
+  const mode = !slug ? "home" : slug === "cart" ? "cart" : slug === "checkout" ? "checkout" : slug === "login" ? "login" : slugParts[0] === "products" && slugParts[1] ? "pdp" : "page";
+  const pdp = mode === "pdp" ? (data.products || []).find((x) => x.id === slugParts[1]) : null;
+  const tokens = (() => {
+    try {
+      return JSON.parse(data.theme?.designTokensJson || "{}");
+    } catch {
+      return {};
+    }
+  })();
+  const primary = tokens.primaryColor || "#2563eb";
+  const accent = tokens.accentColor || "#f59e0b";
+
   return (
     <div className={`min-h-screen bg-white text-slate-900 ${layoutVariant === "immersive" ? "bg-slate-50" : ""}`} style={{ fontFamily }}>
-      <header className="border-b">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {data.theme?.logoUrl ? <img src={data.theme.logoUrl} alt={data.store?.name} className="h-8 w-8 rounded" /> : null}
-            <h1 className="text-xl font-bold">{data.store?.name}</h1>
+      <header className="border-b border-slate-200 bg-white sticky top-0 z-40">
+        <div className="bg-slate-900 text-white text-xs py-2 px-4 text-center">Free shipping on orders over INR 999 • Fast India-wide delivery</div>
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            {data.theme?.logoUrl ? <img src={data.theme.logoUrl} alt={data.store?.name} className="h-9 w-9 rounded-md object-cover border" /> : null}
+            <Link to={`/s/${subdomain}`} className="text-xl font-bold truncate">{data.store?.name}</Link>
             {data.previewThemeId ? <span className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">Preview Mode</span> : null}
           </div>
-          <nav>{renderMenu(menu.length ? menu : [{ label: "Home", path: "/" }], subdomain, { customerType, isLoggedIn, device })}</nav>
+          <div className="hidden lg:block flex-1 max-w-xl">
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products..." className="w-full h-10 px-4 rounded-full border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100" />
+          </div>
+          <nav className="hidden md:block">{renderMenu(menu.length ? menu : [{ label: "Home", path: "/" }], subdomain, { customerType, isLoggedIn, device })}</nav>
+          <div className="flex items-center gap-2">
+            <Link to={`/s/${subdomain}/login`} className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">Login</Link>
+            <Link to={`/s/${subdomain}/cart`} className="text-sm px-3 py-2 rounded-lg text-white" style={{ backgroundColor: primary }}>Cart ({cartCount})</Link>
+          </div>
         </div>
       </header>
 
-      {!slug ? (
-        <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+      {mode === "home" ? (
+        <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+          <section className="rounded-2xl overflow-hidden grid lg:grid-cols-2 border border-slate-200">
+            <div className="p-8 lg:p-12 text-white" style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}>
+              <p className="uppercase text-xs tracking-[0.2em] mb-4 opacity-90">New collection</p>
+              <h2 className="text-3xl lg:text-5xl font-bold leading-tight">Build your brand with a conversion-ready storefront</h2>
+              <p className="mt-4 text-white/90 max-w-md">Professional ecommerce theme with fast PLP/PDP flows, quote for wholesale, and checkout built for Indian commerce.</p>
+              <div className="mt-6 flex gap-3">
+                <a href="#products" className="px-5 py-3 rounded-xl bg-white text-slate-900 font-semibold">Shop now</a>
+                <Link to={`/s/${subdomain}/pages/about`} className="px-5 py-3 rounded-xl border border-white/40 font-semibold">Brand story</Link>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50">
+              {(searchedProducts || []).slice(0, 4).map((p) => (
+                <Link to={`/s/${subdomain}/products/${p.id}`} key={p.id} className="bg-white rounded-xl border p-4 hover:shadow-md transition">
+                  <div className="h-28 rounded-lg bg-slate-100 mb-3" />
+                  <p className="text-sm font-semibold line-clamp-1">{p.title}</p>
+                  <p className="text-xs text-slate-500 mt-1">{showPricing ? `${p.currency || "INR"} ${Number(p.price || 0).toLocaleString()}` : "Login to view price"}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+
           {sections.length > 0 ? (
-            <section className="grid gap-3">
+            <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {sections.map((s, idx) => (
-                <div key={`${s.type}-${idx}`} className="rounded-xl bg-slate-100 px-4 py-3">{s.title || s.type || "Section"}</div>
+                <div key={`${s.type}-${idx}`} className="rounded-xl bg-white border border-slate-200 px-4 py-4">
+                  <p className="text-xs uppercase text-slate-400 tracking-wide">{s.type || "Section"}</p>
+                  <p className="mt-2 text-sm font-semibold">{s.title || "Content block"}</p>
+                </div>
               ))}
             </section>
           ) : null}
 
-          <section>
+          <section id="products">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <h2 className="text-lg font-semibold">Products</h2>
+              <h2 className="text-2xl font-bold">Featured products</h2>
               <div className="flex items-center gap-2">
                 <select className="h-9 rounded border px-2 text-sm" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
                   <option value="all">All categories</option>
@@ -236,17 +294,19 @@ export default function StorefrontPublic() {
               </div>
             </div>
             <div className={listLayout === "grid" ? "grid sm:grid-cols-2 lg:grid-cols-4 gap-4" : "space-y-3"}>
-              {filteredProducts.map((p) => (
-                <div key={p.id} className={`border p-3 ${runtimePackage.cardStyle === "sharp" ? "rounded-md" : "rounded-xl"} ${layoutVariant === "minimal" ? "shadow-sm" : ""}`}>
-                  <p className="font-medium">{p.title}</p>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">{p.description}</p>
+              {searchedProducts.map((p) => (
+                <div key={p.id} className={`border p-3 bg-white ${runtimePackage.cardStyle === "sharp" ? "rounded-md" : "rounded-xl"} ${layoutVariant === "minimal" ? "shadow-sm" : "hover:shadow-lg"} transition`}>
+                  <Link to={`/s/${subdomain}/products/${p.id}`} className="block h-40 rounded-lg bg-slate-100 mb-3" />
+                  <Link to={`/s/${subdomain}/products/${p.id}`} className="font-medium hover:text-blue-700">{p.title}</Link>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 min-h-8">{p.description}</p>
                   <p className="text-sm mt-2 font-semibold">
                     {showPricing ? `${p.currency || "INR"} ${Number(p.price || 0).toLocaleString()}` : "Login to view price"}
                   </p>
                   {wholesaleMode ? <p className="text-xs text-amber-700 mt-1">MOQ {defaultMoq}+ · Pack size {packSize} · Bulk pricing available</p> : null}
                   <div className="mt-2 flex items-center gap-2">
                     <button
-                      className="text-xs px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800"
+                      className="text-xs px-3 py-1.5 rounded-md text-white"
+                      style={{ backgroundColor: primary }}
                       onClick={() => addToCart(p, wholesaleMode ? defaultMoq : 1)}
                     >
                       Add to cart
@@ -258,20 +318,125 @@ export default function StorefrontPublic() {
             </div>
           </section>
         </main>
+      ) : mode === "pdp" && pdp ? (
+        <main className="max-w-7xl mx-auto px-4 py-8 grid lg:grid-cols-2 gap-8">
+          <div className="rounded-2xl border bg-slate-100 min-h-[420px]" />
+          <div>
+            <p className="text-xs uppercase tracking-wider text-slate-500">Product details</p>
+            <h2 className="text-3xl font-bold mt-2">{pdp.title}</h2>
+            <p className="text-slate-600 mt-4 whitespace-pre-wrap">{pdp.description}</p>
+            <p className="text-2xl font-bold mt-6">{showPricing ? `${pdp.currency || "INR"} ${Number(pdp.price || 0).toLocaleString()}` : "Login to view price"}</p>
+            {wholesaleMode ? <p className="text-sm text-amber-700 mt-2">MOQ {defaultMoq}+ units • Pack size {packSize} • Bulk tier pricing available</p> : null}
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button className="px-5 py-3 rounded-xl text-white font-medium" style={{ backgroundColor: primary }} onClick={() => addToCart(pdp, wholesaleMode ? defaultMoq : 1)}>Add to cart</button>
+              {wholesaleMode ? <button className="px-5 py-3 rounded-xl border font-medium" onClick={() => submitQuote(pdp)}>Request Quote</button> : null}
+              <Link className="px-5 py-3 rounded-xl border font-medium" to={`/s/${subdomain}/checkout`}>Buy now</Link>
+            </div>
+          </div>
+        </main>
+      ) : mode === "cart" ? (
+        <main className="max-w-7xl mx-auto px-4 py-8">
+          <h2 className="text-2xl font-bold mb-4">Your cart</h2>
+          {cart.length === 0 ? <p className="text-slate-600">Your cart is empty.</p> : (
+            <div className="space-y-3">
+              {cart.map((item) => (
+                <div key={item.id} className="rounded-xl border bg-white p-4 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{item.title}</p>
+                    <p className="text-sm text-slate-500">INR {Number(item.price || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button className="h-8 w-8 rounded border" onClick={() => updateCartQty(item.id, item.quantity - 1)}>-</button>
+                    <span className="w-8 text-center">{item.quantity}</span>
+                    <button className="h-8 w-8 rounded border" onClick={() => updateCartQty(item.id, item.quantity + 1)}>+</button>
+                  </div>
+                  <button className="text-sm text-red-600 hover:underline" onClick={() => removeFromCart(item.id)}>Remove</button>
+                </div>
+              ))}
+              <div className="flex justify-between items-center pt-3 border-t">
+                <p className="font-semibold">Total: INR {cartTotal.toLocaleString()}</p>
+                <Link to={`/s/${subdomain}/checkout`} className="px-5 py-2.5 rounded-lg text-white" style={{ backgroundColor: primary }}>Continue to checkout</Link>
+              </div>
+            </div>
+          )}
+        </main>
+      ) : mode === "checkout" ? (
+        <main className="max-w-3xl mx-auto px-4 py-8">
+          <h2 className="text-2xl font-bold mb-2">Checkout</h2>
+          <p className="text-slate-600 mb-6">Complete your details and place the order.</p>
+          <div className="rounded-2xl border bg-white p-5 space-y-4">
+            <input className="w-full h-11 border rounded-lg px-3" placeholder="Full name" value={checkoutForm.name} onChange={(e) => setCheckoutForm((s) => ({ ...s, name: e.target.value }))} />
+            <input className="w-full h-11 border rounded-lg px-3" placeholder="Email" value={checkoutForm.email} onChange={(e) => setCheckoutForm((s) => ({ ...s, email: e.target.value }))} />
+            <input className="w-full h-11 border rounded-lg px-3" placeholder="Phone" value={checkoutForm.phone} onChange={(e) => setCheckoutForm((s) => ({ ...s, phone: e.target.value }))} />
+            <select className="w-full h-11 border rounded-lg px-3" value={checkoutForm.paymentMethod} onChange={(e) => setCheckoutForm((s) => ({ ...s, paymentMethod: e.target.value }))}>
+              <option value="cod">Cash on Delivery</option>
+              <option value="upi">UPI</option>
+              <option value="card">Card</option>
+            </select>
+            <div className="flex items-center justify-between pt-2 border-t">
+              <p className="font-semibold">Payable: INR {cartTotal.toLocaleString()}</p>
+              <button className="px-5 py-2.5 rounded-lg text-white" style={{ backgroundColor: primary }} onClick={checkout}>Place order</button>
+            </div>
+            {checkoutMessage ? <p className="text-sm text-slate-600">{checkoutMessage}</p> : null}
+          </div>
+        </main>
+      ) : mode === "login" ? (
+        <main className="max-w-md mx-auto px-4 py-10">
+          <div className="rounded-2xl border bg-white p-6">
+            <h2 className="text-2xl font-bold">Customer login</h2>
+            <p className="text-sm text-slate-600 mt-1">Sign in to track orders and save checkout details.</p>
+            <div className="mt-5 space-y-3">
+              <input className="w-full h-11 border rounded-lg px-3" placeholder="Email or mobile" />
+              <input className="w-full h-11 border rounded-lg px-3" placeholder="Password" type="password" />
+              <button className="w-full h-11 rounded-lg text-white font-medium" style={{ backgroundColor: primary }}>Login</button>
+            </div>
+          </div>
+        </main>
       ) : (
         <main className="max-w-3xl mx-auto px-4 py-8">
           <h2 className="text-2xl font-bold mb-4">{page?.title}</h2>
           <div className="prose prose-slate max-w-none whitespace-pre-wrap">{page?.content}</div>
         </main>
       )}
-      {cartCount > 0 ? (
+      {cartCount > 0 && mode !== "cart" && mode !== "checkout" ? (
         <div className="fixed bottom-0 left-0 right-0 border-t bg-white/95 backdrop-blur z-40">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
             <p className="text-sm font-medium">{cartCount} item(s) · INR {cartTotal.toLocaleString()}</p>
-            <button className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700" onClick={checkout}>Checkout</button>
+            <Link className="px-4 py-2 rounded-md text-white text-sm" style={{ backgroundColor: primary }} to={`/s/${subdomain}/checkout`}>Checkout</Link>
           </div>
         </div>
       ) : null}
+      <footer className="border-t bg-slate-950 text-slate-200 mt-16">
+        <div className="max-w-7xl mx-auto px-4 py-10 grid md:grid-cols-4 gap-8 text-sm">
+          <div>
+            <p className="font-semibold text-white text-base">{data.store?.name}</p>
+            <p className="mt-2 text-slate-400">Professional commerce storefront with retail + wholesale support.</p>
+          </div>
+          <div>
+            <p className="font-semibold text-white">Shop</p>
+            <div className="mt-3 space-y-2">
+              <Link to={`/s/${subdomain}`} className="block hover:text-white">Home</Link>
+              <Link to={`/s/${subdomain}/cart`} className="block hover:text-white">Cart</Link>
+              <Link to={`/s/${subdomain}/checkout`} className="block hover:text-white">Checkout</Link>
+            </div>
+          </div>
+          <div>
+            <p className="font-semibold text-white">Company</p>
+            <div className="mt-3 space-y-2">
+              <Link to={`/s/${subdomain}/pages/about`} className="block hover:text-white">About</Link>
+              <Link to={`/s/${subdomain}/pages/contact`} className="block hover:text-white">Contact</Link>
+              <Link to={`/s/${subdomain}/pages/policy`} className="block hover:text-white">Policy</Link>
+            </div>
+          </div>
+          <div>
+            <p className="font-semibold text-white">Newsletter</p>
+            <div className="mt-3 flex gap-2">
+              <input className="flex-1 h-9 rounded-md px-3 bg-slate-800 border border-slate-700 text-white" placeholder="Email address" />
+              <button className="px-3 rounded-md text-white text-xs" style={{ backgroundColor: primary }}>Join</button>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

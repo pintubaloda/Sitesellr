@@ -347,3 +347,24 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - Replaced scope-only visibility behavior with permission-aware + scope-aware combined gate.
 - Impact:
   - Users now see menu/modules aligned to granted permissions, not just broad role type.
+
+[2026-02-20] Storefront Theme Runtime Upgrade (Professional Ecommerce Layout)
+- Module: Storefront System / Theme Runtime
+- Status: Developed (major upgrade, further Shopify-grade depth pending)
+- Frontend wired in: /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/storefront/StorefrontPublic.js
+- Implemented:
+  - Professional storefront shell with top promo bar, sticky header, live menu, search, login/cart actions.
+  - Home runtime sections upgraded: hero, product highlight cards, featured product grid/list switch.
+  - Product detail route runtime: /s/:subdomain/products/:id with add-to-cart + quote CTA for wholesale mode.
+  - Cart page runtime: quantity increment/decrement, remove, total + checkout handoff.
+  - Checkout page runtime: structured form (name/email/phone/payment method) wired to public checkout API.
+  - Customer login page layout route: /s/:subdomain/login (UI runtime page integrated in theme flow).
+  - Footer runtime: commerce links, policy links, newsletter block.
+  - Theme design token usage: primary/accent color wiring, typography pack preserved.
+- Pending for full Shopify-grade target:
+  - Full multi-theme PLP/PDP runtime variant matrix with dedicated template packs per category.
+  - Advanced visual drag-drop canvas polish (deep nested drag, history timeline, collaboration).
+  - Enterprise campaign/template marketplace billing orchestration.
+  - Real customer auth/session workflow behind storefront login form.
+- Verification:
+  - Frontend build check blocked in local env because frontend deps are not installed (craco missing).

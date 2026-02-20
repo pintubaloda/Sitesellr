@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import api from "../../lib/api";
 
@@ -86,6 +86,7 @@ export default function StorefrontPublic() {
   const [search, setSearch] = useState("");
   const [checkoutForm, setCheckoutForm] = useState({ name: "", email: "", phone: "", paymentMethod: "cod" });
   const [checkoutMessage, setCheckoutMessage] = useState("");
+  const [reservation, setReservation] = useState({ id: "", cartKey: "", loading: false, message: "" });
   const [authForm, setAuthForm] = useState({ name: "", email: "", phone: "", password: "" });
   const [authMode, setAuthMode] = useState("login");
   const [authState, setAuthState] = useState({ loading: true, authenticated: false, customer: null, message: "" });
@@ -96,6 +97,8 @@ export default function StorefrontPublic() {
     const path = location.pathname.replace(`/s/${subdomain}`, "").replace(/^\//, "");
     return path || "";
   }, [location.pathname, subdomain]);
+  const slugParts = slug.split("/").filter(Boolean);
+  const mode = !slug ? "home" : slug === "cart" ? "cart" : slug === "checkout" ? "checkout" : slug === "login" ? "login" : slugParts[0] === "products" && slugParts[1] ? "pdp" : "page";
 
   useEffect(() => {
     const run = async () => {
@@ -170,6 +173,15 @@ export default function StorefrontPublic() {
   );
   const cartCount = cart.reduce((n, i) => n + i.quantity, 0);
   const cartTotal = cart.reduce((n, i) => n + (Number(i.price || 0) * i.quantity), 0);
+  const cartKey = useMemo(
+    () =>
+      cart
+        .slice()
+        .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+        .map((x) => `${x.id}:${x.quantity}`)
+        .join("|"),
+    [cart]
+  );
   const typographyPack = (data.theme?.activeTheme?.typographyPack || "modern-sans").toLowerCase();
   const layoutVariant = (data.theme?.activeTheme?.layoutVariant || "default").toLowerCase();
   const runtimePackage = sanitizeRuntimePackage(data.theme?.activeTheme?.runtimePackageJson || "{}");
@@ -217,6 +229,56 @@ export default function StorefrontPublic() {
     setCart((prev) => prev.filter((x) => x.id !== id));
   };
 
+  const releaseReservation = useCallback(
+    async (targetId) => {
+      const reservationId = targetId || reservation.id;
+      if (!reservationId) return;
+      try {
+        await api.post(`/public/storefront/${subdomain}/cart/release`, { reservationId });
+      } catch {
+        // no-op
+      }
+      setReservation((prev) => (prev.id === reservationId ? { id: "", cartKey: "", loading: false, message: "" } : prev));
+    },
+    [reservation.id, subdomain]
+  );
+
+  const reserveStock = useCallback(
+    async (force = false) => {
+      if (!cart.length) {
+        setReservation({ id: "", cartKey: "", loading: false, message: "Cart is empty." });
+        return false;
+      }
+      if (!force && reservation.id && reservation.cartKey === cartKey) return true;
+      setReservation((prev) => ({ ...prev, loading: true, message: "Reserving stock..." }));
+      if (reservation.id && reservation.cartKey !== cartKey) {
+        await releaseReservation(reservation.id);
+      }
+      try {
+        const res = await api.post(`/public/storefront/${subdomain}/cart/reserve`, {
+          items: cart.map((x) => ({ productId: x.id, quantity: x.quantity })),
+        });
+        setReservation({
+          id: res.data?.reservationId || "",
+          cartKey,
+          loading: false,
+          message: "Stock reserved for checkout.",
+        });
+        return true;
+      } catch (err) {
+        const apiError = err?.response?.data?.error;
+        setReservation({
+          id: "",
+          cartKey: "",
+          loading: false,
+          message: apiError === "stock_unavailable" ? "Some items are out of stock." : "Could not reserve stock.",
+        });
+        return false;
+      }
+    },
+    [cart, cartKey, releaseReservation, reservation.cartKey, reservation.id, subdomain]
+  );
+
   const submitQuote = async (product) => {
     const name = window.prompt("Your name");
     if (!name) return;
@@ -244,6 +306,11 @@ export default function StorefrontPublic() {
       setCheckoutMessage("Fill name, email, and phone.");
       return;
     }
+    const reserved = await reserveStock();
+    if (!reserved) {
+      setCheckoutMessage("Stock reservation failed. Update cart and retry.");
+      return;
+    }
     try {
       const res = await api.post(`/public/storefront/${subdomain}/checkout`, {
         name: checkoutForm.name,
@@ -253,11 +320,24 @@ export default function StorefrontPublic() {
         items: cart.map((x) => ({ productId: x.id, quantity: x.quantity })),
       });
       setCheckoutMessage(`Order created: ${res.data?.orderId}`);
+      await releaseReservation();
       setCart([]);
     } catch {
       setCheckoutMessage("Checkout failed.");
     }
   };
+
+  useEffect(() => {
+    if (!cart.length && reservation.id) {
+      releaseReservation(reservation.id);
+    }
+  }, [cart.length, releaseReservation, reservation.id]);
+
+  useEffect(() => {
+    if (mode === "checkout" && cart.length) {
+      reserveStock();
+    }
+  }, [cart.length, mode, reserveStock]);
 
   const customerAuthSubmit = async () => {
     const endpoint = authMode === "register" ? "register" : "login";
@@ -331,8 +411,6 @@ export default function StorefrontPublic() {
     }
   };
 
-  const slugParts = slug.split("/").filter(Boolean);
-  const mode = !slug ? "home" : slug === "cart" ? "cart" : slug === "checkout" ? "checkout" : slug === "login" ? "login" : slugParts[0] === "products" && slugParts[1] ? "pdp" : "page";
   const pdp = mode === "pdp" ? (data.products || []).find((x) => x.id === slugParts[1]) : null;
   const tokens = (() => {
     try {
@@ -479,8 +557,19 @@ export default function StorefrontPublic() {
               ))}
               <div className="flex justify-between items-center pt-3 border-t">
                 <p className="font-semibold">Total: INR {cartTotal.toLocaleString()}</p>
-                <Link to={`/s/${subdomain}/checkout`} className="px-5 py-2.5 rounded-lg text-white" style={{ backgroundColor: primary }}>Continue to checkout</Link>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2.5 rounded-lg border"
+                    onClick={() => reserveStock(true)}
+                    disabled={reservation.loading}
+                  >
+                    {reservation.loading ? "Reserving..." : "Reserve stock"}
+                  </button>
+                  <Link to={`/s/${subdomain}/checkout`} className="px-5 py-2.5 rounded-lg text-white" style={{ backgroundColor: primary }}>Continue to checkout</Link>
+                </div>
               </div>
+              {reservation.message ? <p className="text-sm text-slate-600">{reservation.message}</p> : null}
             </div>
           )}
         </main>
@@ -501,6 +590,7 @@ export default function StorefrontPublic() {
               <p className="font-semibold">Payable: INR {cartTotal.toLocaleString()}</p>
               <button className="px-5 py-2.5 rounded-lg text-white" style={{ backgroundColor: primary }} onClick={checkout}>Place order</button>
             </div>
+            {reservation.message ? <p className="text-sm text-slate-600">{reservation.message}</p> : null}
             {checkoutMessage ? <p className="text-sm text-slate-600">{checkoutMessage}</p> : null}
           </div>
         </main>

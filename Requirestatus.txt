@@ -546,3 +546,17 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 
 - Note:
   - Product import + reserve/release backend APIs are complete; frontend dedicated controls can be expanded next.
+
+[2026-02-20] Frontend UI Wiring Pass - Products Import + Storefront Reservation
+- Admin Products UI:
+  - Wired CSV import button to backend async import API (`POST /api/products/import/csv?storeId=...`).
+  - Added import job polling (`GET /api/products/import/jobs/{jobId}`) and status messaging.
+  - Added inline top-10 row error preview for partial/failed imports.
+- Public Storefront UI:
+  - Wired explicit stock reservation button in cart.
+  - Auto-reserves stock when entering checkout.
+  - Checkout now enforces reservation before order submit and releases reservation after successful checkout.
+  - Reservation status shown in cart/checkout panels.
+- Frontend files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Products.js`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/storefront/StorefrontPublic.js`

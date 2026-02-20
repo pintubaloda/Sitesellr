@@ -345,3 +345,14 @@ UPDATE [2026-02-20] - PRODUCT MANAGEMENT GO-LIVE HARDENING (PHASE)
 - Partial:
   - Frontend UX for product import job monitor and explicit reserve/release checkout calls can be further polished.
   - Full-scale distributed cache and advanced inventory reservation lifecycle (expiry daemon) still evolvable.
+
+UPDATE [2026-02-20] - FRONTEND WIRING PASS (PRODUCT IMPORT + CART RESERVATION)
+- Developed:
+  - Product module UI now supports CSV import upload and backend async import job monitoring.
+  - Product import row-level validation errors are surfaced in admin UI.
+  - Storefront cart/checkout now calls real reservation APIs:
+    - reserve in cart or automatically on checkout entry
+    - enforce reservation before checkout submit
+    - release reservation after successful checkout
+- Partial:
+  - Reservation expiry countdown/recovery UX can be improved (backend currently returns expiresInSeconds but countdown is not rendered yet).

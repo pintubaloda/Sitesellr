@@ -547,3 +547,11 @@ Notes:
   - product CSV import async jobs + row validation report
   - public storefront caching
   - load/smoke artifacts and backend-ui wiring status sheet
+
+[2026-02-20] Pending Commit
+- Frontend UI wiring in one pass:
+  - Products admin CSV import + async job monitor + inline error list.
+  - Storefront cart/checkout stock reserve/release integration.
+- Files:
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Products.js
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/storefront/StorefrontPublic.js

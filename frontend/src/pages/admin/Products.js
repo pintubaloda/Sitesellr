@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -302,6 +302,7 @@ const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading
 
 export const Products = () => {
   const { storeId, loadingStores } = useActiveStore();
+  const importFileRef = useRef(null);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -310,6 +311,9 @@ export const Products = () => {
   const [rows, setRows] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importJob, setImportJob] = useState(null);
+  const [importStatus, setImportStatus] = useState("");
   const { data: apiProducts, loading } = useApiList("/products", { storeId, enabled: !!storeId });
   const products = rows;
 
@@ -385,6 +389,51 @@ export const Products = () => {
     }
   };
 
+  const pollImportJob = async (jobId) => {
+    try {
+      const res = await api.get(`/products/import/jobs/${jobId}`);
+      const job = res.data;
+      setImportJob(job);
+      if (job.status === "completed" || job.status === "partial" || job.status === "failed") {
+        setImporting(false);
+        setImportStatus(`Import ${job.status}. Success: ${job.successCount}, Errors: ${job.errors?.length || 0}`);
+        if (job.successCount > 0) {
+          const refreshed = await api.get("/products", { params: { storeId } });
+          setRows((refreshed.data ?? []).map(mapProductFromApi));
+        }
+        return;
+      }
+      setTimeout(() => pollImportJob(jobId), 1500);
+    } catch (_) {
+      setImporting(false);
+      setImportStatus("Import status fetch failed.");
+    }
+  };
+
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !storeId) return;
+    setError("");
+    setImporting(true);
+    setImportStatus("Uploading import file...");
+    setImportJob(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await api.post("/products/import/csv", formData, {
+        params: { storeId },
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setImportStatus("Import started. Processing rows...");
+      await pollImportJob(res.data.jobId);
+    } catch (_) {
+      setImporting(false);
+      setImportStatus("Import failed to start.");
+    } finally {
+      if (event.target) event.target.value = "";
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="products-page">
       {/* Page Header */}
@@ -396,9 +445,22 @@ export const Products = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="rounded-lg" data-testid="import-btn">
+          <input
+            ref={importFileRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <Button
+            variant="outline"
+            className="rounded-lg"
+            data-testid="import-btn"
+            disabled={!storeId || importing}
+            onClick={() => importFileRef.current?.click()}
+          >
             <Upload className="w-4 h-4 mr-2" />
-            Import
+            {importing ? "Importing..." : "Import CSV"}
           </Button>
           <Button
             className="rounded-lg bg-blue-600 hover:bg-blue-700"
@@ -461,6 +523,15 @@ export const Products = () => {
             <div className="p-6 text-sm text-amber-600 dark:text-amber-400">Store is not selected. Set `REACT_APP_STORE_ID` or login with a store role.</div>
           ) : null}
           {error ? <div className="px-6 py-3 text-sm text-red-600 dark:text-red-400">{error}</div> : null}
+          {importStatus ? <div className="px-6 py-3 text-sm text-blue-700 dark:text-blue-300 border-b border-slate-200 dark:border-slate-800">{importStatus}</div> : null}
+          {importJob?.errors?.length ? (
+            <div className="px-6 py-3 text-xs text-amber-700 dark:text-amber-300 border-b border-slate-200 dark:border-slate-800 max-h-36 overflow-auto">
+              {importJob.errors.slice(0, 10).map((item, idx) => (
+                <div key={`${item.row}-${idx}`}>Row {item.row}: {item.error}</div>
+              ))}
+              {importJob.errors.length > 10 ? <div>+{importJob.errors.length - 10} more errors</div> : null}
+            </div>
+          ) : null}
           <Table>
             <TableHeader>
               <TableRow>

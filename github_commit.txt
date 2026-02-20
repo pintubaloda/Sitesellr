@@ -613,3 +613,8 @@ Notes:
 - Fix store owner login store-context issue:
   - Tenancy resolver fallback for invalid/stale store header membership.
   - Frontend active store auto-correction when stored store id is invalid.
+
+[2026-02-20] Pending Commit
+- Store-owner modules moved from mock/demo to live backend wiring:
+  - Added store insights APIs for dashboard, analytics, and marketing.
+  - Rebuilt frontend dashboard/analytics/marketing pages against live API responses.

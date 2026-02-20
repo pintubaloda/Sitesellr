@@ -427,3 +427,10 @@ UPDATE [2026-02-20] - STORE CONTEXT AUTO-RESOLUTION
   - Store users now auto-resolve to a valid store context after login, even when stale store id exists from prior session.
 - Impact:
   - Eliminates false `Store is not selected` blocks in store-owner admin pages.
+
+UPDATE [2026-02-20] - STORE OWNER LIVE MODULES
+- Developed:
+  - Dashboard, Marketing, and Analytics are now backend-wired using live store data.
+  - Removed dependency on static mock datasets for these three modules.
+- Impact:
+  - Store-owner operational reporting and marketing screens now reflect real tenant data.

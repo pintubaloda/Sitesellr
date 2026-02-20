@@ -707,3 +707,26 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Files:
   - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/TenancyContext.cs`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/hooks/useActiveStore.js`
+
+[2026-02-20] Store Owner Live Data Pass - Dashboard, Marketing, Analytics
+- Replaced demo/mock behavior with backend-wired store insights modules.
+- Backend added store insights controller with live APIs:
+  - `GET /api/stores/{storeId}/insights/dashboard?range=...`
+  - `GET /api/stores/{storeId}/insights/analytics?range=...`
+  - `GET /api/stores/{storeId}/insights/marketing?range=...`
+- Dashboard page now loads:
+  - live revenue/orders/customers/conversion metrics
+  - live trend series and category split
+  - recent orders and recent activity logs
+- Analytics page now loads:
+  - live metrics (revenue/orders/AOV/customers/conversion)
+  - live revenue trend, order status split, top products by revenue
+- Marketing page now loads:
+  - live campaign subscription metrics/spend/template counts/inquiries
+  - live campaign subscriptions and payment event feed
+  - live template list with activate action (`purchase` API)
+- Files:
+  - `/Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/StoreInsightsController.cs`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Dashboard.js`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Marketing.js`
+  - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/Analytics.js`

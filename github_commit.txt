@@ -645,3 +645,16 @@ Notes:
   - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/auth/Onboarding.js
   - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/auth/AcceptInvite.js
 - Commit: 8bc388d (pushed to origin/main)
+
+[2026-02-20] Pending Commit
+- Theme activate/preview fix:
+  - Added explicit Activate button per theme card + clearer activation error feedback.
+  - Wired top Preview button to active theme preview.
+  - Preview calls now include `storeId` + `previewThemeId`.
+  - Public storefront APIs now support `storeId` fallback lookup when subdomain is missing in preview flow.
+  - Theme apply no longer increments/blocks on theme install usage counter per activation click.
+- Files:
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/StoreBuilder.js
+  - /Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/storefront/StorefrontPublic.js
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Controllers/PublicStorefrontController.cs
+  - /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Services/SubscriptionCapabilityService.cs

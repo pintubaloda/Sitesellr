@@ -454,3 +454,12 @@ UPDATE [2026-02-20] - STORE CONTEXT BINDING ON LOGIN
 - Impact:
   - Store owner/staff can enter dashboard without manual `REACT_APP_STORE_ID`.
   - Reduces cross-user store-context conflicts in shared browser sessions.
+
+UPDATE [2026-02-20] - THEME MARKETPLACE ACTIVATION/PREVIEW STABILITY
+- Developed:
+  - Theme activation UX improved with explicit Activate action and better plan-gating messages.
+  - Active-theme preview button wired from store builder.
+  - Preview routing hardened with `storeId` fallback for stores without configured subdomain.
+  - Public storefront + static-page preview APIs now support store lookup by id during preview.
+- Impact:
+  - Store owner can activate/preview themes reliably in dev/demo environments.

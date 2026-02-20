@@ -93,16 +93,12 @@ public class SubscriptionCapabilityService : ISubscriptionCapabilityService
     public async Task<(bool Allowed, string? Error, object? Details)> CheckThemeApplyAsync(Guid storeId, bool isPremiumTheme, string themeTier, CancellationToken ct)
     {
         var caps = await GetCapabilitiesAsync(storeId, ct);
-        var usage = await GetUsageAsync(storeId, ct);
-        if (caps.MaxThemeInstalls > 0 && usage.ThemeInstalls >= caps.MaxThemeInstalls)
-            return (false, "plan_limit_exceeded", new { action = "themes.install", limit = caps.MaxThemeInstalls, current = usage.ThemeInstalls });
         if (isPremiumTheme && !caps.PremiumThemeAccess)
             return (false, "feature_not_enabled", new { action = "themes.premium", requiredPlan = "growth_or_higher" });
         if (!string.IsNullOrWhiteSpace(themeTier) && CompareTier(themeTier, caps.AllowedThemeTier) > 0)
             return (false, "feature_not_enabled", new { action = "themes.tier", allowed = caps.AllowedThemeTier, requested = themeTier });
-        usage.ThemeInstalls += 1;
-        usage.UpdatedAt = DateTimeOffset.UtcNow;
-        await _db.SaveChangesAsync(ct);
+        // Theme apply is an activation switch. Install-count enforcement is handled by
+        // marketplace purchase/install flows, not by every activation click.
         return (true, null, null);
     }
 

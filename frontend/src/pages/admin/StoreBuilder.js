@@ -200,6 +200,17 @@ const ThemeCard = ({ theme, isActive, onSelect, onPreview }) => {
         <div className="mt-3 flex gap-2">
           <Button
             size="sm"
+            className="bg-blue-600 hover:bg-blue-700"
+            disabled={blocked || isActive}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(theme.id);
+            }}
+          >
+            {isActive ? "Active" : "Activate"}
+          </Button>
+          <Button
+            size="sm"
             variant="outline"
             onClick={(e) => {
               e.stopPropagation();
@@ -482,7 +493,20 @@ export const StoreBuilder = () => {
       setActiveThemeId(themeId);
       setStatus("Theme applied successfully.");
     } catch (err) {
-      setStatus(err?.response?.data?.error || "Could not apply theme.");
+      const error = err?.response?.data?.error;
+      if (error === "plan_not_eligible_for_theme") {
+        setStatus("Your current plan is not eligible for this theme.");
+        return;
+      }
+      if (error === "feature_not_enabled") {
+        setStatus("Theme requires a higher plan tier.");
+        return;
+      }
+      if (error === "plan_limit_exceeded") {
+        setStatus("Theme limit reached for your plan.");
+        return;
+      }
+      setStatus(error || "Could not apply theme.");
     }
   };
 
@@ -873,9 +897,13 @@ export const StoreBuilder = () => {
   const previewTheme = (themeId) => {
     if (!storeId || !themeId) return;
     const selectedStore = stores.find((x) => x.id === storeId);
-    const sub = selectedStore?.subdomain || selectedStore?.name?.toLowerCase().replace(/\s+/g, "-");
+    const sub = selectedStore?.subdomain || "preview";
     if (!sub) return;
-    window.open(`/s/${sub}?previewThemeId=${encodeURIComponent(themeId)}`, "_blank");
+    const query = new URLSearchParams({
+      previewThemeId: String(themeId),
+      storeId: String(storeId),
+    });
+    window.open(`/s/${encodeURIComponent(sub)}?${query.toString()}`, "_blank");
   };
 
   const uploadMedia = async (e, kind = "generic") => {
@@ -1152,7 +1180,13 @@ export const StoreBuilder = () => {
           <p className="text-slate-500 dark:text-slate-400">Theme marketplace and storefront customization</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="rounded-lg" data-testid="preview-store-btn">
+          <Button
+            variant="outline"
+            className="rounded-lg"
+            data-testid="preview-store-btn"
+            onClick={() => previewTheme(activeThemeId)}
+            disabled={!activeThemeId}
+          >
             <Eye className="w-4 h-4 mr-2" />Preview
           </Button>
           <Button className="rounded-lg bg-blue-600 hover:bg-blue-700" onClick={saveThemeSettings}>

@@ -105,7 +105,11 @@ export default function StorefrontPublic() {
       try {
         const query = new URLSearchParams(location.search);
         const previewThemeId = query.get("previewThemeId");
-        const res = await api.get(`/public/storefront/${subdomain}`, { params: previewThemeId ? { previewThemeId } : {} });
+        const storeId = query.get("storeId");
+        const params = {};
+        if (previewThemeId) params.previewThemeId = previewThemeId;
+        if (storeId) params.storeId = storeId;
+        const res = await api.get(`/public/storefront/${subdomain}`, { params });
         setData(res.data);
         setError("");
       } catch {
@@ -122,7 +126,11 @@ export default function StorefrontPublic() {
         return;
       }
       try {
-        const res = await api.get(`/public/storefront/${subdomain}/pages/${slug}`);
+        const query = new URLSearchParams(location.search);
+        const storeId = query.get("storeId");
+        const res = await api.get(`/public/storefront/${subdomain}/pages/${slug}`, {
+          params: storeId ? { storeId } : {},
+        });
         setPage(res.data);
       } catch {
         setPage({ title: "Page not found", content: "" });

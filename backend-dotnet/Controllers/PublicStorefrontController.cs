@@ -26,12 +26,21 @@ public class PublicStorefrontController : ControllerBase
     }
 
     [HttpGet("{subdomain}")]
-    public async Task<IActionResult> GetBySubdomain(string subdomain, [FromQuery] Guid? customerGroupId, [FromQuery] Guid? previewThemeId, CancellationToken ct)
+    public async Task<IActionResult> GetBySubdomain(
+        string subdomain,
+        [FromQuery] Guid? customerGroupId,
+        [FromQuery] Guid? previewThemeId,
+        [FromQuery] Guid? storeId,
+        CancellationToken ct)
     {
-        var cacheKey = $"sf:{subdomain.Trim().ToLowerInvariant()}:cg:{customerGroupId}:pv:{previewThemeId}";
+        var cacheKey = $"sf:{subdomain.Trim().ToLowerInvariant()}:sid:{storeId}:cg:{customerGroupId}:pv:{previewThemeId}";
         if (!previewThemeId.HasValue && _cache.TryGetValue<object>(cacheKey, out var cached)) return Ok(cached);
         var normalized = subdomain.Trim().ToLowerInvariant();
         var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalized, ct);
+        if (store == null && storeId.HasValue)
+        {
+            store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Id == storeId.Value, ct);
+        }
         if (store == null) return NotFound(new { error = "store_not_found" });
 
         var theme = await _db.StoreThemeConfigs.AsNoTracking()
@@ -134,13 +143,17 @@ public class PublicStorefrontController : ControllerBase
     }
 
     [HttpGet("{subdomain}/pages/{slug}")]
-    public async Task<IActionResult> GetPage(string subdomain, string slug, CancellationToken ct)
+    public async Task<IActionResult> GetPage(string subdomain, string slug, [FromQuery] Guid? storeId, CancellationToken ct)
     {
-        var cacheKey = $"sf:page:{subdomain.Trim().ToLowerInvariant()}:{slug.Trim().ToLowerInvariant()}";
+        var cacheKey = $"sf:page:{subdomain.Trim().ToLowerInvariant()}:sid:{storeId}:{slug.Trim().ToLowerInvariant()}";
         if (_cache.TryGetValue<object>(cacheKey, out var cached)) return Ok(cached);
         var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
         var normalizedSlug = slug.Trim().ToLowerInvariant();
         var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null && storeId.HasValue)
+        {
+            store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Id == storeId.Value, ct);
+        }
         if (store == null) return NotFound(new { error = "store_not_found" });
 
         var page = await _db.StoreStaticPages.AsNoTracking()

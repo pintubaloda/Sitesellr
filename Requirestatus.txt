@@ -468,3 +468,13 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
 - Issue: CS1056/CS1003 in Program.cs due to invalid backslash escaping inside verbatim SQL strings.
 - Fix: corrected JSON default strings for `TemplatesJson` and `HookPointsJson` to proper verbatim-string quoting.
 - File: /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs
+
+[2026-02-20] Platform Owner Theme ZIP Auto-Import
+- Added platform-owner endpoint to upload/import theme zip: `POST /api/platform/themes/import-zip`.
+- Import workflow:
+  - Reads `theme.manifest.json` from zip root.
+  - Validates theme contract (mandatory templates/hooks/schema) before saving.
+  - Extracts only `assets/*` into `/wwwroot/theme-packages/{slug}/{version}/assets`.
+  - Creates/updates theme catalog record automatically.
+- Added Platform UI panel for ZIP upload/import in Platform Themes page.
+- Added packaging guide: `/Volumes/Rakesh/RBproject/sitesellr/THEME_ZIP_SPEC.md`.

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.IO;
+using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using backend_dotnet.Data;
@@ -1035,6 +1036,109 @@ public class PlatformThemesController : ControllerBase
         _db.ThemeCatalogItems.Add(row);
         await _db.SaveChangesAsync(ct);
         return Ok(row);
+    }
+
+    [HttpPost("import-zip")]
+    [RequestSizeLimit(50_000_000)]
+    public async Task<IActionResult> ImportThemeZip([FromForm] IFormFile file, CancellationToken ct)
+    {
+        if (file == null || file.Length == 0) return BadRequest(new { error = "file_required" });
+        if (!file.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) return BadRequest(new { error = "zip_required" });
+
+        await using var input = file.OpenReadStream();
+        using var archive = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: false);
+        var manifestEntry = archive.Entries.FirstOrDefault(e => e.FullName.EndsWith("theme.manifest.json", StringComparison.OrdinalIgnoreCase));
+        if (manifestEntry == null) return BadRequest(new { error = "manifest_missing" });
+
+        ThemeCatalogCreateRequest? manifest;
+        await using (var manifestStream = manifestEntry.Open())
+        {
+            manifest = await JsonSerializer.DeserializeAsync<ThemeCatalogCreateRequest>(manifestStream, cancellationToken: ct);
+        }
+        if (manifest == null) return BadRequest(new { error = "manifest_invalid" });
+
+        var slug = manifest.Slug.Trim().ToLowerInvariant();
+        var templatesJson = string.IsNullOrWhiteSpace(manifest.TemplatesJson) ? "[\"homepage\",\"product_listing\",\"product_detail\",\"cart\",\"static_page\",\"checkout\"]" : manifest.TemplatesJson.Trim();
+        var sectionSchemasJson = string.IsNullOrWhiteSpace(manifest.SectionSchemasJson) ? "[]" : manifest.SectionSchemasJson.Trim();
+        var hookPointsJson = string.IsNullOrWhiteSpace(manifest.HookPointsJson) ? "[\"BeforePrice\",\"AfterPrice\",\"BeforeAddToCart\",\"AfterDescription\"]" : manifest.HookPointsJson.Trim();
+        if (!_contract.Validate(templatesJson, sectionSchemasJson, hookPointsJson, out var contractError))
+            return BadRequest(new { error = contractError });
+
+        var themeVersion = string.IsNullOrWhiteSpace(manifest.ThemeVersion) ? "1.0.0" : manifest.ThemeVersion.Trim();
+        var packageRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "theme-packages", slug, themeVersion);
+        Directory.CreateDirectory(packageRoot);
+
+        foreach (var entry in archive.Entries)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Name)) continue;
+            if (!entry.FullName.StartsWith("assets/", StringComparison.OrdinalIgnoreCase)) continue;
+            var safeRelative = entry.FullName.Replace("\\", "/");
+            var targetPath = Path.GetFullPath(Path.Combine(packageRoot, safeRelative));
+            if (!targetPath.StartsWith(packageRoot, StringComparison.Ordinal)) return BadRequest(new { error = "unsafe_zip_path" });
+            Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+            await using var entryStream = entry.Open();
+            await using var outStream = System.IO.File.Create(targetPath);
+            await entryStream.CopyToAsync(outStream, ct);
+        }
+
+        var exists = await _db.ThemeCatalogItems.FirstOrDefaultAsync(x => x.Slug == slug, ct);
+        var previewFromPackage = $"/theme-packages/{slug}/{themeVersion}/assets/preview.png";
+        var previewUrl = string.IsNullOrWhiteSpace(manifest.PreviewUrl) ? previewFromPackage : manifest.PreviewUrl.Trim();
+        if (exists == null)
+        {
+            exists = new ThemeCatalogItem
+            {
+                Name = manifest.Name.Trim(),
+                Slug = slug,
+                Category = manifest.Category?.Trim() ?? "General",
+                Description = manifest.Description?.Trim() ?? string.Empty,
+                PreviewUrl = previewUrl,
+                IsPaid = manifest.IsPaid,
+                Price = manifest.Price,
+                AllowedPlanCodesCsv = manifest.AllowedPlanCodesCsv?.Trim().ToLowerInvariant() ?? string.Empty,
+                IsActive = manifest.IsActive,
+                IsFeatured = manifest.IsFeatured,
+                FeaturedRank = manifest.FeaturedRank,
+                TypographyPack = string.IsNullOrWhiteSpace(manifest.TypographyPack) ? "modern-sans" : manifest.TypographyPack.Trim().ToLowerInvariant(),
+                LayoutVariant = string.IsNullOrWhiteSpace(manifest.LayoutVariant) ? "default" : manifest.LayoutVariant.Trim().ToLowerInvariant(),
+                RuntimePackageJson = string.IsNullOrWhiteSpace(manifest.RuntimePackageJson) ? "{}" : manifest.RuntimePackageJson.Trim(),
+                TemplatesJson = templatesJson,
+                SectionSchemasJson = sectionSchemasJson,
+                HookPointsJson = hookPointsJson,
+                ThemeVersion = themeVersion,
+                PlpVariantsJson = string.IsNullOrWhiteSpace(manifest.PlpVariantsJson) ? "[]" : manifest.PlpVariantsJson.Trim(),
+                PdpVariantsJson = string.IsNullOrWhiteSpace(manifest.PdpVariantsJson) ? "[]" : manifest.PdpVariantsJson.Trim(),
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            _db.ThemeCatalogItems.Add(exists);
+        }
+        else
+        {
+            exists.Name = manifest.Name.Trim();
+            exists.Category = manifest.Category?.Trim() ?? exists.Category;
+            exists.Description = manifest.Description?.Trim() ?? string.Empty;
+            exists.PreviewUrl = previewUrl;
+            exists.IsPaid = manifest.IsPaid;
+            exists.Price = manifest.Price;
+            exists.AllowedPlanCodesCsv = manifest.AllowedPlanCodesCsv?.Trim().ToLowerInvariant() ?? string.Empty;
+            exists.IsActive = manifest.IsActive;
+            exists.IsFeatured = manifest.IsFeatured;
+            exists.FeaturedRank = manifest.FeaturedRank;
+            exists.TypographyPack = string.IsNullOrWhiteSpace(manifest.TypographyPack) ? exists.TypographyPack : manifest.TypographyPack.Trim().ToLowerInvariant();
+            exists.LayoutVariant = string.IsNullOrWhiteSpace(manifest.LayoutVariant) ? exists.LayoutVariant : manifest.LayoutVariant.Trim().ToLowerInvariant();
+            exists.RuntimePackageJson = string.IsNullOrWhiteSpace(manifest.RuntimePackageJson) ? "{}" : manifest.RuntimePackageJson.Trim();
+            exists.TemplatesJson = templatesJson;
+            exists.SectionSchemasJson = sectionSchemasJson;
+            exists.HookPointsJson = hookPointsJson;
+            exists.ThemeVersion = themeVersion;
+            exists.PlpVariantsJson = string.IsNullOrWhiteSpace(manifest.PlpVariantsJson) ? "[]" : manifest.PlpVariantsJson.Trim();
+            exists.PdpVariantsJson = string.IsNullOrWhiteSpace(manifest.PdpVariantsJson) ? "[]" : manifest.PdpVariantsJson.Trim();
+            exists.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { imported = true, exists.Id, exists.Name, exists.Slug, exists.ThemeVersion, assetPath = $"/theme-packages/{slug}/{themeVersion}/assets" });
     }
 
     [HttpPut("{id:guid}")]

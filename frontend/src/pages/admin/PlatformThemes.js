@@ -36,6 +36,7 @@ export default function PlatformThemes() {
   const [editForm, setEditForm] = useState(initialForm);
   const [message, setMessage] = useState("");
   const [previewSubdomain, setPreviewSubdomain] = useState("demo");
+  const [zipFile, setZipFile] = useState(null);
 
   const load = async () => {
     try {
@@ -130,6 +131,26 @@ export default function PlatformThemes() {
     }
   };
 
+  const importZip = async () => {
+    if (!zipFile) {
+      setMessage("Select a ZIP file first.");
+      return;
+    }
+    setMessage("");
+    try {
+      const formData = new FormData();
+      formData.append("file", zipFile);
+      await api.post("/platform/themes/import-zip", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setZipFile(null);
+      await load();
+      setMessage("Theme ZIP imported.");
+    } catch (err) {
+      setMessage(err?.response?.data?.error || "Could not import theme zip.");
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="platform-themes-page">
       <div>
@@ -166,6 +187,17 @@ export default function PlatformThemes() {
           <div className="flex items-center gap-2"><Switch checked={form.isActive} onCheckedChange={(v) => setForm((s) => ({ ...s, isActive: v }))} /><Label>Active</Label></div>
           <div className="flex items-center gap-2"><Switch checked={form.isFeatured} onCheckedChange={(v) => setForm((s) => ({ ...s, isFeatured: v }))} /><Label>Featured</Label></div>
           <Button onClick={create} className="md:col-span-2">Create Theme</Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Import Theme ZIP</CardTitle>
+          <CardDescription>Upload a theme package zip containing `theme.manifest.json` and `assets/*`.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col md:flex-row md:items-center gap-3">
+          <Input type="file" accept=".zip,application/zip" onChange={(e) => setZipFile(e.target.files?.[0] || null)} />
+          <Button onClick={importZip}>Upload & Import</Button>
         </CardContent>
       </Card>
 

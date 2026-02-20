@@ -522,3 +522,9 @@ Notes:
 [2026-02-20] Pending Commit (build fix)
 - Fixed Program.cs invalid escaping in SQL default JSON literals causing Docker publish compile errors.
 - File: /Volumes/Rakesh/RBproject/sitesellr/backend-dotnet/Program.cs
+
+[2026-02-20] Pending Commit
+- Feature: Platform-owner ZIP upload and auto-import for external theme packages.
+- Backend: `/api/platform/themes/import-zip` with manifest parse + contract validation + asset extraction.
+- Frontend: Platform Themes upload panel (`Upload & Import`).
+- Spec file: `THEME_ZIP_SPEC.md`.

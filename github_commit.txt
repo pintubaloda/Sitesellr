@@ -910,3 +910,13 @@ Files:
 Notes:
 - Added bearer authentication pipeline for opaque tokens.
 - Prevents 500 from missing default challenge/authenticate scheme.
+
+[Pending push] 2026-02-21 - fix false 403 from policy/permission naming mismatch
+Files:
+- backend-dotnet/Security/Rbac.cs
+- backend-dotnet/Security/PermissionCatalog.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Added compatibility mapping for legacy write policies to granular permissions.
+- Added compatibility permissions to default store role templates.

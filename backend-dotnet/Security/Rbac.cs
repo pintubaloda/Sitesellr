@@ -40,6 +40,33 @@ public class AccessRequirement : IAuthorizationRequirement
 
 public class AccessRequirementHandler : AuthorizationHandler<AccessRequirement>
 {
+    private static bool HasStorePermission(TenancyContext tenancy, string requiredPermission)
+    {
+        if (tenancy.StorePermissions.Contains(requiredPermission)) return true;
+
+        // Backward-compatible aliases while migrating from coarse permissions to granular permissions.
+        if (requiredPermission.Equals(Permissions.ProductsWrite, StringComparison.OrdinalIgnoreCase))
+        {
+            return tenancy.StorePermissions.Contains(Permissions.ProductsCreate) ||
+                   tenancy.StorePermissions.Contains(Permissions.ProductsUpdate) ||
+                   tenancy.StorePermissions.Contains(Permissions.ProductsDelete);
+        }
+
+        if (requiredPermission.Equals(Permissions.CustomersWrite, StringComparison.OrdinalIgnoreCase))
+        {
+            return tenancy.StorePermissions.Contains(Permissions.CustomersUpdate);
+        }
+
+        if (requiredPermission.Equals(Permissions.OrdersWrite, StringComparison.OrdinalIgnoreCase))
+        {
+            return tenancy.StorePermissions.Contains(Permissions.OrdersUpdate) ||
+                   tenancy.StorePermissions.Contains(Permissions.OrdersCancel) ||
+                   tenancy.StorePermissions.Contains(Permissions.OrdersCreateManual);
+        }
+
+        return false;
+    }
+
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, AccessRequirement requirement)
     {
         if (context.Resource is HttpContext httpContext &&
@@ -69,7 +96,7 @@ public class AccessRequirementHandler : AuthorizationHandler<AccessRequirement>
                 return Task.CompletedTask;
             }
 
-            if (tenancy.StorePermissions.Contains(requirement.RequiredPermission))
+            if (HasStorePermission(tenancy, requirement.RequiredPermission))
             {
                 context.Succeed(requirement);
             }

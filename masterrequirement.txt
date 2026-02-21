@@ -581,3 +581,6 @@ Update 2026-02-21
 
 Update 2026-02-21
 - Added production auth middleware wiring for opaque bearer tokens to support all `[Authorize]` APIs correctly.
+
+Update 2026-02-21
+- Fixed RBAC compatibility gap causing false 403 on store-owner product endpoints.

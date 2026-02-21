@@ -978,3 +978,8 @@ Update 2026-02-21 (Auth scheme fix for [Authorize] endpoints)
 - Developed: Implemented `OpaqueTokenAuthenticationHandler` to validate bearer token hash against `access_tokens` and token expiry.
 - Developed: Added `app.UseAuthentication()` before authorization middleware.
 - Impact: fixed runtime error "No authenticationScheme was specified..." and restored access to protected APIs (`/api/stores`, `/api/products`, etc.).
+
+Update 2026-02-21 (403 Forbidden fix for store-owner product APIs)
+- Developed: Added permission alias handling so legacy policy checks (`products.write`, `orders.write`, `customers.write`) are satisfied by granular role permissions.
+- Developed: Updated store role templates to include compatibility permissions (`products.write`, `orders.write`, `customers.write`).
+- Impact: store owner/staff can access product create/update APIs without false 403 due to permission naming mismatch.

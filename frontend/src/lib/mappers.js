@@ -28,6 +28,18 @@ const CUSTOMER_TYPE = {
 const storePlaceholder =
   "https://placehold.co/80x80/F1F5F9/475569?text=No+Image";
 
+const isVideoUrl = (url) => {
+  const value = (url || "").toLowerCase();
+  return (
+    value.endsWith(".mp4") ||
+    value.endsWith(".webm") ||
+    value.endsWith(".mov") ||
+    value.includes("youtube.com") ||
+    value.includes("youtu.be") ||
+    value.includes("vimeo.com")
+  );
+};
+
 const statusFromStock = (stock, rawStatus) => {
   if (stock <= 0) return "out_of_stock";
   if (stock < 20) return "low_stock";
@@ -55,17 +67,18 @@ export const mapProductFromApi = (item) => {
   const sortedMedia = [...(item.media || [])].sort(
     (a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
   );
+  const firstImage = sortedMedia.find((m) => m?.url && !isVideoUrl(m.url));
   const rawStatus = PRODUCT_STATUS[item.status] || "draft";
 
   return {
     id: item.id,
     name: item.title || "Untitled product",
     sku: item.sku || "-",
-    category: item.category?.name || "General",
+    category: item.categoryName || item.category?.name || "General",
     price: Number(item.price || 0),
     stock: totalStock,
     status: statusFromStock(totalStock, rawStatus),
-    image: sortedMedia[0]?.url || storePlaceholder,
+    image: firstImage?.url || storePlaceholder,
     sales: Number(item.sales || 0),
     raw: item,
   };

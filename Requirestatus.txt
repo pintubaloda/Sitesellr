@@ -1015,3 +1015,9 @@ Update 2026-02-21 (Category create/list 500 hardening)
 - Developed: Added defensive try/catch with structured error payloads for category list/create endpoints.
 - Developed: Category APIs now return flat response DTO (`CategoryResponse`) to avoid navigation/cycle serialization risks.
 - Developed: Category create now returns explicit `category_create_failed` detail on server exceptions for faster diagnosis.
+
+Update 2026-02-21 (Product image/category + Orders visibility fixes)
+- Developed: Product API list/get now include category relation and return `categoryName` in response payload.
+- Developed: Product mapper now picks first non-video media as thumbnail image (prevents video URL being shown as missing image).
+- Developed: Reworked Orders API to DTO contracts for request/response, removing entity graph serialization cycles and making orders list reliable.
+- Impact: product images display correctly, product category label no longer falls back to General when category exists, and orders page can load real orders consistently.

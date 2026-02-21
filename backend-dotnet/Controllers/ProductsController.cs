@@ -37,6 +37,7 @@ public class ProductsController : BaseApiController
         var products = await _db.Products
             .AsNoTracking()
             .Where(p => p.StoreId == storeId)
+            .Include(p => p.Category)
             .Include(p => p.Variants)
             .Include(p => p.Media)
             .Skip((page - 1) * pageSize)
@@ -123,6 +124,7 @@ public class ProductsController : BaseApiController
         if (storeId == Guid.Empty) return BadRequest(new { error = "store_required" });
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         var product = await _db.Products
+            .Include(p => p.Category)
             .Include(p => p.Variants)
             .Include(p => p.Media)
             .FirstOrDefaultAsync(p => p.Id == id && p.StoreId == storeId, ct);
@@ -455,6 +457,7 @@ public class ProductsController : BaseApiController
             Status = p.Status,
             IsPublished = p.IsPublished,
             CategoryId = p.CategoryId,
+            CategoryName = p.Category?.Name,
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt,
             Variants = (p.Variants ?? Array.Empty<ProductVariant>()).Select(v => new ProductVariantResponse
@@ -542,6 +545,7 @@ public class ProductResponse
     public ProductStatus Status { get; set; }
     public bool IsPublished { get; set; }
     public Guid? CategoryId { get; set; }
+    public string? CategoryName { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public List<ProductVariantResponse> Variants { get; set; } = new();

@@ -980,3 +980,15 @@ Files:
 Notes:
 - Added exception-safe category list/create handlers.
 - Response contract flattened to DTO.
+
+[Pending push] 2026-02-21 - fix product thumbnail/category mapping and order list DTO serialization
+Files:
+- backend-dotnet/Controllers/ProductsController.cs
+- backend-dotnet/Controllers/OrdersController.cs
+- frontend/src/lib/mappers.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Added product category name in API response.
+- Thumbnail selection now ignores video URLs.
+- Orders endpoints now use DTO responses to avoid cycle-related runtime failures.

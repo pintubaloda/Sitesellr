@@ -1,4 +1,5 @@
 using backend_dotnet.Data;
+using backend_dotnet.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Nodes;
@@ -485,6 +486,11 @@ public class PublicStorefrontController : ControllerBase
         var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
         if (store == null) return NotFound(new { error = "store_not_found" });
         if (req.Items == null || req.Items.Count == 0) return BadRequest(new { error = "cart_empty" });
+        var normalizedState = req.State.Trim();
+        if (!IndiaStateCatalog.States.Contains(normalizedState, StringComparer.OrdinalIgnoreCase))
+            return BadRequest(new { error = "invalid_state" });
+        if (string.IsNullOrWhiteSpace(req.AddressLine1) || string.IsNullOrWhiteSpace(req.City) || string.IsNullOrWhiteSpace(req.PostalCode))
+            return BadRequest(new { error = "address_required" });
 
         var products = await _db.Products.AsNoTracking()
             .Where(x => x.StoreId == store.Id && req.Items.Select(i => i.ProductId).Contains(x.Id))
@@ -512,6 +518,31 @@ public class PublicStorefrontController : ControllerBase
             _db.Customers.Add(customer);
             await _db.SaveChangesAsync(ct);
         }
+        else
+        {
+            customer.Name = req.Name.Trim();
+            customer.Phone = req.Phone.Trim();
+            customer.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        var existingAddresses = await _db.CustomerAddresses.Where(a => a.CustomerId == customer.Id).ToListAsync(ct);
+        if (existingAddresses.Count > 0)
+        {
+            foreach (var addr in existingAddresses) addr.IsDefault = false;
+        }
+        _db.CustomerAddresses.Add(new Models.CustomerAddress
+        {
+            CustomerId = customer.Id,
+            Label = "Shipping",
+            Line1 = req.AddressLine1.Trim(),
+            Line2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? null : req.AddressLine2.Trim(),
+            City = req.City.Trim(),
+            State = normalizedState,
+            PostalCode = req.PostalCode.Trim(),
+            Country = "India",
+            IsDefault = true,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
 
         decimal subtotal = 0;
         var orderItems = new List<Models.OrderItem>();
@@ -558,7 +589,7 @@ public class PublicStorefrontController : ControllerBase
             Shipping = 0,
             Total = subtotal,
             Currency = store.Currency,
-            Notes = $"public_checkout;payment={req.PaymentMethod}",
+            Notes = $"public_checkout;payment={req.PaymentMethod};state={normalizedState};city={req.City.Trim()}",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
             Items = orderItems
@@ -716,6 +747,16 @@ public class PublicCheckoutRequest
     public string Phone { get; set; } = string.Empty;
     [Required, StringLength(40)]
     public string PaymentMethod { get; set; } = "cod";
+    [Required, StringLength(200, MinimumLength = 4)]
+    public string AddressLine1 { get; set; } = string.Empty;
+    [StringLength(200)]
+    public string? AddressLine2 { get; set; }
+    [Required, StringLength(100, MinimumLength = 2)]
+    public string City { get; set; } = string.Empty;
+    [Required, StringLength(100, MinimumLength = 2)]
+    public string State { get; set; } = string.Empty;
+    [Required, StringLength(20, MinimumLength = 4)]
+    public string PostalCode { get; set; } = string.Empty;
     [Required]
     public List<PublicCheckoutItem> Items { get; set; } = new();
 }

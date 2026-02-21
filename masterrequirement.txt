@@ -608,3 +608,6 @@ Update 2026-02-21
 
 Update 2026-02-21
 - Product presentation and Orders module wiring stabilized via response DTOs and media/category mapping fixes.
+
+Update 2026-02-21
+- Implemented India-wide state catalog in backend and integrated modern address-aware storefront checkout UX.

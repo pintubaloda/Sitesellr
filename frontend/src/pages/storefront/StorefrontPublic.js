@@ -84,7 +84,18 @@ export default function StorefrontPublic() {
   const [listLayout, setListLayout] = useState("grid");
   const [cart, setCart] = useState([]);
   const [search, setSearch] = useState("");
-  const [checkoutForm, setCheckoutForm] = useState({ name: "", email: "", phone: "", paymentMethod: "cod" });
+  const [checkoutForm, setCheckoutForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    paymentMethod: "cod"
+  });
+  const [indiaStates, setIndiaStates] = useState([]);
   const [checkoutMessage, setCheckoutMessage] = useState("");
   const [reservation, setReservation] = useState({ id: "", cartKey: "", loading: false, message: "" });
   const [authForm, setAuthForm] = useState({ name: "", email: "", phone: "", password: "" });
@@ -99,6 +110,18 @@ export default function StorefrontPublic() {
   }, [location.pathname, subdomain]);
   const slugParts = slug.split("/").filter(Boolean);
   const mode = !slug ? "home" : slug === "cart" ? "cart" : slug === "checkout" ? "checkout" : slug === "login" ? "login" : slugParts[0] === "products" && slugParts[1] ? "pdp" : "page";
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const res = await api.get("/meta/india-states");
+        setIndiaStates(Array.isArray(res.data?.states) ? res.data.states : []);
+      } catch {
+        setIndiaStates([]);
+      }
+    };
+    run();
+  }, []);
 
   useEffect(() => {
     const run = async () => {
@@ -311,6 +334,10 @@ export default function StorefrontPublic() {
       setCheckoutMessage("Fill name, email, and phone.");
       return;
     }
+    if (!checkoutForm.addressLine1 || !checkoutForm.city || !checkoutForm.state || !checkoutForm.postalCode) {
+      setCheckoutMessage("Fill complete shipping address.");
+      return;
+    }
     const reserved = await reserveStock();
     if (!reserved) {
       setCheckoutMessage("Stock reservation failed. Update cart and retry.");
@@ -321,6 +348,11 @@ export default function StorefrontPublic() {
         name: checkoutForm.name,
         email: checkoutForm.email,
         phone: checkoutForm.phone,
+        addressLine1: checkoutForm.addressLine1,
+        addressLine2: checkoutForm.addressLine2,
+        city: checkoutForm.city,
+        state: checkoutForm.state,
+        postalCode: checkoutForm.postalCode,
         paymentMethod: checkoutForm.paymentMethod,
         items: cart.map((x) => ({ productId: x.id, quantity: x.quantity })),
       });
@@ -582,24 +614,53 @@ export default function StorefrontPublic() {
           )}
         </main>
       ) : mode === "checkout" ? (
-        <main className="max-w-3xl mx-auto px-4 py-8">
+        <main className="max-w-5xl mx-auto px-4 py-8">
           <h2 className="text-2xl font-bold mb-2">Checkout</h2>
-          <p className="text-slate-600 mb-6">Complete your details and place the order.</p>
-          <div className="rounded-2xl border bg-white p-5 space-y-4">
-            <input className="w-full h-11 border rounded-lg px-3" placeholder="Full name" value={checkoutForm.name} onChange={(e) => setCheckoutForm((s) => ({ ...s, name: e.target.value }))} />
-            <input className="w-full h-11 border rounded-lg px-3" placeholder="Email" value={checkoutForm.email} onChange={(e) => setCheckoutForm((s) => ({ ...s, email: e.target.value }))} />
-            <input className="w-full h-11 border rounded-lg px-3" placeholder="Phone" value={checkoutForm.phone} onChange={(e) => setCheckoutForm((s) => ({ ...s, phone: e.target.value }))} />
-            <select className="w-full h-11 border rounded-lg px-3" value={checkoutForm.paymentMethod} onChange={(e) => setCheckoutForm((s) => ({ ...s, paymentMethod: e.target.value }))}>
-              <option value="cod">Cash on Delivery</option>
-              <option value="upi">UPI</option>
-              <option value="card">Card</option>
-            </select>
-            <div className="flex items-center justify-between pt-2 border-t">
-              <p className="font-semibold">Payable: INR {cartTotal.toLocaleString()}</p>
-              <button className="px-5 py-2.5 rounded-lg text-white" style={{ backgroundColor: primary }} onClick={checkout}>Place order</button>
+          <p className="text-slate-600 mb-6">Secure checkout with shipping details and payment method.</p>
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 rounded-2xl border bg-white p-5 space-y-4">
+              <div className="grid sm:grid-cols-2 gap-3">
+                <input className="w-full h-11 border rounded-lg px-3" placeholder="Full name" value={checkoutForm.name} onChange={(e) => setCheckoutForm((s) => ({ ...s, name: e.target.value }))} />
+                <input className="w-full h-11 border rounded-lg px-3" placeholder="Phone" value={checkoutForm.phone} onChange={(e) => setCheckoutForm((s) => ({ ...s, phone: e.target.value }))} />
+              </div>
+              <input className="w-full h-11 border rounded-lg px-3" placeholder="Email" value={checkoutForm.email} onChange={(e) => setCheckoutForm((s) => ({ ...s, email: e.target.value }))} />
+              <input className="w-full h-11 border rounded-lg px-3" placeholder="Address line 1" value={checkoutForm.addressLine1} onChange={(e) => setCheckoutForm((s) => ({ ...s, addressLine1: e.target.value }))} />
+              <input className="w-full h-11 border rounded-lg px-3" placeholder="Address line 2 (optional)" value={checkoutForm.addressLine2} onChange={(e) => setCheckoutForm((s) => ({ ...s, addressLine2: e.target.value }))} />
+              <div className="grid sm:grid-cols-3 gap-3">
+                <input className="w-full h-11 border rounded-lg px-3" placeholder="City" value={checkoutForm.city} onChange={(e) => setCheckoutForm((s) => ({ ...s, city: e.target.value }))} />
+                <select className="w-full h-11 border rounded-lg px-3" value={checkoutForm.state} onChange={(e) => setCheckoutForm((s) => ({ ...s, state: e.target.value }))}>
+                  <option value="">Select state</option>
+                  {indiaStates.map((state) => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+                <input className="w-full h-11 border rounded-lg px-3" placeholder="PIN code" value={checkoutForm.postalCode} onChange={(e) => setCheckoutForm((s) => ({ ...s, postalCode: e.target.value }))} />
+              </div>
+              <select className="w-full h-11 border rounded-lg px-3" value={checkoutForm.paymentMethod} onChange={(e) => setCheckoutForm((s) => ({ ...s, paymentMethod: e.target.value }))}>
+                <option value="cod">Cash on Delivery</option>
+                <option value="upi">UPI</option>
+                <option value="card">Card</option>
+              </select>
+              {reservation.message ? <p className="text-sm text-slate-600">{reservation.message}</p> : null}
+              {checkoutMessage ? <p className="text-sm text-slate-600">{checkoutMessage}</p> : null}
             </div>
-            {reservation.message ? <p className="text-sm text-slate-600">{reservation.message}</p> : null}
-            {checkoutMessage ? <p className="text-sm text-slate-600">{checkoutMessage}</p> : null}
+            <div className="rounded-2xl border bg-white p-5 h-fit">
+              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Order Summary</p>
+              <div className="mt-4 space-y-3">
+                {cart.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between text-sm">
+                    <p className="truncate pr-3">{item.title} x {item.quantity}</p>
+                    <p className="font-medium">INR {(Number(item.price || 0) * item.quantity).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 pt-4 border-t flex items-center justify-between">
+                <p className="font-semibold">Payable</p>
+                <p className="text-lg font-bold">INR {cartTotal.toLocaleString()}</p>
+              </div>
+              <button className="mt-4 w-full px-5 py-2.5 rounded-lg text-white font-medium" style={{ backgroundColor: primary }} onClick={checkout}>Place order</button>
+              <p className="mt-3 text-xs text-slate-500">By placing order, you agree to store terms and policies.</p>
+            </div>
           </div>
         </main>
       ) : mode === "login" ? (

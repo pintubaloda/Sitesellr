@@ -1021,3 +1021,9 @@ Update 2026-02-21 (Product image/category + Orders visibility fixes)
 - Developed: Product mapper now picks first non-video media as thumbnail image (prevents video URL being shown as missing image).
 - Developed: Reworked Orders API to DTO contracts for request/response, removing entity graph serialization cycles and making orders list reliable.
 - Impact: product images display correctly, product category label no longer falls back to General when category exists, and orders page can load real orders consistently.
+
+Update 2026-02-21 (Modern storefront checkout + India state catalog)
+- Developed: Added reusable backend master endpoint `GET /api/meta/india-states` for all stores/themes.
+- Developed: Public checkout API now accepts shipping fields (`addressLine1`, `addressLine2`, `city`, `state`, `postalCode`) and validates state against India state/UT catalog.
+- Developed: Checkout now stores shipping address as default customer address and updates customer profile contact details.
+- Developed: Storefront checkout UI upgraded to modern two-column flow (shipping form + order summary) with India state dropdown and stronger validation.

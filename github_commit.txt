@@ -992,3 +992,15 @@ Notes:
 - Added product category name in API response.
 - Thumbnail selection now ignores video URLs.
 - Orders endpoints now use DTO responses to avoid cycle-related runtime failures.
+
+[Pending push] 2026-02-21 - add India state catalog and modernize storefront checkout flow
+Files:
+- backend-dotnet/Services/IndiaStateCatalog.cs
+- backend-dotnet/Controllers/MetaController.cs
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- frontend/src/pages/storefront/StorefrontPublic.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Added global India states endpoint and checkout address/state validation.
+- Upgraded storefront checkout UI and payload for production-ready India address capture.

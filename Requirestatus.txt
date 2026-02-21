@@ -864,3 +864,10 @@ Update 2026-02-21 (Module load fix + Cloudflare OAuth-style connect)
 - Developed: Added Cloudflare OAuth-style connect flow endpoints (`start` + `callback`) with state handling, token exchange, and platform token persistence.
 - Developed: Added OAuth config fields in Domains & SSL platform UI and backend config persistence for authorize/token URLs, client id/secret, redirect URI, scope, post-connect redirect.
 - Partial: OAuth flow requires correct Cloudflare OAuth app credentials/endpoints configured in platform domain settings.
+
+Update 2026-02-21 (OAuth defaults + SSL pricing workflow)
+- Developed: Cloudflare OAuth defaults now auto-filled (`authorize`/`token` URLs) and redirect URI auto-generates from current host when empty.
+- Developed: Platform Domains config now supports SSL marketplace price (`platform.domains.ssl.price_inr`).
+- Developed: Store Domains UI now shows SSL price and uses it in Buy SSL call-to-action.
+- Developed: Store domain list/add/purchase APIs now return `sslPriceInr` so frontend shows consistent pricing from backend config.
+- Partial: Payment gateway charge capture for SSL purchase is still simulated via payment reference; full gateway callback reconciliation remains pending.

@@ -34,7 +34,27 @@ public class DomainSslController : ControllerBase
     {
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         var rows = await _db.StoreDomains.AsNoTracking().Where(x => x.StoreId == storeId).OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
-        return Ok(rows);
+        var sslPriceInr = await GetSslPriceInrAsync(ct);
+        return Ok(rows.Select(x => new
+        {
+            x.Id,
+            x.StoreId,
+            x.Hostname,
+            x.VerificationToken,
+            x.IsVerified,
+            x.DnsManagedByCloudflare,
+            x.DnsStatus,
+            x.SslProvider,
+            x.SslPurchased,
+            x.SslPurchaseReference,
+            x.SslPurchasedAt,
+            x.SslStatus,
+            x.SslExpiresAt,
+            x.LastError,
+            x.CreatedAt,
+            x.UpdatedAt,
+            sslPriceInr
+        }));
     }
 
     [HttpPost]
@@ -73,6 +93,7 @@ public class DomainSslController : ControllerBase
         row.LastError = dns.Error;
         await _db.SaveChangesAsync(ct);
         var auto = await TryAutoVerifyAndIssueAsync(row, ct);
+        var sslPriceInr = await GetSslPriceInrAsync(ct);
         return Ok(new
         {
             row.Id,
@@ -84,6 +105,7 @@ public class DomainSslController : ControllerBase
             row.SslPurchased,
             row.SslStatus,
             row.LastError,
+            sslPriceInr,
             verification = new
             {
                 type = "txt",
@@ -171,6 +193,7 @@ public class DomainSslController : ControllerBase
         {
             await RunIssueAsync(row, ct);
         }
+        var sslPriceInr = await GetSslPriceInrAsync(ct);
 
         return Ok(new
         {
@@ -179,7 +202,8 @@ public class DomainSslController : ControllerBase
             row.SslPurchaseReference,
             row.SslPurchasedAt,
             row.SslStatus,
-            row.LastError
+            row.LastError,
+            sslPriceInr
         });
     }
 
@@ -253,6 +277,19 @@ public class DomainSslController : ControllerBase
             return parsed;
         }
         return _config.GetValue("SSL_REQUIRE_MARKETPLACE_PURCHASE", true);
+    }
+
+    private async Task<int> GetSslPriceInrAsync(CancellationToken ct)
+    {
+        var value = await _db.PlatformBrandingSettings.AsNoTracking()
+            .Where(x => x.Key == "platform.domains.ssl.price_inr")
+            .Select(x => x.Value)
+            .FirstOrDefaultAsync(ct);
+        if (!string.IsNullOrWhiteSpace(value) && int.TryParse(value, out var parsed) && parsed >= 0)
+        {
+            return parsed;
+        }
+        return _config.GetValue("SSL_PRICE_INR", 999);
     }
 }
 

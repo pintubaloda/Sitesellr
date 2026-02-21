@@ -49,12 +49,13 @@ export default function PlatformModule({ moduleKey = "reports" }) {
     platformIngressHost: "",
     sslIssuerCommand: "",
     sslContactEmail: "",
+    sslPriceInr: "999",
     sslRequireMarketplacePurchase: "true",
     acmeClient: "certbot",
     acmeChallengeMethod: "dns-01",
     acmeDirectoryUrl: "https://acme-v02.api.letsencrypt.org/directory",
-    cloudflareOauthAuthorizeUrl: "",
-    cloudflareOauthTokenUrl: "",
+    cloudflareOauthAuthorizeUrl: "https://dash.cloudflare.com/oauth2/auth",
+    cloudflareOauthTokenUrl: "https://dash.cloudflare.com/oauth2/token",
     cloudflareOauthClientId: "",
     cloudflareOauthClientSecret: "",
     cloudflareOauthRedirectUri: "",
@@ -461,6 +462,10 @@ export default function PlatformModule({ moduleKey = "reports" }) {
                 <Input value={domainsConfigForm.sslContactEmail || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslContactEmail: e.target.value }))} />
               </div>
               <div className="space-y-2">
+                <Label>SSL Price (INR)</Label>
+                <Input value={domainsConfigForm.sslPriceInr || "999"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslPriceInr: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
                 <Label>ACME Client</Label>
                 <Input value={domainsConfigForm.acmeClient || "certbot"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, acmeClient: e.target.value }))} />
               </div>
@@ -481,11 +486,11 @@ export default function PlatformModule({ moduleKey = "reports" }) {
               </div>
               <div className="space-y-2">
                 <Label>OAuth Authorize URL</Label>
-                <Input value={domainsConfigForm.cloudflareOauthAuthorizeUrl || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthAuthorizeUrl: e.target.value }))} />
+                <Input value={domainsConfigForm.cloudflareOauthAuthorizeUrl || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthAuthorizeUrl: e.target.value }))} placeholder="https://dash.cloudflare.com/oauth2/auth" />
               </div>
               <div className="space-y-2">
                 <Label>OAuth Token URL</Label>
-                <Input value={domainsConfigForm.cloudflareOauthTokenUrl || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthTokenUrl: e.target.value }))} />
+                <Input value={domainsConfigForm.cloudflareOauthTokenUrl || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthTokenUrl: e.target.value }))} placeholder="https://dash.cloudflare.com/oauth2/token" />
               </div>
               <div className="space-y-2">
                 <Label>OAuth Client ID</Label>
@@ -497,7 +502,7 @@ export default function PlatformModule({ moduleKey = "reports" }) {
               </div>
               <div className="space-y-2">
                 <Label>OAuth Redirect URI</Label>
-                <Input value={domainsConfigForm.cloudflareOauthRedirectUri || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthRedirectUri: e.target.value }))} />
+                <Input value={domainsConfigForm.cloudflareOauthRedirectUri || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthRedirectUri: e.target.value }))} placeholder="Auto generated from current host if empty" />
               </div>
               <div className="space-y-2">
                 <Label>OAuth Scope</Label>

@@ -497,3 +497,9 @@ UPDATE [2026-02-20] - PLATFORM DOMAIN GOVERNANCE + CLOUDFLARE/SSL CONFIG UI
 |---|---|---|---|
 | Platform module reliability | Developed | Fixed database query compatibility for platform API/config/domains/report modules using PostgreSQL-safe `ILike` filters | Add automated backend smoke check in CI for owner-module endpoints |
 | Cloudflare OAuth-style connect | Partial+ | OAuth start/callback flow, CSRF-style state check, token exchange persistence, owner UI controls | Finalize production Cloudflare OAuth endpoint/app setup values and verify on deployed env |
+
+## Domains/SSL Monetization Flow - 2026-02-21 update
+| Module | Status | Developed | Partial / Need to Develop |
+|---|---|---|---|
+| Cloudflare OAuth setup UX | Developed | Default Cloudflare OAuth endpoints auto-provided, redirect URI auto-derivation from current host | Optional one-click Cloudflare app bootstrap is pending |
+| SSL marketplace pricing | Developed | Platform owner can set SSL price (INR), store domain UI displays purchase price, backend returns price with domain records | Real payment capture + invoice + refund lifecycle for SSL purchase |

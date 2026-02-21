@@ -12,12 +12,17 @@ export default function DomainsSsl() {
   const [rows, setRows] = useState([]);
   const [message, setMessage] = useState("");
   const [dnsHint, setDnsHint] = useState(null);
+  const [sslPriceInr, setSslPriceInr] = useState(999);
 
   const load = async () => {
     if (!storeId) return;
     try {
       const res = await api.get(`/stores/${storeId}/domains`);
-      setRows(Array.isArray(res.data) ? res.data : []);
+      const list = Array.isArray(res.data) ? res.data : [];
+      setRows(list);
+      if (list.length > 0 && Number.isFinite(Number(list[0]?.sslPriceInr))) {
+        setSslPriceInr(Number(list[0]?.sslPriceInr));
+      }
     } catch (err) {
       setMessage(err?.response?.status === 403 ? "You are not authorized." : "Could not load domains.");
     }
@@ -41,6 +46,9 @@ export default function DomainsSsl() {
         mappingHost: res.data?.mapping?.host,
         mappingTarget: res.data?.mapping?.target,
       });
+      if (Number.isFinite(Number(res.data?.sslPriceInr))) {
+        setSslPriceInr(Number(res.data?.sslPriceInr));
+      }
       setMessage("Domain added. DNS mapping + TXT verification attempted automatically via Cloudflare.");
     } catch (err) {
       setMessage(err?.response?.data?.error || "Could not add domain.");
@@ -77,7 +85,7 @@ export default function DomainsSsl() {
     try {
       await api.post(`/stores/${storeId}/domains/${id}/purchase-ssl`, { paymentReference: `ui_${Date.now()}` });
       await load();
-      setMessage("SSL purchase recorded. If DNS is verified, issuance starts automatically.");
+      setMessage(`SSL purchase recorded (INR ${sslPriceInr}). If DNS is verified, issuance starts automatically.`);
     } catch (err) {
       setMessage(err?.response?.data?.error || "Could not complete SSL purchase.");
     }
@@ -87,7 +95,8 @@ export default function DomainsSsl() {
     <div className="space-y-6" data-testid="domains-ssl-page">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Domains & Free SSL</h1>
-        <p className="text-slate-500 dark:text-slate-400">Add custom domain, verify DNS, issue free Let's Encrypt SSL from system</p>
+        <p className="text-slate-500 dark:text-slate-400">Add custom domain, verify DNS, then purchase and issue Let's Encrypt SSL from marketplace flow.</p>
+        <p className="text-xs text-slate-500 mt-1">Current SSL marketplace price: INR {sslPriceInr}</p>
       </div>
 
       {message ? <p className="text-sm text-slate-600 dark:text-slate-300">{message}</p> : null}
@@ -130,10 +139,11 @@ export default function DomainsSsl() {
                 <p className="text-xs text-slate-500">
                   dns: {d.dnsStatus || "-"} · verified: {String(d.isVerified)} · ssl-purchased: {String(d.sslPurchased)} · ssl: {d.sslStatus} · expires: {d.sslExpiresAt || "-"}
                 </p>
+                {!d.sslPurchased ? <p className="text-xs text-amber-600 mt-1">SSL purchase required: INR {d.sslPriceInr ?? sslPriceInr}</p> : null}
                 {d.lastError ? <p className="text-xs text-red-600">{d.lastError}</p> : null}
               </div>
               <div className="flex items-center gap-2">
-                {!d.sslPurchased ? <Button variant="outline" onClick={() => purchaseSsl(d.id)}>Buy SSL</Button> : null}
+                {!d.sslPurchased ? <Button variant="outline" onClick={() => purchaseSsl(d.id)}>Buy SSL (INR {d.sslPriceInr ?? sslPriceInr})</Button> : null}
                 <Button variant="outline" onClick={() => verify(d.id)}>Verify Now</Button>
                 <Button onClick={() => issueSsl(d.id)} disabled={!d.sslPurchased || !d.isVerified}>Issue SSL</Button>
               </div>

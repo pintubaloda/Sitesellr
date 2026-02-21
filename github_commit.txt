@@ -721,3 +721,16 @@ Files:
 Notes:
 - Replaced non-translatable EF filters with ILike to fix module API load failures.
 - Added Cloudflare OAuth-style connect start/callback and persisted OAuth config fields.
+
+[Pending push] 2026-02-21 - OAuth auto defaults and SSL pricing visibility
+Files:
+- backend-dotnet/Controllers/PlatformOwnerModulesController.cs
+- backend-dotnet/Controllers/DomainSslController.cs
+- frontend/src/pages/admin/PlatformModule.js
+- frontend/src/pages/admin/DomainsSsl.js
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Auto default OAuth authorize/token URLs and auto-generate redirect URI when empty.
+- Added configurable SSL price and exposed it in store domain APIs/UI.

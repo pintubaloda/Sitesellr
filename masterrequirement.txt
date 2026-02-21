@@ -556,3 +556,7 @@ Update 2026-02-21
 Update 2026-02-21
 - Store update/create validation hardened for required store name.
 - Prevents 500 errors on malformed payloads; returns API-safe 400 validation error.
+
+Update 2026-02-21
+- Store settings save flow hardened: external DNS provisioning errors no longer block store updates.
+- API now returns structured failures for easier frontend handling.

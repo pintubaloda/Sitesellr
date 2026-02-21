@@ -942,3 +942,8 @@ Update 2026-02-21 (Store validation 400 fix: Merchant required)
 Update 2026-02-21 (Store save 500 guard)
 - Developed: Added explicit store name validation in store create/update endpoints.
 - Developed: API now returns `name_required` (400) instead of server 500 when name is blank/null.
+
+Update 2026-02-21 (Store save reliability + CORS symptom fix)
+- Developed: Wrapped store create/update flows with explicit exception handling and structured error responses.
+- Developed: Cloudflare subdomain provisioning is now non-blocking on store save (logs warning, does not fail save).
+- Impact: Store settings save no longer fails when Cloudflare config is missing/invalid; frontend will receive API JSON instead of opaque 500/CORS-style browser error.

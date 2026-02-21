@@ -12,11 +12,13 @@ public class StoresController : BaseApiController
 {
     private readonly AppDbContext _db;
     private readonly ICloudflareDnsService _cloudflareDns;
+    private readonly ILogger<StoresController> _logger;
 
-    public StoresController(AppDbContext db, ICloudflareDnsService cloudflareDns)
+    public StoresController(AppDbContext db, ICloudflareDnsService cloudflareDns, ILogger<StoresController> logger)
     {
         _db = db;
         _cloudflareDns = cloudflareDns;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -50,45 +52,57 @@ public class StoresController : BaseApiController
     [Authorize(Policy = Policies.StoreSettingsWrite)]
     public async Task<IActionResult> Create([FromBody] StoreUpsertRequest input, CancellationToken ct)
     {
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
-        if (string.IsNullOrWhiteSpace(input.Name))
+        try
         {
-            return BadRequest(new { error = "name_required" });
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (string.IsNullOrWhiteSpace(input.Name))
+            {
+                return BadRequest(new { error = "name_required" });
+            }
+            var merchantId = input.MerchantId;
+            if (!merchantId.HasValue && Tenancy?.Store != null)
+            {
+                merchantId = Tenancy.Store.MerchantId;
+            }
+            if (!merchantId.HasValue || merchantId.Value == Guid.Empty)
+            {
+                return BadRequest(new { error = "merchant_required" });
+            }
+            if (Tenancy?.Store != null && Tenancy.Store.MerchantId != merchantId.Value) return Forbid();
+            if (!string.IsNullOrWhiteSpace(input.Subdomain) && !SubdomainPolicy.TryNormalizeRequested(input.Subdomain, out _, out var createError))
+            {
+                return BadRequest(new { error = createError ?? "subdomain_invalid" });
+            }
+            var created = new Store
+            {
+                Id = Guid.NewGuid(),
+                MerchantId = merchantId.Value,
+                Name = input.Name.Trim(),
+                Subdomain = await EnsureUniqueSubdomainAsync(input.Subdomain, input.Name, null, ct),
+                Currency = string.IsNullOrWhiteSpace(input.Currency) ? "INR" : input.Currency.Trim(),
+                Timezone = string.IsNullOrWhiteSpace(input.Timezone) ? "Asia/Kolkata" : input.Timezone.Trim(),
+                Status = input.Status,
+                IsWholesaleEnabled = input.IsWholesaleEnabled,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            _db.Stores.Add(created);
+            await _db.SaveChangesAsync(ct);
+            if (!string.IsNullOrWhiteSpace(created.Subdomain))
+            {
+                var dnsResult = await _cloudflareDns.EnsureTenantSubdomainAsync(created.Subdomain, ct);
+                if (!dnsResult.Success)
+                {
+                    _logger.LogWarning("Cloudflare subdomain provisioning skipped for store {StoreId}: {Error}", created.Id, dnsResult.Error);
+                }
+            }
+            return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
         }
-        var merchantId = input.MerchantId;
-        if (!merchantId.HasValue && Tenancy?.Store != null)
+        catch (Exception ex)
         {
-            merchantId = Tenancy.Store.MerchantId;
+            _logger.LogError(ex, "Create store failed");
+            return StatusCode(500, new { error = "store_create_failed", detail = ex.Message });
         }
-        if (!merchantId.HasValue || merchantId.Value == Guid.Empty)
-        {
-            return BadRequest(new { error = "merchant_required" });
-        }
-        if (Tenancy?.Store != null && Tenancy.Store.MerchantId != merchantId.Value) return Forbid();
-        if (!string.IsNullOrWhiteSpace(input.Subdomain) && !SubdomainPolicy.TryNormalizeRequested(input.Subdomain, out _, out var createError))
-        {
-            return BadRequest(new { error = createError ?? "subdomain_invalid" });
-        }
-        var created = new Store
-        {
-            Id = Guid.NewGuid(),
-            MerchantId = merchantId.Value,
-            Name = input.Name.Trim(),
-            Subdomain = await EnsureUniqueSubdomainAsync(input.Subdomain, input.Name, null, ct),
-            Currency = string.IsNullOrWhiteSpace(input.Currency) ? "INR" : input.Currency.Trim(),
-            Timezone = string.IsNullOrWhiteSpace(input.Timezone) ? "Asia/Kolkata" : input.Timezone.Trim(),
-            Status = input.Status,
-            IsWholesaleEnabled = input.IsWholesaleEnabled,
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow
-        };
-        _db.Stores.Add(created);
-        await _db.SaveChangesAsync(ct);
-        if (!string.IsNullOrWhiteSpace(created.Subdomain))
-        {
-            await _cloudflareDns.EnsureTenantSubdomainAsync(created.Subdomain, ct);
-        }
-        return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 
     [HttpGet("{id:guid}")]
@@ -148,40 +162,52 @@ public class StoresController : BaseApiController
     [Authorize(Policy = Policies.StoreSettingsWrite)]
     public async Task<IActionResult> Update(Guid id, [FromBody] StoreUpsertRequest input, CancellationToken ct)
     {
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
-        if (string.IsNullOrWhiteSpace(input.Name))
+        try
         {
-            return BadRequest(new { error = "name_required" });
-        }
-        if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (string.IsNullOrWhiteSpace(input.Name))
+            {
+                return BadRequest(new { error = "name_required" });
+            }
+            if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
 
-        var store = await _db.Stores.FirstOrDefaultAsync(s => s.Id == id, ct);
-        if (store == null) return NotFound();
-        if (!string.IsNullOrWhiteSpace(input.Subdomain) && !SubdomainPolicy.TryNormalizeRequested(input.Subdomain, out _, out var updateError))
+            var store = await _db.Stores.FirstOrDefaultAsync(s => s.Id == id, ct);
+            if (store == null) return NotFound();
+            if (!string.IsNullOrWhiteSpace(input.Subdomain) && !SubdomainPolicy.TryNormalizeRequested(input.Subdomain, out _, out var updateError))
+            {
+                return BadRequest(new { error = updateError ?? "subdomain_invalid" });
+            }
+
+            if (input.MerchantId.HasValue && input.MerchantId.Value != Guid.Empty)
+            {
+                if (Tenancy?.Store != null && Tenancy.Store.MerchantId != input.MerchantId.Value) return Forbid();
+                store.MerchantId = input.MerchantId.Value;
+            }
+
+            store.Name = input.Name.Trim();
+            store.Subdomain = await EnsureUniqueSubdomainAsync(input.Subdomain, input.Name, id, ct);
+            store.Currency = string.IsNullOrWhiteSpace(input.Currency) ? store.Currency : input.Currency.Trim();
+            store.Timezone = string.IsNullOrWhiteSpace(input.Timezone) ? store.Timezone : input.Timezone.Trim();
+            store.Status = input.Status;
+            store.IsWholesaleEnabled = input.IsWholesaleEnabled;
+            store.UpdatedAt = DateTimeOffset.UtcNow;
+
+            await _db.SaveChangesAsync(ct);
+            if (!string.IsNullOrWhiteSpace(store.Subdomain))
+            {
+                var dnsResult = await _cloudflareDns.EnsureTenantSubdomainAsync(store.Subdomain, ct);
+                if (!dnsResult.Success)
+                {
+                    _logger.LogWarning("Cloudflare subdomain provisioning skipped for store {StoreId}: {Error}", store.Id, dnsResult.Error);
+                }
+            }
+            return Ok(store);
+        }
+        catch (Exception ex)
         {
-            return BadRequest(new { error = updateError ?? "subdomain_invalid" });
+            _logger.LogError(ex, "Update store failed for {StoreId}", id);
+            return StatusCode(500, new { error = "store_update_failed", detail = ex.Message });
         }
-
-        if (input.MerchantId.HasValue && input.MerchantId.Value != Guid.Empty)
-        {
-            if (Tenancy?.Store != null && Tenancy.Store.MerchantId != input.MerchantId.Value) return Forbid();
-            store.MerchantId = input.MerchantId.Value;
-        }
-
-        store.Name = input.Name.Trim();
-        store.Subdomain = await EnsureUniqueSubdomainAsync(input.Subdomain, input.Name, id, ct);
-        store.Currency = string.IsNullOrWhiteSpace(input.Currency) ? store.Currency : input.Currency.Trim();
-        store.Timezone = string.IsNullOrWhiteSpace(input.Timezone) ? store.Timezone : input.Timezone.Trim();
-        store.Status = input.Status;
-        store.IsWholesaleEnabled = input.IsWholesaleEnabled;
-        store.UpdatedAt = DateTimeOffset.UtcNow;
-
-        await _db.SaveChangesAsync(ct);
-        if (!string.IsNullOrWhiteSpace(store.Subdomain))
-        {
-            await _cloudflareDns.EnsureTenantSubdomainAsync(store.Subdomain, ct);
-        }
-        return Ok(store);
     }
 
     private async Task<string> EnsureUniqueSubdomainAsync(string? requested, string? fallbackName, Guid? excludingStoreId, CancellationToken ct)

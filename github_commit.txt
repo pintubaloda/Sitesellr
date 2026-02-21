@@ -847,3 +847,12 @@ Files:
 - github_commit.txt
 Notes:
 - Added `name_required` validation for create/update to prevent null trim exception.
+
+[Pending push] 2026-02-21 - make store save resilient against Cloudflare DNS failures
+Files:
+- backend-dotnet/Controllers/StoresController.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Added controller-level try/catch for store create/update.
+- Made Cloudflare DNS provisioning best-effort (warning only), not a blocking save failure.

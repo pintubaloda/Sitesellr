@@ -640,7 +640,8 @@ public class PlatformOwnerModulesController : ControllerBase
             featureFlagsJson = map.GetValueOrDefault("platform.config.feature_flags_json", "{}"),
             limitsJson = map.GetValueOrDefault("platform.config.limits_json", "{}"),
             communicationProvider = map.GetValueOrDefault("platform.config.communication_provider", "smtp"),
-            regionRulesJson = map.GetValueOrDefault("platform.config.region_rules_json", "{}")
+            regionRulesJson = map.GetValueOrDefault("platform.config.region_rules_json", "{}"),
+            corsOriginsCsv = map.GetValueOrDefault("platform.config.cors_origins_csv", _config["CORS_ORIGINS"] ?? "*")
         });
     }
 
@@ -654,8 +655,10 @@ public class PlatformOwnerModulesController : ControllerBase
             ["platform.config.feature_flags_json"] = req.FeatureFlagsJson.Trim(),
             ["platform.config.limits_json"] = req.LimitsJson.Trim(),
             ["platform.config.communication_provider"] = req.CommunicationProvider.Trim(),
-            ["platform.config.region_rules_json"] = req.RegionRulesJson.Trim()
+            ["platform.config.region_rules_json"] = req.RegionRulesJson.Trim(),
+            ["platform.config.cors_origins_csv"] = req.CorsOriginsCsv.Trim()
         };
+        kv["platform.security.cors.origins"] = req.CorsOriginsCsv.Trim();
         foreach (var pair in kv)
         {
             if (pair.Value.Length > 4000) return BadRequest(new { error = "config_value_too_long", key = pair.Key });
@@ -727,6 +730,7 @@ public class PlatformConfigRequest
     public string LimitsJson { get; set; } = "{}";
     public string CommunicationProvider { get; set; } = "smtp";
     public string RegionRulesJson { get; set; } = "{}";
+    public string CorsOriginsCsv { get; set; } = "*";
 }
 
 public class PlatformDomainsConfigRequest

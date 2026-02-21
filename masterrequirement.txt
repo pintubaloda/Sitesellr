@@ -532,3 +532,8 @@ UPDATE [2026-02-20] - PLATFORM DOMAIN GOVERNANCE + CLOUDFLARE/SSL CONFIG UI
 | Module | Status | Developed | Partial / Need to Develop |
 |---|---|---|---|
 | Automatic image optimization | Developed | External product image URLs are auto-fetched and normalized into same-size optimized assets on save (frontend + backend enforcement) | Background re-optimization job for legacy existing media |
+
+## Dynamic CORS Governance - 2026-02-21 update
+| Module | Status | Developed | Partial / Need to Develop |
+|---|---|---|---|
+| CORS whitelist management | Developed | Runtime CORS registry + platform CORS CSV + store-owner CORS CSV + wildcard host support | Per-origin usage analytics and CORS audit events |

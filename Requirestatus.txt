@@ -910,3 +910,13 @@ Update 2026-02-21 (Automatic image normalization enforced)
 - Developed: Product save flow now auto-normalizes all non-managed image URLs before save, ensuring uniform optimized image output.
 - Developed: Backend Products create/update now also normalizes external image URLs server-side to enforce same-size optimized assets even if frontend is bypassed.
 - Developed: Normalized image pipeline outputs consistent 1200x1200 WebP media for catalog usage.
+
+Update 2026-02-21 (Dynamic CORS whitelist controls: platform + store owner)
+- Developed: Added dynamic CORS origin registry service with 60-second refresh, merging env + platform + store-level origin lists.
+- Developed: Platform-level CORS whitelist configuration added in Platform Configuration (`corsOriginsCsv`), persisted and applied at runtime.
+- Developed: Store owner CORS whitelist APIs added:
+  - `GET /api/stores/{id}/cors-origins`
+  - `PUT /api/stores/{id}/cors-origins`
+- Developed: Store owner Settings UI now includes `Store CORS Allowed Origins (CSV)` and saves with general settings.
+- Developed: CORS middleware now uses runtime registry matcher (including wildcard hosts like `https://*.sitesellr.com`) instead of static startup-only list.
+- Clarification: login may succeed while add-product fails when preflight/credentialed API requests use a different origin/header set; dynamic CORS allowlist now addresses this path.

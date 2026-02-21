@@ -72,37 +72,6 @@ if (builder.Environment.IsProduction() && connectionString.Contains("Host=localh
     throw new InvalidOperationException("Invalid PostgreSQL host 'localhost' in production. Set POSTGRES_CONNECTION_STRING to managed database host.");
 }
 
-var corsOrigins = (builder.Configuration["CORS_ORIGINS"] ?? "*")
-    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-bool IsAllowedOrigin(string origin)
-{
-    if (corsOrigins.Length == 0 || corsOrigins.Contains("*")) return true;
-    if (!Uri.TryCreate(origin, UriKind.Absolute, out var originUri)) return false;
-
-    foreach (var configured in corsOrigins)
-    {
-        if (!Uri.TryCreate(configured, UriKind.Absolute, out var configuredUri)) continue;
-        if (string.Equals(configuredUri.Scheme, originUri.Scheme, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(configuredUri.Host, originUri.Host, StringComparison.OrdinalIgnoreCase) &&
-            configuredUri.Port == originUri.Port)
-        {
-            return true;
-        }
-
-        var wildcardHost = configuredUri.Host;
-        if (!wildcardHost.StartsWith("*.", StringComparison.Ordinal)) continue;
-        var suffix = wildcardHost[1..]; // ".example.com"
-        if (originUri.Host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(configuredUri.Scheme, originUri.Scheme, StringComparison.OrdinalIgnoreCase) &&
-            configuredUri.Port == originUri.Port)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
 // Services
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -114,6 +83,7 @@ builder.Services.AddInMemoryRateLimiting();
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddSingleton<ICorsOriginRegistry, CorsOriginRegistry>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IThemeContractService, ThemeContractService>();
 builder.Services.AddScoped<ISubscriptionCapabilityService, SubscriptionCapabilityService>();
@@ -210,20 +180,13 @@ builder.Services.AddAuthorization(options =>
         policy.Requirements.Add(new AccessRequirement(Permissions.ApiKeysRevoke)));
 });
 builder.Services.AddSingleton<IAuthorizationHandler, AccessRequirementHandler>();
+ICorsOriginRegistry? corsRegistry = null;
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ApiCorsPolicy", policy =>
     {
-        var allowAnyOrigin = corsOrigins.Length == 0 || corsOrigins.Contains("*");
-        if (allowAnyOrigin)
-        {
-            policy.AllowAnyOrigin();
-        }
-        else
-        {
-            policy.SetIsOriginAllowed(IsAllowedOrigin)
-                  .AllowCredentials();
-        }
+        policy.SetIsOriginAllowed(origin => corsRegistry?.IsAllowed(origin) ?? false)
+              .AllowCredentials();
 
         policy.AllowAnyHeader()
               .AllowAnyMethod();
@@ -231,6 +194,7 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+corsRegistry = app.Services.GetRequiredService<ICorsOriginRegistry>();
 
 // Optionally apply migrations on startup when configured (off by default to avoid blocking design-time tools)
 if (builder.Configuration.GetValue("APPLY_MIGRATIONS_ON_STARTUP", false))

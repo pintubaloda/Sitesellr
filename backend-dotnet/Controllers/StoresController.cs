@@ -77,6 +77,50 @@ public class StoresController : BaseApiController
         return store == null ? NotFound() : Ok(store);
     }
 
+    [HttpGet("{id:guid}/cors-origins")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> GetCorsOrigins(Guid id, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
+        var exists = await _db.Stores.AsNoTracking().AnyAsync(s => s.Id == id, ct);
+        if (!exists) return NotFound();
+        var key = $"store.security.cors.origins.{id:N}";
+        var value = await _db.PlatformBrandingSettings.AsNoTracking()
+            .Where(x => x.Key == key)
+            .Select(x => x.Value)
+            .FirstOrDefaultAsync(ct);
+        return Ok(new { storeId = id, corsOriginsCsv = value ?? string.Empty });
+    }
+
+    [HttpPut("{id:guid}/cors-origins")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> UpdateCorsOrigins(Guid id, [FromBody] StoreCorsOriginsRequest req, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
+        var exists = await _db.Stores.AsNoTracking().AnyAsync(s => s.Id == id, ct);
+        if (!exists) return NotFound();
+        var key = $"store.security.cors.origins.{id:N}";
+        var value = (req.CorsOriginsCsv ?? string.Empty).Trim();
+        var row = await _db.PlatformBrandingSettings.FirstOrDefaultAsync(x => x.Key == key, ct);
+        if (row == null)
+        {
+            row = new PlatformBrandingSetting
+            {
+                Key = key,
+                Value = value,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            _db.PlatformBrandingSettings.Add(row);
+        }
+        else
+        {
+            row.Value = value;
+            row.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { storeId = id, corsOriginsCsv = value, saved = true });
+    }
+
     [HttpPut("{id:guid}")]
     [Authorize(Policy = Policies.StoreSettingsWrite)]
     public async Task<IActionResult> Update(Guid id, [FromBody] Store input, CancellationToken ct)
@@ -134,4 +178,9 @@ public class StoresController : BaseApiController
 
         return candidate;
     }
+}
+
+public class StoreCorsOriginsRequest
+{
+    public string CorsOriginsCsv { get; set; } = string.Empty;
 }

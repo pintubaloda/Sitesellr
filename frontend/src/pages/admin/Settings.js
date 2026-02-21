@@ -69,6 +69,7 @@ export const Settings = () => {
   });
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [generalMessage, setGeneralMessage] = useState("");
+  const [corsOriginsCsv, setCorsOriginsCsv] = useState("");
   const [teamMembers, setTeamMembers] = useState([]);
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamMessage, setTeamMessage] = useState("");
@@ -93,6 +94,19 @@ export const Settings = () => {
       status: String(selectedStore.status ?? 1),
     }));
   }, [selectedStore]);
+
+  useEffect(() => {
+    const loadCorsOrigins = async () => {
+      if (!storeId) return;
+      try {
+        const res = await api.get(`/stores/${storeId}/cors-origins`);
+        setCorsOriginsCsv(res.data?.corsOriginsCsv || "");
+      } catch {
+        setCorsOriginsCsv("");
+      }
+    };
+    loadCorsOrigins();
+  }, [storeId]);
 
   const loadTeamMembers = async () => {
     if (!storeId) return;
@@ -134,6 +148,7 @@ export const Settings = () => {
         timezone: storeSettings.timezone,
         status: Number(storeSettings.status),
       });
+      await api.put(`/stores/${selectedStore.id}/cors-origins`, { corsOriginsCsv });
       setGeneralMessage("Store settings saved.");
     } catch (_) {
       setGeneralMessage("Could not save store settings.");
@@ -362,6 +377,16 @@ export const Settings = () => {
                   rows={3}
                   data-testid="store-address-input"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Store CORS Allowed Origins (CSV)</Label>
+                <Textarea
+                  rows={2}
+                  value={corsOriginsCsv}
+                  onChange={(e) => setCorsOriginsCsv(e.target.value)}
+                  placeholder="https://sitesellr-web.onrender.com,https://admin.yourstore.com"
+                />
+                <p className="text-xs text-slate-500">Add trusted frontend/admin origins for this store.</p>
               </div>
 
               <div className="flex justify-end">

@@ -794,3 +794,17 @@ Files:
 - masterrequirement.txt
 Notes:
 - Enforced automatic normalization of external image URLs at frontend save flow and backend create/update flow.
+
+[Pending push] 2026-02-21 - runtime CORS whitelist controls for platform and store owner
+Files:
+- backend-dotnet/Services/CorsOriginRegistry.cs
+- backend-dotnet/Program.cs
+- backend-dotnet/Controllers/PlatformOwnerModulesController.cs
+- backend-dotnet/Controllers/StoresController.cs
+- frontend/src/pages/admin/PlatformModule.js
+- frontend/src/pages/admin/Settings.js
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Added dynamic CORS runtime allowlist and UI/APIs for platform and store-level origin whitelists.

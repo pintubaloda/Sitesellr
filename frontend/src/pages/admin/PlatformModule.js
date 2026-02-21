@@ -36,6 +36,7 @@ export default function PlatformModule({ moduleKey = "reports" }) {
     limitsJson: "{}",
     communicationProvider: "smtp",
     regionRulesJson: "{}",
+    corsOriginsCsv: "*",
   });
   const [apiConfigForm, setApiConfigForm] = useState({
     globalDisable: "false",
@@ -440,6 +441,7 @@ export default function PlatformModule({ moduleKey = "reports" }) {
             <Input placeholder="Feature Flags JSON" value={configForm.featureFlagsJson} onChange={(e) => setConfigForm((p) => ({ ...p, featureFlagsJson: e.target.value }))} />
             <Input placeholder="Limits JSON" value={configForm.limitsJson} onChange={(e) => setConfigForm((p) => ({ ...p, limitsJson: e.target.value }))} />
             <Input placeholder="Region Rules JSON" value={configForm.regionRulesJson} onChange={(e) => setConfigForm((p) => ({ ...p, regionRulesJson: e.target.value }))} />
+            <Input placeholder="CORS Origins CSV (e.g. https://sitesellr-web.onrender.com,https://*.sitesellr.com)" value={configForm.corsOriginsCsv} onChange={(e) => setConfigForm((p) => ({ ...p, corsOriginsCsv: e.target.value }))} />
             <Button onClick={savePlatformConfig}>Save Platform Config</Button>
           </CardContent>
         </Card>

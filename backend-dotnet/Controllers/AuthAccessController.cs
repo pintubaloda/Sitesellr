@@ -19,6 +19,8 @@ public class AuthAccessController : ControllerBase
         return Ok(new
         {
             userId = tenancy.UserId,
+            currentStoreId = tenancy.Store?.Id,
+            currentStoreName = tenancy.Store?.Name,
             isPlatformOwner = tenancy.IsPlatformOwner,
             isPlatformStaff = tenancy.IsPlatformStaff,
             isStoreOwnerOrAdmin = tenancy.IsOwnerOrAdmin,
@@ -57,6 +59,8 @@ public class AuthAccessController : ControllerBase
         return Ok(new
         {
             userId = tenancy.UserId,
+            currentStoreId = tenancy.Store?.Id,
+            currentStoreName = tenancy.Store?.Name,
             platformRoles = tenancy.PlatformRoles.Select(x => x.ToString()).OrderBy(x => x).ToArray(),
             storeRole = tenancy.Role?.ToString(),
             platformPermissions = tenancy.PlatformPermissions.OrderBy(x => x).ToArray(),

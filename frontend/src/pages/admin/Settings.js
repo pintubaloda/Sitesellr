@@ -35,7 +35,6 @@ import {
   Plus,
   Key,
 } from "lucide-react";
-import useApiList from "../../hooks/useApiList";
 import useActiveStore from "../../hooks/useActiveStore";
 import api from "../../lib/api";
 
@@ -52,8 +51,7 @@ const SettingSection = ({ title, description, children }) => (
 );
 
 export const Settings = () => {
-  const { storeId } = useActiveStore();
-  const { data: stores } = useApiList("/stores", { enabled: true });
+  const { storeId, stores } = useActiveStore();
   const selectedStore = useMemo(
     () => (stores || []).find((store) => store.id === storeId) || null,
     [stores, storeId]
@@ -134,21 +132,23 @@ export const Settings = () => {
   }, [storeId]);
 
   const handleSaveGeneral = async () => {
-    if (!selectedStore?.id) {
+    const targetStoreId = selectedStore?.id || storeId;
+    if (!targetStoreId) {
       setGeneralMessage("Select a store first.");
       return;
     }
     setSavingGeneral(true);
     setGeneralMessage("");
     try {
-      await api.put(`/stores/${selectedStore.id}`, {
-        ...selectedStore,
+      const currentStore = selectedStore || (stores || []).find((s) => s.id === targetStoreId) || {};
+      await api.put(`/stores/${targetStoreId}`, {
+        ...currentStore,
         name: storeSettings.storeName,
         currency: storeSettings.currency,
         timezone: storeSettings.timezone,
         status: Number(storeSettings.status),
       });
-      await api.put(`/stores/${selectedStore.id}/cors-origins`, { corsOriginsCsv });
+      await api.put(`/stores/${targetStoreId}/cors-origins`, { corsOriginsCsv });
       setGeneralMessage("Store settings saved.");
     } catch (_) {
       setGeneralMessage("Could not save store settings.");

@@ -26,26 +26,35 @@ export const useActiveStore = () => {
     let cancelled = false;
     setLoadingStores(true);
 
-    api
-      .get("/stores")
-      .then((res) => {
+    const load = async () => {
+      try {
+        const [storesRes, accessRes] = await Promise.all([
+          api.get("/stores"),
+          api.get("/auth/access").catch(() => ({ data: {} })),
+        ]);
         if (cancelled) return;
-        const rows = Array.isArray(res.data) ? res.data : [];
+        const rows = Array.isArray(storesRes.data) ? storesRes.data : [];
         setStores(rows);
-        if ((!storeId || !rows.some((r) => r.id === storeId)) && rows[0]?.id) {
-          setStoreId(rows[0].id);
+        const accessStoreId = accessRes?.data?.currentStoreId || "";
+        if (!storeId || !rows.some((r) => r.id === storeId)) {
+          if (accessStoreId && rows.some((r) => r.id === accessStoreId)) {
+            setStoreId(accessStoreId);
+          } else if (rows[0]?.id) {
+            setStoreId(rows[0].id);
+          }
         }
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setStores([]);
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setLoadingStores(false);
         }
-      });
+      }
+    };
+
+    load();
 
     return () => {
       cancelled = true;

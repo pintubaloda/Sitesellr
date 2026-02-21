@@ -925,3 +925,10 @@ Update 2026-02-21 (Build fix for product media normalization)
 - Developed: Fixed compile error in product create flow by converting normalized media list to ICollection-compatible type.
 - Developed: Upgraded ImageSharp package from 3.1.6 to 3.1.8 to reduce known vulnerability exposure from prior version.
 - Note: CS8602 warning in CsrfMiddleware is non-blocking warning (publish does not fail on it).
+
+Update 2026-02-21 (Permanent store selection + CORS save fix)
+- Developed: Settings page now uses active store context directly (`useActiveStore`) instead of separate store list fetch source, removing mismatch causing "Select a store first".
+- Developed: Store settings + store CORS save now use fallback `storeId` from active context even when `selectedStore` object is delayed.
+- Developed: Auth access endpoint now returns `currentStoreId/currentStoreName` to support deterministic store binding after login.
+- Developed: Active store hook now reads `/auth/access` and auto-selects current store from login tenancy when needed.
+- Impact: Store owner can save `Store CORS Allowed Origins (CSV)` without manual re-select loops.

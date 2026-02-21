@@ -920,3 +920,12 @@ Files:
 Notes:
 - Added compatibility mapping for legacy write policies to granular permissions.
 - Added compatibility permissions to default store role templates.
+
+[Pending push] 2026-02-21 - harden stores API with DTO responses and list error handling
+Files:
+- backend-dotnet/Controllers/StoresController.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Added StoreResponse mapping for list/get/create/update.
+- Added explicit list error handling (`stores_list_failed`).

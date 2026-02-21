@@ -584,3 +584,6 @@ Update 2026-02-21
 
 Update 2026-02-21
 - Fixed RBAC compatibility gap causing false 403 on store-owner product endpoints.
+
+Update 2026-02-21
+- Stores API stabilized with DTO output contract and guarded list handler.

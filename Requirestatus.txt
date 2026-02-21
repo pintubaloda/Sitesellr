@@ -983,3 +983,9 @@ Update 2026-02-21 (403 Forbidden fix for store-owner product APIs)
 - Developed: Added permission alias handling so legacy policy checks (`products.write`, `orders.write`, `customers.write`) are satisfied by granular role permissions.
 - Developed: Updated store role templates to include compatibility permissions (`products.write`, `orders.write`, `customers.write`).
 - Impact: store owner/staff can access product create/update APIs without false 403 due to permission naming mismatch.
+
+Update 2026-02-21 (Stores API 500 hardening)
+- Developed: `/api/stores` list endpoint now wrapped with explicit exception handling and structured error (`stores_list_failed`).
+- Developed: Store responses now use a DTO (`StoreResponse`) instead of returning EF entities directly.
+- Developed: Create/get/update store endpoints now return `StoreResponse` for stable payload shape.
+- Impact: avoids entity-graph serialization issues and gives actionable error detail instead of opaque 500/CORS symptom.

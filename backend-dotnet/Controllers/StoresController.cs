@@ -25,27 +25,37 @@ public class StoresController : BaseApiController
     [Authorize]
     public async Task<IActionResult> List([FromQuery] Guid? merchantId, CancellationToken ct)
     {
-        if (Tenancy?.UserId == null)
+        try
         {
-            return Unauthorized();
-        }
+            if (Tenancy?.UserId == null)
+            {
+                return Unauthorized();
+            }
 
-        IQueryable<Store> q = _db.Stores.AsNoTracking().Include(s => s.Merchant);
-        if (merchantId.HasValue)
+            IQueryable<Store> q = _db.Stores.AsNoTracking().Include(s => s.Merchant);
+            if (merchantId.HasValue)
+            {
+                q = q.Where(s => s.MerchantId == merchantId.Value);
+            }
+
+            // Platform users can view platform-wide stores.
+            if (Tenancy.IsPlatformOwner || Tenancy.IsPlatformStaff)
+            {
+                var all = await q.OrderBy(s => s.Name).ToListAsync(ct);
+                return Ok(all.Select(ToResponse));
+            }
+
+            // Store users only get stores they are members of.
+            var userId = Tenancy.UserId.Value;
+            q = q.Where(s => _db.StoreUserRoles.Any(r => r.StoreId == s.Id && r.UserId == userId));
+            var mine = await q.OrderBy(s => s.Name).ToListAsync(ct);
+            return Ok(mine.Select(ToResponse));
+        }
+        catch (Exception ex)
         {
-            q = q.Where(s => s.MerchantId == merchantId.Value);
+            _logger.LogError(ex, "List stores failed");
+            return StatusCode(500, new { error = "stores_list_failed", detail = ex.Message });
         }
-
-        // Platform users can view platform-wide stores.
-        if (Tenancy.IsPlatformOwner || Tenancy.IsPlatformStaff)
-        {
-            return Ok(await q.OrderBy(s => s.Name).ToListAsync(ct));
-        }
-
-        // Store users only get stores they are members of.
-        var userId = Tenancy.UserId.Value;
-        q = q.Where(s => _db.StoreUserRoles.Any(r => r.StoreId == s.Id && r.UserId == userId));
-        return Ok(await q.OrderBy(s => s.Name).ToListAsync(ct));
     }
 
     [HttpPost]
@@ -96,7 +106,7 @@ public class StoresController : BaseApiController
                     _logger.LogWarning("Cloudflare subdomain provisioning skipped for store {StoreId}: {Error}", created.Id, dnsResult.Error);
                 }
             }
-            return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
+            return CreatedAtAction(nameof(Get), new { id = created.Id }, ToResponse(created));
         }
         catch (Exception ex)
         {
@@ -111,7 +121,7 @@ public class StoresController : BaseApiController
     {
         if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
         var store = await _db.Stores.Include(s => s.Merchant).FirstOrDefaultAsync(s => s.Id == id, ct);
-        return store == null ? NotFound() : Ok(store);
+        return store == null ? NotFound() : Ok(ToResponse(store));
     }
 
     [HttpGet("{id:guid}/cors-origins")]
@@ -201,7 +211,7 @@ public class StoresController : BaseApiController
                     _logger.LogWarning("Cloudflare subdomain provisioning skipped for store {StoreId}: {Error}", store.Id, dnsResult.Error);
                 }
             }
-            return Ok(store);
+            return Ok(ToResponse(store));
         }
         catch (Exception ex)
         {
@@ -236,6 +246,25 @@ public class StoresController : BaseApiController
 
         return candidate;
     }
+
+    private static StoreResponse ToResponse(Store s)
+    {
+        return new StoreResponse
+        {
+            Id = s.Id,
+            MerchantId = s.MerchantId,
+            Name = s.Name,
+            Subdomain = s.Subdomain,
+            Currency = s.Currency,
+            Timezone = s.Timezone,
+            Status = s.Status,
+            IsWholesaleEnabled = s.IsWholesaleEnabled,
+            CreatedAt = s.CreatedAt,
+            UpdatedAt = s.UpdatedAt,
+            MerchantName = s.Merchant?.Name,
+            MerchantPrimaryDomain = s.Merchant?.PrimaryDomain
+        };
+    }
 }
 
 public class StoreUpsertRequest
@@ -252,4 +281,20 @@ public class StoreUpsertRequest
 public class StoreCorsOriginsRequest
 {
     public string CorsOriginsCsv { get; set; } = string.Empty;
+}
+
+public class StoreResponse
+{
+    public Guid Id { get; set; }
+    public Guid MerchantId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Subdomain { get; set; }
+    public string Currency { get; set; } = "INR";
+    public string Timezone { get; set; } = "Asia/Kolkata";
+    public StoreStatus Status { get; set; }
+    public bool IsWholesaleEnabled { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public string? MerchantName { get; set; }
+    public string? MerchantPrimaryDomain { get; set; }
 }

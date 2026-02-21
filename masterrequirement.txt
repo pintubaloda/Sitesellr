@@ -510,3 +510,8 @@ UPDATE [2026-02-20] - PLATFORM DOMAIN GOVERNANCE + CLOUDFLARE/SSL CONFIG UI
 | Tenant subdomain governance | Developed | Strict subdomain validator + reserved keywords + global uniqueness with deterministic suffixing | Reserved list management UI for platform owner |
 | Multi-subdomain CORS | Developed | Pattern-based wildcard subdomain origin matching (`https://*.domain.com`) | Optional per-tenant dynamic CORS policy service |
 | Origin TLS lifecycle | Partial | Cloudflare edge/domain flows implemented | Automated Cloudflare Origin CA / certbot origin cert rotation |
+
+## Origin TLS Automation - 2026-02-21 update
+| Module | Status | Developed | Partial / Need to Develop |
+|---|---|---|---|
+| Cloudflare-to-origin TLS lifecycle | Partial+ | Configurable issue/renew command, cert/key path status checks, expiry visibility, owner-triggered renew API | Automated scheduled renew worker + failure retry queue + alerting |

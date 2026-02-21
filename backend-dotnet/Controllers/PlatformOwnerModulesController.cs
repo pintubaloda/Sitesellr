@@ -18,13 +18,15 @@ public class PlatformOwnerModulesController : ControllerBase
     private readonly IConfiguration _config;
     private readonly ICloudflareDnsService _cloudflareDns;
     private readonly ISslProviderFactory _sslProviders;
+    private readonly IOriginTlsService _originTls;
 
-    public PlatformOwnerModulesController(AppDbContext db, IConfiguration config, ICloudflareDnsService cloudflareDns, ISslProviderFactory sslProviders)
+    public PlatformOwnerModulesController(AppDbContext db, IConfiguration config, ICloudflareDnsService cloudflareDns, ISslProviderFactory sslProviders, IOriginTlsService originTls)
     {
         _db = db;
         _config = config;
         _cloudflareDns = cloudflareDns;
         _sslProviders = sslProviders;
+        _originTls = originTls;
     }
 
     [HttpGet("payments")]
@@ -371,6 +373,10 @@ public class PlatformOwnerModulesController : ControllerBase
                 acmeClient = cfg.GetValueOrDefault("platform.domains.acme.client", _config["ACME_CLIENT"] ?? "certbot"),
                 acmeChallengeMethod = cfg.GetValueOrDefault("platform.domains.acme.challenge_method", _config["ACME_CHALLENGE_METHOD"] ?? "dns-01"),
                 acmeDirectoryUrl = cfg.GetValueOrDefault("platform.domains.acme.directory_url", _config["ACME_DIRECTORY_URL"] ?? "https://acme-v02.api.letsencrypt.org/directory"),
+                originTlsMode = cfg.GetValueOrDefault("platform.domains.origin_tls.mode", _config["ORIGIN_TLS_MODE"] ?? "cloudflare_origin_ca"),
+                originTlsIssuerCommand = cfg.GetValueOrDefault("platform.domains.origin_tls.issuer_command", _config["ORIGIN_TLS_ISSUER_COMMAND"] ?? string.Empty),
+                originTlsCertPath = cfg.GetValueOrDefault("platform.domains.origin_tls.cert_path", _config["ORIGIN_TLS_CERT_PATH"] ?? string.Empty),
+                originTlsKeyPath = cfg.GetValueOrDefault("platform.domains.origin_tls.key_path", _config["ORIGIN_TLS_KEY_PATH"] ?? string.Empty),
                 cloudflareOauthAuthorizeUrl = cfg.GetValueOrDefault("platform.domains.cloudflare.oauth.authorize_url", _config["CLOUDFLARE_OAUTH_AUTHORIZE_URL"] ?? "https://dash.cloudflare.com/oauth2/auth"),
                 cloudflareOauthTokenUrl = cfg.GetValueOrDefault("platform.domains.cloudflare.oauth.token_url", _config["CLOUDFLARE_OAUTH_TOKEN_URL"] ?? "https://dash.cloudflare.com/oauth2/token"),
                 cloudflareOauthClientId = cfg.GetValueOrDefault("platform.domains.cloudflare.oauth.client_id", _config["CLOUDFLARE_OAUTH_CLIENT_ID"] ?? string.Empty),
@@ -534,6 +540,45 @@ public class PlatformOwnerModulesController : ControllerBase
         });
     }
 
+    [HttpGet("domains/origin-tls/status")]
+    public async Task<IActionResult> OriginTlsStatus(CancellationToken ct)
+    {
+        var status = await _originTls.GetStatusAsync(ct);
+        return Ok(new
+        {
+            status.Configured,
+            status.CertFileExists,
+            status.KeyFileExists,
+            status.ExpiresAt,
+            status.DaysRemaining,
+            status.Message
+        });
+    }
+
+    [HttpPost("domains/origin-tls/issue")]
+    public async Task<IActionResult> OriginTlsIssue(CancellationToken ct)
+    {
+        var result = await _originTls.IssueOrRenewAsync(ct);
+        if (!result.Success)
+        {
+            return BadRequest(new { success = false, message = result.Message ?? "origin_tls_issue_failed" });
+        }
+        var status = await _originTls.GetStatusAsync(ct);
+        return Ok(new
+        {
+            success = true,
+            message = result.Message,
+            status = new
+            {
+                status.Configured,
+                status.CertFileExists,
+                status.KeyFileExists,
+                status.ExpiresAt,
+                status.DaysRemaining
+            }
+        });
+    }
+
     [HttpPut("domains/config")]
     public async Task<IActionResult> UpdateDomainsConfig([FromBody] PlatformDomainsConfigRequest req, CancellationToken ct)
     {
@@ -553,6 +598,10 @@ public class PlatformOwnerModulesController : ControllerBase
             ["platform.domains.acme.client"] = req.AcmeClient.Trim().ToLowerInvariant(),
             ["platform.domains.acme.challenge_method"] = req.AcmeChallengeMethod.Trim().ToLowerInvariant(),
             ["platform.domains.acme.directory_url"] = req.AcmeDirectoryUrl.Trim(),
+            ["platform.domains.origin_tls.mode"] = req.OriginTlsMode.Trim().ToLowerInvariant(),
+            ["platform.domains.origin_tls.issuer_command"] = req.OriginTlsIssuerCommand.Trim(),
+            ["platform.domains.origin_tls.cert_path"] = req.OriginTlsCertPath.Trim(),
+            ["platform.domains.origin_tls.key_path"] = req.OriginTlsKeyPath.Trim(),
             ["platform.domains.cloudflare.oauth.authorize_url"] = oauthAuthorizeUrl,
             ["platform.domains.cloudflare.oauth.token_url"] = oauthTokenUrl,
             ["platform.domains.cloudflare.oauth.client_id"] = req.CloudflareOauthClientId.Trim(),
@@ -693,6 +742,10 @@ public class PlatformDomainsConfigRequest
     public string AcmeClient { get; set; } = "certbot";
     public string AcmeChallengeMethod { get; set; } = "dns-01";
     public string AcmeDirectoryUrl { get; set; } = "https://acme-v02.api.letsencrypt.org/directory";
+    public string OriginTlsMode { get; set; } = "cloudflare_origin_ca";
+    public string OriginTlsIssuerCommand { get; set; } = string.Empty;
+    public string OriginTlsCertPath { get; set; } = string.Empty;
+    public string OriginTlsKeyPath { get; set; } = string.Empty;
     public string CloudflareOauthAuthorizeUrl { get; set; } = string.Empty;
     public string CloudflareOauthTokenUrl { get; set; } = string.Empty;
     public string CloudflareOauthClientId { get; set; } = string.Empty;

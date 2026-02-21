@@ -746,3 +746,16 @@ Files:
 Notes:
 - Enforced reserved-word/format validation for store subdomains.
 - Added wildcard-origin CORS matcher for production subdomain storefront/admin setups.
+
+[Pending push] 2026-02-21 - origin TLS lifecycle automation
+Files:
+- backend-dotnet/Services/OriginTlsService.cs
+- backend-dotnet/Controllers/PlatformOwnerModulesController.cs
+- backend-dotnet/Program.cs
+- frontend/src/pages/admin/PlatformModule.js
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Added origin TLS status + issue/renew APIs and platform UI controls.
+- Added DB/env fallback settings for origin cert paths and issuer command.

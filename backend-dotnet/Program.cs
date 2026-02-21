@@ -124,6 +124,7 @@ builder.Services.AddHttpClient<ICloudflareDnsService, CloudflareDnsService>();
 builder.Services.AddSingleton<StorefrontRealtimeService>();
 builder.Services.AddScoped<ISslProvider, LetsEncryptShellProvider>();
 builder.Services.AddScoped<ISslProviderFactory, SslProviderFactory>();
+builder.Services.AddScoped<IOriginTlsService, OriginTlsService>();
 builder.Services.AddSingleton<IPaymentPlugin, DummyPaymentPlugin>();
 builder.Services.AddSingleton<IPaymentPluginFactory, PaymentPluginFactory>();
 builder.Services.AddSingleton<IFido2>(sp =>

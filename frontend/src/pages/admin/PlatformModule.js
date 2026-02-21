@@ -54,6 +54,10 @@ export default function PlatformModule({ moduleKey = "reports" }) {
     acmeClient: "certbot",
     acmeChallengeMethod: "dns-01",
     acmeDirectoryUrl: "https://acme-v02.api.letsencrypt.org/directory",
+    originTlsMode: "cloudflare_origin_ca",
+    originTlsIssuerCommand: "",
+    originTlsCertPath: "",
+    originTlsKeyPath: "",
     cloudflareOauthAuthorizeUrl: "https://dash.cloudflare.com/oauth2/auth",
     cloudflareOauthTokenUrl: "https://dash.cloudflare.com/oauth2/token",
     cloudflareOauthClientId: "",
@@ -64,6 +68,8 @@ export default function PlatformModule({ moduleKey = "reports" }) {
   });
   const [cloudflareTestResult, setCloudflareTestResult] = useState("");
   const [sslTestResult, setSslTestResult] = useState("");
+  const [originTlsResult, setOriginTlsResult] = useState("");
+  const [originTlsStatus, setOriginTlsStatus] = useState(null);
   const [zones, setZones] = useState([]);
   const [planForm, setPlanForm] = useState({
     name: "",
@@ -91,6 +97,8 @@ export default function PlatformModule({ moduleKey = "reports" }) {
         setZones([]);
         setCloudflareTestResult("");
         setSslTestResult("");
+        setOriginTlsResult("");
+        setOriginTlsStatus(null);
       }
     } catch (err) {
       setError(err?.response?.status === 403 ? "You are not authorized." : "Could not load module data.");
@@ -187,6 +195,29 @@ export default function PlatformModule({ moduleKey = "reports" }) {
       window.location.href = url;
     } catch (err) {
       setError(err?.response?.data?.error || "Cloudflare OAuth connect failed to start.");
+    }
+  };
+
+  const refreshOriginTlsStatus = async () => {
+    setError("");
+    try {
+      const res = await api.get("/platform/owner/domains/origin-tls/status");
+      setOriginTlsStatus(res.data || null);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.response?.data?.error || "Could not load origin TLS status.");
+    }
+  };
+
+  const issueOriginTls = async () => {
+    setError("");
+    setMessage("");
+    setOriginTlsResult("");
+    try {
+      const res = await api.post("/platform/owner/domains/origin-tls/issue");
+      setOriginTlsResult(res?.data?.message || "Origin TLS issue/renew triggered.");
+      await refreshOriginTlsStatus();
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.response?.data?.error || "Origin TLS issue failed.");
     }
   };
 
@@ -477,6 +508,25 @@ export default function PlatformModule({ moduleKey = "reports" }) {
                 <Label>ACME Directory URL</Label>
                 <Input value={domainsConfigForm.acmeDirectoryUrl || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, acmeDirectoryUrl: e.target.value }))} />
               </div>
+              <div className="md:col-span-2 pt-2">
+                <p className="text-sm font-semibold">Origin TLS (Cloudflare to Origin)</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Origin TLS Mode</Label>
+                <Input value={domainsConfigForm.originTlsMode || "cloudflare_origin_ca"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, originTlsMode: e.target.value }))} />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Origin TLS Issuer Command</Label>
+                <Input value={domainsConfigForm.originTlsIssuerCommand || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, originTlsIssuerCommand: e.target.value }))} placeholder="your command with {host} {certPath} {keyPath}" />
+              </div>
+              <div className="space-y-2">
+                <Label>Origin TLS Cert Path</Label>
+                <Input value={domainsConfigForm.originTlsCertPath || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, originTlsCertPath: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Origin TLS Key Path</Label>
+                <Input value={domainsConfigForm.originTlsKeyPath || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, originTlsKeyPath: e.target.value }))} />
+              </div>
               <div className="space-y-2">
                 <Label>Require SSL Marketplace Purchase</Label>
                 <Input value={domainsConfigForm.sslRequireMarketplacePurchase || "true"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslRequireMarketplacePurchase: e.target.value }))} />
@@ -522,9 +572,17 @@ export default function PlatformModule({ moduleKey = "reports" }) {
                 <Button variant="outline" onClick={startCloudflareOAuth}>Connect Cloudflare (OAuth)</Button>
                 <Button variant="outline" onClick={testCloudflare}>Test Cloudflare + Load Zones</Button>
                 <Button variant="outline" onClick={testSslProvider}>Test SSL Provider Command</Button>
+                <Button variant="outline" onClick={refreshOriginTlsStatus}>Refresh Origin TLS Status</Button>
+                <Button variant="outline" onClick={issueOriginTls}>Issue / Renew Origin TLS</Button>
               </div>
               {cloudflareTestResult ? <p className="md:col-span-2 text-xs text-green-600">{cloudflareTestResult}</p> : null}
               {sslTestResult ? <p className="md:col-span-2 text-xs text-green-600">{sslTestResult}</p> : null}
+              {originTlsResult ? <p className="md:col-span-2 text-xs text-green-600">{originTlsResult}</p> : null}
+              {originTlsStatus ? (
+                <p className="md:col-span-2 text-xs text-slate-600">
+                  Origin TLS status: configured={String(originTlsStatus.configured)} cert={String(originTlsStatus.certFileExists)} key={String(originTlsStatus.keyFileExists)} daysRemaining={originTlsStatus.daysRemaining ?? "-"} expiresAt={originTlsStatus.expiresAt || "-"}
+                </p>
+              ) : null}
               {zones.length > 0 ? (
                 <div className="md:col-span-2 border rounded p-3">
                   <p className="text-sm font-semibold mb-2">Available Cloudflare Zones</p>

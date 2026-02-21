@@ -878,3 +878,12 @@ Update 2026-02-21 (Subdomain hardening + wildcard CORS support)
 - Developed: Store create/update APIs now enforce strict subdomain validation before save.
 - Developed: CORS policy now supports wildcard subdomain origins via `CORS_ORIGINS` patterns like `https://*.ourmaindomain.com`.
 - Partial: Origin TLS (Cloudflare-to-origin certificate lifecycle) is still infrastructure-managed outside app runtime.
+
+Update 2026-02-21 (Origin TLS lifecycle automation)
+- Developed: Added Origin TLS lifecycle service with platform-config-driven settings (`mode`, `issuer_command`, `cert_path`, `key_path`).
+- Developed: Added platform-owner endpoints:
+  - `GET /api/platform/owner/domains/origin-tls/status`
+  - `POST /api/platform/owner/domains/origin-tls/issue`
+- Developed: Domains config now persists origin TLS settings and exposes them in Domains & SSL module.
+- Developed: Platform Domains UI now includes origin TLS config form + issue/renew action + status refresh (expiry/days remaining visibility).
+- Partial: Scheduler/cron-based automatic renew trigger is not yet added; current renew is owner-triggered API call.

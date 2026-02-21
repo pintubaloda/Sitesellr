@@ -17,6 +17,7 @@ using Npgsql;
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics;
 using System.IO;
 
 // Render/container environments can hit inotify watcher limits. Disable config file watchers.
@@ -1021,6 +1022,32 @@ if (app.Environment.IsDevelopment())
 app.UseForwardedHeaders();
 app.UseStaticFiles();
 app.UseWebSockets();
+app.UseExceptionHandler(handler =>
+{
+    handler.Run(async context =>
+    {
+        var origin = context.Request.Headers.Origin.ToString();
+        if (!string.IsNullOrWhiteSpace(origin) && corsRegistry?.IsAllowed(origin) == true)
+        {
+            context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+            context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
+            context.Response.Headers["Vary"] = "Origin";
+        }
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+        var feature = context.Features.Get<IExceptionHandlerPathFeature>();
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("GlobalException");
+        if (feature?.Error != null)
+        {
+            logger.LogError(feature.Error, "Unhandled exception on {Path}", context.Request.Path);
+            await context.Response.WriteAsJsonAsync(new { error = "server_error", detail = feature.Error.Message });
+            return;
+        }
+
+        await context.Response.WriteAsJsonAsync(new { error = "server_error" });
+    });
+});
 if (app.Environment.IsDevelopment() || builder.Configuration.GetValue("FORCE_HTTPS_REDIRECT", false))
 {
     app.UseHttpsRedirection();

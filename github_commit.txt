@@ -892,3 +892,11 @@ Files:
 - github_commit.txt
 Notes:
 - Added status/code-to-message mapping for auth failures.
+
+[Pending push] 2026-02-21 - add global exception handler with CORS-safe error responses
+Files:
+- backend-dotnet/Program.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Unhandled exceptions now return `server_error` JSON and include CORS headers for allowed origins.

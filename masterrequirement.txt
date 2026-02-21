@@ -575,3 +575,6 @@ Update 2026-02-21
 
 Update 2026-02-21
 - Login UX now surfaces precise auth failure reasons to reduce production debugging time.
+
+Update 2026-02-21
+- Added global API exception handling with CORS-preserving error responses for cross-origin deployments.

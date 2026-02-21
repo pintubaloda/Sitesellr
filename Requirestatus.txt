@@ -967,3 +967,8 @@ Update 2026-02-21 (Product create 500/CORS symptom fix)
 Update 2026-02-21 (Login error diagnostics improved)
 - Developed: Login UI now maps backend auth error codes/statuses to explicit user-facing messages (captcha_failed, locked 423, unauthorized 401, csrf_invalid, rate limited, server error).
 - Impact: login troubleshooting is immediate without generic "Login failed" masking root cause.
+
+Update 2026-02-21 (Permanent CORS symptom mitigation on backend exceptions)
+- Developed: Added global exception handler middleware that returns structured JSON for unhandled API errors.
+- Developed: Exception responses now explicitly emit CORS headers (`Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials`) when request origin is allowed.
+- Impact: browser will no longer mask backend crashes as opaque CORS failures; real server error is visible to frontend and logs.

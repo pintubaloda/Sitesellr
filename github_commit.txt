@@ -808,3 +808,14 @@ Files:
 - masterrequirement.txt
 Notes:
 - Added dynamic CORS runtime allowlist and UI/APIs for platform and store-level origin whitelists.
+
+[Pending push] 2026-02-21 - build fix for CS0266 and ImageSharp bump
+Files:
+- backend-dotnet/Controllers/ProductsController.cs
+- backend-dotnet/backend-dotnet.csproj
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Fixed ICollection assignment type issue in product media normalization.
+- Bumped ImageSharp package version to 3.1.8.

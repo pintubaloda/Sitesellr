@@ -920,3 +920,8 @@ Update 2026-02-21 (Dynamic CORS whitelist controls: platform + store owner)
 - Developed: Store owner Settings UI now includes `Store CORS Allowed Origins (CSV)` and saves with general settings.
 - Developed: CORS middleware now uses runtime registry matcher (including wildcard hosts like `https://*.sitesellr.com`) instead of static startup-only list.
 - Clarification: login may succeed while add-product fails when preflight/credentialed API requests use a different origin/header set; dynamic CORS allowlist now addresses this path.
+
+Update 2026-02-21 (Build fix for product media normalization)
+- Developed: Fixed compile error in product create flow by converting normalized media list to ICollection-compatible type.
+- Developed: Upgraded ImageSharp package from 3.1.6 to 3.1.8 to reduce known vulnerability exposure from prior version.
+- Note: CS8602 warning in CsrfMiddleware is non-blocking warning (publish does not fail on it).

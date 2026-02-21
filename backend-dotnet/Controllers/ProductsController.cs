@@ -56,7 +56,7 @@ public class ProductsController : BaseApiController
         {
             try
             {
-                input.Media = await NormalizeProductMediaAsync(input.StoreId, input.Media, ct);
+                input.Media = (await NormalizeProductMediaAsync(input.StoreId, input.Media, ct)).ToList();
             }
             catch (InvalidOperationException ex)
             {

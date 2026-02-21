@@ -963,3 +963,11 @@ Files:
 - github_commit.txt
 Notes:
 - Removed incompatible `?? Array.Empty<ProductVariantUpsertRequest>()` expression.
+
+[Pending push] 2026-02-21 - bump ImageSharp to 3.1.11
+Files:
+- backend-dotnet/backend-dotnet.csproj
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Updated ImageSharp package version to 3.1.11.

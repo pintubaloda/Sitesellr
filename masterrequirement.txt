@@ -599,3 +599,6 @@ Update 2026-02-21
 
 Update 2026-02-21
 - Fixed product DTO compile regression that was blocking container publish.
+
+Update 2026-02-21
+- Dependency update: ImageSharp raised to 3.1.11.

@@ -51,6 +51,10 @@ public class StoresController : BaseApiController
     public async Task<IActionResult> Create([FromBody] StoreUpsertRequest input, CancellationToken ct)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        if (string.IsNullOrWhiteSpace(input.Name))
+        {
+            return BadRequest(new { error = "name_required" });
+        }
         var merchantId = input.MerchantId;
         if (!merchantId.HasValue && Tenancy?.Store != null)
         {
@@ -145,6 +149,10 @@ public class StoresController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] StoreUpsertRequest input, CancellationToken ct)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        if (string.IsNullOrWhiteSpace(input.Name))
+        {
+            return BadRequest(new { error = "name_required" });
+        }
         if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
 
         var store = await _db.Stores.FirstOrDefaultAsync(s => s.Id == id, ct);

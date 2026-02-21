@@ -552,3 +552,7 @@ Update 2026-02-21
 - Store API hardening completed for create/update request contract.
 - Replaced entity binding with DTO contract to prevent navigation validation failures in production.
 - Store update/create now supports scalar-only payloads from frontend safely.
+
+Update 2026-02-21
+- Store update/create validation hardened for required store name.
+- Prevents 500 errors on malformed payloads; returns API-safe 400 validation error.

@@ -938,3 +938,7 @@ Update 2026-02-21 (Store validation 400 fix: Merchant required)
 - Developed: Removed navigation-property model validation dependency (`Merchant`, collections), preventing framework-level 400 (`Merchant field is required`).
 - Developed: Create/update now map DTO -> entity explicitly, with merchant fallback from tenancy when available and proper validation (`merchant_required`).
 - Impact: Store settings/store update APIs no longer fail due to nav-property implicit required validation.
+
+Update 2026-02-21 (Store save 500 guard)
+- Developed: Added explicit store name validation in store create/update endpoints.
+- Developed: API now returns `name_required` (400) instead of server 500 when name is blank/null.

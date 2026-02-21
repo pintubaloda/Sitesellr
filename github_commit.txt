@@ -839,3 +839,11 @@ Files:
 Notes:
 - Introduced StoreUpsertRequest DTO for create/update.
 - Eliminated entity navigation validation causing 400 on missing Merchant payload.
+
+[Pending push] 2026-02-21 - guard store save against null/blank name
+Files:
+- backend-dotnet/Controllers/StoresController.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Added `name_required` validation for create/update to prevent null trim exception.

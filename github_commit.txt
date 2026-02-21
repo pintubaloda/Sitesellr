@@ -1004,3 +1004,13 @@ Files:
 Notes:
 - Added global India states endpoint and checkout address/state validation.
 - Upgraded storefront checkout UI and payload for production-ready India address capture.
+
+[Pending push] 2026-02-21 - storefront checkout error surfacing + account auto-login UX
+Files:
+- frontend/src/pages/storefront/StorefrontPublic.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Frontend now surfaces ASP.NET validation errors directly instead of generic "Checkout failed".
+- Existing email/mobile during checkout now shows login-required guidance.
+- First-time checkout now shows generated credentials and auto-redirects user to logged-in customer dashboard flow.

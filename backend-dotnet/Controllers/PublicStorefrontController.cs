@@ -502,15 +502,31 @@ public class PublicStorefrontController : ControllerBase
             .ToListAsync(ct);
         if (products.Count == 0) return BadRequest(new { error = "products_not_found" });
 
-        var customer = await _db.Customers.FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Email == req.Email.Trim().ToLowerInvariant(), ct);
+        var email = req.Email.Trim().ToLowerInvariant();
+        var phone = req.Phone.Trim();
+        var customer = await _db.Customers.FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Email == email, ct);
+        var existingCredential = await _db.StoreCustomerCredentials
+            .FirstOrDefaultAsync(x => x.StoreId == store.Id && x.Email == email && x.IsActive, ct);
+
+        if (existingCredential != null)
+        {
+            var currentSessionCustomerId = await ResolveCurrentCustomerSessionAsync(store.Id, ct);
+            if (!currentSessionCustomerId.HasValue || currentSessionCustomerId.Value != existingCredential.CustomerId)
+            {
+                return Conflict(new { error = "login_required_existing_customer" });
+            }
+        }
+
+        var generatedPassword = string.Empty;
+        var autoCredentialCreated = false;
         if (customer == null)
         {
             customer = new Models.Customer
             {
                 StoreId = store.Id,
                 Name = req.Name.Trim(),
-                Email = req.Email.Trim().ToLowerInvariant(),
-                Phone = req.Phone.Trim(),
+                Email = email,
+                Phone = phone,
                 Type = Models.CustomerType.Retail,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow
@@ -521,8 +537,26 @@ public class PublicStorefrontController : ControllerBase
         else
         {
             customer.Name = req.Name.Trim();
-            customer.Phone = req.Phone.Trim();
+            customer.Phone = phone;
             customer.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        if (existingCredential == null)
+        {
+            generatedPassword = $"Ss{DateTimeOffset.UtcNow.ToUnixTimeSeconds():x}{RandomNumberGenerator.GetInt32(1000, 9999)}!";
+            var credential = new Models.StoreCustomerCredential
+            {
+                StoreId = store.Id,
+                CustomerId = customer.Id,
+                Email = email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(generatedPassword, workFactor: 12),
+                EmailVerified = true,
+                IsActive = true,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            _db.StoreCustomerCredentials.Add(credential);
+            autoCredentialCreated = true;
         }
 
         var existingAddresses = await _db.CustomerAddresses.Where(a => a.CustomerId == customer.Id).ToListAsync(ct);
@@ -596,7 +630,43 @@ public class PublicStorefrontController : ControllerBase
         };
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(ct);
-        return Ok(new { success = true, orderId = order.Id, total = order.Total, currency = order.Currency });
+
+        if (autoCredentialCreated)
+        {
+            var rawToken = Convert.ToHexString(Guid.NewGuid().ToByteArray()) + Convert.ToHexString(Guid.NewGuid().ToByteArray());
+            _db.StoreCustomerSessions.Add(new Models.StoreCustomerSession
+            {
+                StoreId = store.Id,
+                CustomerId = customer.Id,
+                TokenHash = HashToken(rawToken),
+                UserAgent = Request.Headers.UserAgent.ToString().Length > 60 ? Request.Headers.UserAgent.ToString()[..60] : Request.Headers.UserAgent.ToString(),
+                ClientIp = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                ExpiresAt = DateTimeOffset.UtcNow.AddDays(15),
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            await _db.SaveChangesAsync(ct);
+            Response.Cookies.Append("sf_customer_session", rawToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = SameSiteMode.Lax,
+                Expires = DateTimeOffset.UtcNow.AddDays(15)
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            orderId = order.Id,
+            total = order.Total,
+            currency = order.Currency,
+            account = autoCredentialCreated ? new
+            {
+                created = true,
+                email,
+                password = generatedPassword
+            } : new { created = false, email }
+        });
     }
 
     [HttpPost("{subdomain}/cart/reserve")]
@@ -721,6 +791,16 @@ public class PublicStorefrontController : ControllerBase
         using var sha = SHA256.Create();
         var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(token));
         return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    private async Task<Guid?> ResolveCurrentCustomerSessionAsync(Guid storeId, CancellationToken ct)
+    {
+        if (!Request.Cookies.TryGetValue("sf_customer_session", out var rawToken) || string.IsNullOrWhiteSpace(rawToken))
+            return null;
+        var hash = HashToken(rawToken);
+        var session = await _db.StoreCustomerSessions.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.StoreId == storeId && x.TokenHash == hash && x.ExpiresAt > DateTimeOffset.UtcNow, ct);
+        return session?.CustomerId;
     }
 }
 

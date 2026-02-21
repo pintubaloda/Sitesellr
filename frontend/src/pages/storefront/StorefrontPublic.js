@@ -97,6 +97,8 @@ export default function StorefrontPublic() {
   });
   const [indiaStates, setIndiaStates] = useState([]);
   const [checkoutMessage, setCheckoutMessage] = useState("");
+  const [checkoutStatus, setCheckoutStatus] = useState("info");
+  const [checkoutAccount, setCheckoutAccount] = useState(null);
   const [reservation, setReservation] = useState({ id: "", cartKey: "", loading: false, message: "" });
   const [authForm, setAuthForm] = useState({ name: "", email: "", phone: "", password: "" });
   const [authMode, setAuthMode] = useState("login");
@@ -330,16 +332,20 @@ export default function StorefrontPublic() {
   };
 
   const checkout = async () => {
+    setCheckoutAccount(null);
     if (!checkoutForm.name || !checkoutForm.email || !checkoutForm.phone) {
+      setCheckoutStatus("error");
       setCheckoutMessage("Fill name, email, and phone.");
       return;
     }
     if (!checkoutForm.addressLine1 || !checkoutForm.city || !checkoutForm.state || !checkoutForm.postalCode) {
+      setCheckoutStatus("error");
       setCheckoutMessage("Fill complete shipping address.");
       return;
     }
     const reserved = await reserveStock();
     if (!reserved) {
+      setCheckoutStatus("error");
       setCheckoutMessage("Stock reservation failed. Update cart and retry.");
       return;
     }
@@ -356,10 +362,45 @@ export default function StorefrontPublic() {
         paymentMethod: checkoutForm.paymentMethod,
         items: cart.map((x) => ({ productId: x.id, quantity: x.quantity })),
       });
+      setCheckoutStatus("success");
       setCheckoutMessage(`Order created: ${res.data?.orderId}`);
+      if (res.data?.account?.created) {
+        setCheckoutAccount({
+          email: res.data?.account?.email,
+          password: res.data?.account?.password,
+        });
+        window.setTimeout(() => {
+          window.location.href = `/s/${subdomain}/login`;
+        }, 1800);
+      }
       await releaseReservation();
       setCart([]);
-    } catch {
+    } catch (err) {
+      const apiError = err?.response?.data;
+      const validationErrors = apiError?.errors;
+      if (validationErrors && typeof validationErrors === "object") {
+        const firstField = Object.keys(validationErrors)[0];
+        const firstMessage = Array.isArray(validationErrors[firstField]) ? validationErrors[firstField][0] : "";
+        setCheckoutStatus("error");
+        setCheckoutMessage(firstMessage || "Please check checkout form fields.");
+        return;
+      }
+      if (apiError?.error === "login_required_existing_customer") {
+        setCheckoutStatus("warn");
+        setCheckoutMessage("This email/mobile already exists. Please login to continue checkout.");
+        return;
+      }
+      if (apiError?.error === "invalid_state") {
+        setCheckoutStatus("error");
+        setCheckoutMessage("Please select a valid Indian state.");
+        return;
+      }
+      if (apiError?.error === "address_required") {
+        setCheckoutStatus("error");
+        setCheckoutMessage("Shipping address is required.");
+        return;
+      }
+      setCheckoutStatus("error");
       setCheckoutMessage("Checkout failed.");
     }
   };
@@ -615,10 +656,14 @@ export default function StorefrontPublic() {
         </main>
       ) : mode === "checkout" ? (
         <main className="max-w-5xl mx-auto px-4 py-8">
-          <h2 className="text-2xl font-bold mb-2">Checkout</h2>
-          <p className="text-slate-600 mb-6">Secure checkout with shipping details and payment method.</p>
+          <h2 className="text-3xl font-bold mb-2 tracking-tight">Checkout</h2>
+          <p className="text-slate-600 mb-6">Secure checkout with shipping details, fast account setup, and instant order confirmation.</p>
           <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 rounded-2xl border bg-white p-5 space-y-4">
+            <div className="lg:col-span-2 rounded-2xl border bg-white p-6 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Shipping & Contact</p>
+                <p className="text-xs text-slate-500">Fields marked by validation are required</p>
+              </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <input className="w-full h-11 border rounded-lg px-3" placeholder="Full name" value={checkoutForm.name} onChange={(e) => setCheckoutForm((s) => ({ ...s, name: e.target.value }))} />
                 <input className="w-full h-11 border rounded-lg px-3" placeholder="Phone" value={checkoutForm.phone} onChange={(e) => setCheckoutForm((s) => ({ ...s, phone: e.target.value }))} />
@@ -642,9 +687,32 @@ export default function StorefrontPublic() {
                 <option value="card">Card</option>
               </select>
               {reservation.message ? <p className="text-sm text-slate-600">{reservation.message}</p> : null}
-              {checkoutMessage ? <p className="text-sm text-slate-600">{checkoutMessage}</p> : null}
+              {checkoutMessage ? (
+                <div className={`rounded-lg px-3 py-2 text-sm ${
+                  checkoutStatus === "success"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : checkoutStatus === "warn"
+                      ? "bg-amber-50 text-amber-700"
+                      : "bg-rose-50 text-rose-700"
+                }`}>
+                  {checkoutMessage}
+                  {checkoutStatus === "warn" ? (
+                    <div className="mt-1">
+                      <Link to={`/s/${subdomain}/login`} className="underline font-medium">Go to login</Link>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {checkoutAccount ? (
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-3 text-sm text-indigo-800">
+                  <p className="font-semibold">Account created and logged in</p>
+                  <p className="mt-1">Login ID: {checkoutAccount.email}</p>
+                  <p>Password: {checkoutAccount.password}</p>
+                  <p className="mt-1 text-xs">Redirecting to dashboard...</p>
+                </div>
+              ) : null}
             </div>
-            <div className="rounded-2xl border bg-white p-5 h-fit">
+            <div className="rounded-2xl border bg-white p-5 h-fit shadow-sm">
               <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Order Summary</p>
               <div className="mt-4 space-y-3">
                 {cart.map((item) => (

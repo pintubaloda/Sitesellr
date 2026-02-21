@@ -1027,3 +1027,9 @@ Update 2026-02-21 (Modern storefront checkout + India state catalog)
 - Developed: Public checkout API now accepts shipping fields (`addressLine1`, `addressLine2`, `city`, `state`, `postalCode`) and validates state against India state/UT catalog.
 - Developed: Checkout now stores shipping address as default customer address and updates customer profile contact details.
 - Developed: Storefront checkout UI upgraded to modern two-column flow (shipping form + order summary) with India state dropdown and stronger validation.
+
+Update 2026-02-21 (Checkout validation UX + first-order account flow)
+- Developed: Storefront checkout now parses backend ValidationProblem responses and shows exact field-level errors (e.g., AddressLine1 min length) directly in checkout UI.
+- Developed: Added explicit checkout handling for existing-customer path (`login_required_existing_customer`) with a login CTA.
+- Developed: First-time checkout account path now displays generated login credentials on success and auto-redirects to customer dashboard/login page using active storefront session.
+- Developed: Checkout page visual refresh (modern card headers, status alerts, cleaner summary panel) without changing theme identity.

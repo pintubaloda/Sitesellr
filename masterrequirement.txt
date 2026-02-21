@@ -564,3 +564,7 @@ Update 2026-02-21
 Update 2026-02-21
 - Added default production frontend origin fallback in CORS registry (`https://sitesellr-web.onrender.com`).
 - Added origin normalization to reduce configuration mismatch errors.
+
+Update 2026-02-21
+- Product media flow hardened: image optimization is best-effort and no longer blocks product save.
+- Mixed media mode (uploaded images + URL images + optional video URL) is now stable in save flow.

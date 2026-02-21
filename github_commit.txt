@@ -865,3 +865,13 @@ Files:
 Notes:
 - Added default allowlist origin for `https://sitesellr-web.onrender.com`.
 - Normalized origins by trimming trailing slash.
+
+[Pending push] 2026-02-21 - make product media URL optimization non-blocking
+Files:
+- backend-dotnet/Controllers/ProductsController.cs
+- frontend/src/pages/admin/Products.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Product save now supports upload or URL media without hard failure when remote URL is temporarily unreachable.
+- Video URL remains optional and saved in same media set.

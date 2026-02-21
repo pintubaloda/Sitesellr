@@ -16,12 +16,14 @@ public class ProductsController : BaseApiController
     private readonly AppDbContext _db;
     private readonly ISubscriptionCapabilityService _caps;
     private readonly IMediaAssetService _mediaAssets;
+    private readonly ILogger<ProductsController> _logger;
 
-    public ProductsController(AppDbContext db, ISubscriptionCapabilityService caps, IMediaAssetService mediaAssets)
+    public ProductsController(AppDbContext db, ISubscriptionCapabilityService caps, IMediaAssetService mediaAssets, ILogger<ProductsController> logger)
     {
         _db = db;
         _caps = caps;
         _mediaAssets = mediaAssets;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -369,12 +371,20 @@ public class ProductsController : BaseApiController
                 continue;
             }
 
-            var normalized = await _mediaAssets.FetchAndSaveImageAsync(storeId, url, "product-image", Request, ct);
+            MediaAssetSaveResult? normalized = null;
+            try
+            {
+                normalized = await _mediaAssets.FetchAndSaveImageAsync(storeId, url, "product-image", Request, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Image normalization skipped for store {StoreId}: {Url}", storeId, url);
+            }
             result.Add(new ProductMedia
             {
                 Id = item.Id,
                 ProductId = item.ProductId,
-                Url = normalized.Url,
+                Url = normalized?.Url ?? url,
                 SortOrder = index++
             });
         }

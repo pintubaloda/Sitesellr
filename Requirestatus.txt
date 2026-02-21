@@ -952,3 +952,8 @@ Update 2026-02-21 (CORS default origin fallback)
 - Developed: Added hard default allowed origin `https://sitesellr-web.onrender.com` in dynamic CORS registry.
 - Developed: Added origin normalization (trim trailing `/`) to prevent false mismatch.
 - Impact: frontend origin stays allowed even when platform/store CORS config is empty or malformed.
+
+Update 2026-02-21 (Product media upload/url/video save reliability)
+- Developed: Product save no longer fails when external image URL optimization fails; system now falls back to original URL.
+- Developed: Backend product media normalization now treats image fetch/optimize as best-effort and logs warning instead of blocking save.
+- Developed: Upload + URL + video mixed media flow supported in single product save request.

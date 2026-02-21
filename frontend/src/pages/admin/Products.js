@@ -597,10 +597,7 @@ export const Products = () => {
           continue;
         }
         const fetched = await fetchAndOptimizeImage(url);
-        if (!fetched?.url) {
-          throw new Error("image_normalization_failed");
-        }
-        normalizedImageUrls.push(fetched.url);
+        normalizedImageUrls.push(fetched?.url || url);
       }
 
       const payload = buildProductPayload(
@@ -618,7 +615,7 @@ export const Products = () => {
       }
       setDialogOpen(false);
     } catch (_) {
-      setError("Could not save product. Ensure all image URLs are reachable and valid.");
+      setError("Could not save product.");
     } finally {
       setSaving(false);
     }

@@ -947,3 +947,11 @@ Files:
 Notes:
 - Switched to request/response DTO contracts for category/product APIs.
 - Eliminated navigation-property validation and object cycle serialization issues.
+
+[Pending push] 2026-02-21 - upgrade ImageSharp to reduce audit warning exposure
+Files:
+- backend-dotnet/backend-dotnet.csproj
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Bumped ImageSharp to 3.1.10.

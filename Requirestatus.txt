@@ -1000,3 +1000,6 @@ Update 2026-02-21 (Validation 400 + object-cycle fix)
 - Developed: Replaced product create/update entity binding with `ProductUpsertRequest` DTO (+ variant/media DTOs) to remove `Variants[n].Product` validation errors.
 - Developed: Product and store APIs now return flat response DTOs to prevent JSON object-cycle serialization failures.
 - Impact: fixed errors `The Store field is required`, `Variants[0].Product is required`, and `possible object cycle was detected`.
+
+Update 2026-02-21 (Security dependency hardening)
+- Developed: Upgraded `SixLabors.ImageSharp` from `3.1.8` to `3.1.10` to address reported NuGet vulnerability advisory warning path.

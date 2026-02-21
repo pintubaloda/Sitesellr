@@ -6,11 +6,13 @@ using Microsoft.EntityFrameworkCore;
 namespace backend_dotnet.Services;
 
 public record SslIssueResult(bool Success, DateTimeOffset? ExpiresAt, string? Error);
+public record SslProviderHealthResult(bool Configured, bool ExecutableFound, string? Executable, string? Message);
 
 public interface ISslProvider
 {
     string Name { get; }
     Task<SslIssueResult> IssueAsync(StoreDomain domain, CancellationToken ct);
+    Task<SslProviderHealthResult> HealthCheckAsync(CancellationToken ct);
 }
 
 public class LetsEncryptShellProvider : ISslProvider
@@ -36,9 +38,13 @@ public class LetsEncryptShellProvider : ISslProvider
         }
 
         var email = await GetValueAsync("platform.domains.ssl.contact_email", "SSL_CONTACT_EMAIL", ct) ?? "admin@example.com";
+        var challenge = await GetValueAsync("platform.domains.acme.challenge_method", "ACME_CHALLENGE_METHOD", ct) ?? "dns-01";
+        var directoryUrl = await GetValueAsync("platform.domains.acme.directory_url", "ACME_DIRECTORY_URL", ct) ?? "https://acme-v02.api.letsencrypt.org/directory";
         var command = cmd
             .Replace("{domain}", domain.Hostname, StringComparison.OrdinalIgnoreCase)
-            .Replace("{email}", email, StringComparison.OrdinalIgnoreCase);
+            .Replace("{email}", email, StringComparison.OrdinalIgnoreCase)
+            .Replace("{challenge}", challenge, StringComparison.OrdinalIgnoreCase)
+            .Replace("{acmeDirectory}", directoryUrl, StringComparison.OrdinalIgnoreCase);
 
         var psi = new ProcessStartInfo
         {
@@ -81,6 +87,48 @@ public class LetsEncryptShellProvider : ISslProvider
             return value;
         }
         return _config[configKey];
+    }
+
+    public async Task<SslProviderHealthResult> HealthCheckAsync(CancellationToken ct)
+    {
+        var cmd = await GetValueAsync("platform.domains.ssl.issuer_command", "SSL_ISSUER_COMMAND", ct);
+        if (string.IsNullOrWhiteSpace(cmd))
+        {
+            return new SslProviderHealthResult(false, false, null, "SSL_ISSUER_COMMAND is not configured.");
+        }
+
+        var executable = cmd.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(executable))
+        {
+            return new SslProviderHealthResult(false, false, null, "Could not detect executable from SSL command.");
+        }
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = "/bin/sh",
+            Arguments = $"-c \"command -v {executable.Replace("\"", "\\\"")}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        try
+        {
+            using var proc = Process.Start(psi);
+            if (proc == null)
+            {
+                return new SslProviderHealthResult(true, false, executable, "Could not start shell for executable check.");
+            }
+            await proc.WaitForExitAsync(ct);
+            if (proc.ExitCode != 0)
+            {
+                return new SslProviderHealthResult(true, false, executable, $"Executable '{executable}' not found in runtime.");
+            }
+            return new SslProviderHealthResult(true, true, executable, "SSL provider command is configured.");
+        }
+        catch (Exception ex)
+        {
+            return new SslProviderHealthResult(true, false, executable, ex.Message);
+        }
     }
 }
 

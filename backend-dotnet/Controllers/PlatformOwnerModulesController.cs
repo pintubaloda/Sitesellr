@@ -1,6 +1,7 @@
 using backend_dotnet.Data;
 using backend_dotnet.Models;
 using backend_dotnet.Security;
+using backend_dotnet.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +15,15 @@ public class PlatformOwnerModulesController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
+    private readonly ICloudflareDnsService _cloudflareDns;
+    private readonly ISslProviderFactory _sslProviders;
 
-    public PlatformOwnerModulesController(AppDbContext db, IConfiguration config)
+    public PlatformOwnerModulesController(AppDbContext db, IConfiguration config, ICloudflareDnsService cloudflareDns, ISslProviderFactory sslProviders)
     {
         _db = db;
         _config = config;
+        _cloudflareDns = cloudflareDns;
+        _sslProviders = sslProviders;
     }
 
     [HttpGet("payments")]
@@ -360,12 +365,67 @@ public class PlatformOwnerModulesController : ControllerBase
                 sslIssuerCommand,
                 sslContactEmail,
                 sslRequireMarketplacePurchase = requireMarketplacePurchase,
+                acmeClient = cfg.GetValueOrDefault("platform.domains.acme.client", _config["ACME_CLIENT"] ?? "certbot"),
+                acmeChallengeMethod = cfg.GetValueOrDefault("platform.domains.acme.challenge_method", _config["ACME_CHALLENGE_METHOD"] ?? "dns-01"),
+                acmeDirectoryUrl = cfg.GetValueOrDefault("platform.domains.acme.directory_url", _config["ACME_DIRECTORY_URL"] ?? "https://acme-v02.api.letsencrypt.org/directory"),
                 runtime = new
                 {
                     cloudflareConfigured = !string.IsNullOrWhiteSpace(cloudflareApiToken) && !string.IsNullOrWhiteSpace(cloudflareZoneId) && !string.IsNullOrWhiteSpace(platformBaseDomain) && !string.IsNullOrWhiteSpace(platformIngressHost),
                     letsEncryptConfigured = !string.IsNullOrWhiteSpace(sslIssuerCommand) && !string.IsNullOrWhiteSpace(sslContactEmail)
                 }
             }
+        });
+    }
+
+    [HttpGet("domains/cloudflare-zones")]
+    public async Task<IActionResult> GetCloudflareZones(CancellationToken ct)
+    {
+        var result = await _cloudflareDns.ListZonesAsync(ct);
+        if (!result.Success)
+        {
+            return BadRequest(new { error = result.Error ?? "cloudflare_zones_failed" });
+        }
+        return Ok(new { zones = result.Zones });
+    }
+
+    [HttpPost("domains/test-cloudflare")]
+    public async Task<IActionResult> TestCloudflare([FromBody] CloudflareTestRequest req, CancellationToken ct)
+    {
+        var overrideToken = string.IsNullOrWhiteSpace(req.ApiToken) ? null : req.ApiToken.Trim();
+        var connectivity = await _cloudflareDns.TestConnectivityAsync(ct, overrideToken);
+        if (!connectivity.Success)
+        {
+            return BadRequest(new { success = false, message = connectivity.Error });
+        }
+        var zones = await _cloudflareDns.ListZonesAsync(ct, overrideToken);
+        return Ok(new
+        {
+            success = true,
+            message = "Cloudflare token is valid.",
+            zonesCount = zones.Zones.Count,
+            zones = zones.Zones
+        });
+    }
+
+    [HttpPost("domains/test-ssl")]
+    public async Task<IActionResult> TestSslProvider([FromBody] SslProviderTestRequest req, CancellationToken ct)
+    {
+        var providerName = string.IsNullOrWhiteSpace(req.Provider) ? "letsencrypt" : req.Provider.Trim().ToLowerInvariant();
+        var provider = _sslProviders.Resolve(providerName);
+        if (provider == null)
+        {
+            return BadRequest(new { success = false, message = "ssl_provider_not_supported", provider = providerName });
+        }
+
+        var health = await provider.HealthCheckAsync(ct);
+        return Ok(new
+        {
+            success = health.Configured && health.ExecutableFound,
+            provider = provider.Name,
+            health.Configured,
+            health.ExecutableFound,
+            health.Executable,
+            health.Message
         });
     }
 
@@ -379,7 +439,10 @@ public class PlatformOwnerModulesController : ControllerBase
             ["platform.domains.platform_ingress_host"] = req.PlatformIngressHost.Trim().ToLowerInvariant(),
             ["platform.domains.ssl.issuer_command"] = req.SslIssuerCommand.Trim(),
             ["platform.domains.ssl.contact_email"] = req.SslContactEmail.Trim(),
-            ["platform.domains.ssl.require_marketplace_purchase"] = req.SslRequireMarketplacePurchase.Trim().ToLowerInvariant()
+            ["platform.domains.ssl.require_marketplace_purchase"] = req.SslRequireMarketplacePurchase.Trim().ToLowerInvariant(),
+            ["platform.domains.acme.client"] = req.AcmeClient.Trim().ToLowerInvariant(),
+            ["platform.domains.acme.challenge_method"] = req.AcmeChallengeMethod.Trim().ToLowerInvariant(),
+            ["platform.domains.acme.directory_url"] = req.AcmeDirectoryUrl.Trim()
         };
         if (!string.IsNullOrWhiteSpace(req.CloudflareApiToken))
         {
@@ -488,4 +551,17 @@ public class PlatformDomainsConfigRequest
     public string SslIssuerCommand { get; set; } = string.Empty;
     public string SslContactEmail { get; set; } = string.Empty;
     public string SslRequireMarketplacePurchase { get; set; } = "true";
+    public string AcmeClient { get; set; } = "certbot";
+    public string AcmeChallengeMethod { get; set; } = "dns-01";
+    public string AcmeDirectoryUrl { get; set; } = "https://acme-v02.api.letsencrypt.org/directory";
+}
+
+public class CloudflareTestRequest
+{
+    public string ApiToken { get; set; } = string.Empty;
+}
+
+public class SslProviderTestRequest
+{
+    public string Provider { get; set; } = "letsencrypt";
 }

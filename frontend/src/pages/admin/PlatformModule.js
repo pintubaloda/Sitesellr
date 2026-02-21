@@ -50,7 +50,13 @@ export default function PlatformModule({ moduleKey = "reports" }) {
     sslIssuerCommand: "",
     sslContactEmail: "",
     sslRequireMarketplacePurchase: "true",
+    acmeClient: "certbot",
+    acmeChallengeMethod: "dns-01",
+    acmeDirectoryUrl: "https://acme-v02.api.letsencrypt.org/directory",
   });
+  const [cloudflareTestResult, setCloudflareTestResult] = useState("");
+  const [sslTestResult, setSslTestResult] = useState("");
+  const [zones, setZones] = useState([]);
   const [planForm, setPlanForm] = useState({
     name: "",
     code: "",
@@ -74,6 +80,9 @@ export default function PlatformModule({ moduleKey = "reports" }) {
       }
       if (moduleKey === "domains") {
         setDomainsConfigForm((prev) => ({ ...prev, ...(res.data?.config || {}) }));
+        setZones([]);
+        setCloudflareTestResult("");
+        setSslTestResult("");
       }
     } catch (err) {
       setError(err?.response?.status === 403 ? "You are not authorized." : "Could not load module data.");
@@ -120,6 +129,40 @@ export default function PlatformModule({ moduleKey = "reports" }) {
       await load();
     } catch (err) {
       setError(err?.response?.data?.error || "Could not save Domains/SSL configuration.");
+    }
+  };
+
+  const testCloudflare = async () => {
+    setError("");
+    setMessage("");
+    setCloudflareTestResult("");
+    try {
+      const payload = { apiToken: (domainsConfigForm.cloudflareApiToken || "").trim() };
+      const [testRes, zonesRes] = await Promise.all([
+        api.post("/platform/owner/domains/test-cloudflare", payload),
+        api.get("/platform/owner/domains/cloudflare-zones"),
+      ]);
+      setCloudflareTestResult(testRes?.data?.message || "Cloudflare token validated.");
+      setZones(zonesRes?.data?.zones || []);
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.response?.data?.error || "Cloudflare connection test failed.");
+      setZones([]);
+    }
+  };
+
+  const testSslProvider = async () => {
+    setError("");
+    setMessage("");
+    setSslTestResult("");
+    try {
+      const res = await api.post("/platform/owner/domains/test-ssl", { provider: "letsencrypt" });
+      if (res?.data?.success) {
+        setSslTestResult(`SSL provider ready (${res?.data?.provider}, ${res?.data?.executable || "command"}).`);
+      } else {
+        setSslTestResult(res?.data?.message || "SSL provider is not fully ready.");
+      }
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.response?.data?.error || "SSL provider test failed.");
     }
   };
 
@@ -395,6 +438,18 @@ export default function PlatformModule({ moduleKey = "reports" }) {
                 <Input value={domainsConfigForm.sslContactEmail || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslContactEmail: e.target.value }))} />
               </div>
               <div className="space-y-2">
+                <Label>ACME Client</Label>
+                <Input value={domainsConfigForm.acmeClient || "certbot"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, acmeClient: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>ACME Challenge Method</Label>
+                <Input value={domainsConfigForm.acmeChallengeMethod || "dns-01"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, acmeChallengeMethod: e.target.value }))} />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>ACME Directory URL</Label>
+                <Input value={domainsConfigForm.acmeDirectoryUrl || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, acmeDirectoryUrl: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
                 <Label>Require SSL Marketplace Purchase</Label>
                 <Input value={domainsConfigForm.sslRequireMarketplacePurchase || "true"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslRequireMarketplacePurchase: e.target.value }))} />
               </div>
@@ -404,6 +459,29 @@ export default function PlatformModule({ moduleKey = "reports" }) {
                 </p>
                 <Button onClick={saveDomainsConfig}>Save Domain Config</Button>
               </div>
+              <div className="md:col-span-2 flex flex-wrap gap-2">
+                <Button variant="outline" onClick={testCloudflare}>Test Cloudflare + Load Zones</Button>
+                <Button variant="outline" onClick={testSslProvider}>Test SSL Provider Command</Button>
+              </div>
+              {cloudflareTestResult ? <p className="md:col-span-2 text-xs text-green-600">{cloudflareTestResult}</p> : null}
+              {sslTestResult ? <p className="md:col-span-2 text-xs text-green-600">{sslTestResult}</p> : null}
+              {zones.length > 0 ? (
+                <div className="md:col-span-2 border rounded p-3">
+                  <p className="text-sm font-semibold mb-2">Available Cloudflare Zones</p>
+                  <div className="space-y-1 max-h-40 overflow-auto">
+                    {zones.map((zone) => (
+                      <button
+                        key={zone.id}
+                        type="button"
+                        className="w-full text-left text-xs border rounded px-2 py-1 hover:bg-slate-50"
+                        onClick={() => setDomainsConfigForm((p) => ({ ...p, cloudflareZoneId: zone.id }))}
+                      >
+                        {zone.name} ({zone.id})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
           <Card className="border-slate-200 dark:border-slate-800">

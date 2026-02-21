@@ -848,3 +848,12 @@ Platform vs Store Feature Visibility	Added backend access summary endpoint (`GET
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/pages/admin/PlatformModule.js`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/components/layouts/DashboardLayout.js`
   - `/Volumes/Rakesh/RBproject/sitesellr/frontend/src/App.js`
+
+---
+Update 2026-02-21 (Advanced Domain/SSL automation hardening)
+- Developed: Platform-owner Domains & SSL module now supports ACME runtime config fields (`acmeClient`, `acmeChallengeMethod`, `acmeDirectoryUrl`) end-to-end (API + UI).
+- Developed: Cloudflare connectivity test endpoint + zones listing endpoint added for direct token validation and zone discovery.
+- Developed: SSL provider runtime health check endpoint added to validate configured issuer command binary in runtime container.
+- Developed: Domain config save now persists ACME settings in platform settings store.
+- Partial: Cloudflare direct OAuth-style auth flow is not implemented; token-based secure API integration is implemented.
+- Partial: ACME issuance depends on runtime tool installation (`certbot`/`acme.sh`/`lego`) and valid command template in config.

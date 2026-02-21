@@ -11,6 +11,8 @@ public interface ICloudflareDnsService
     Task<(bool Success, string? Error)> EnsureTenantSubdomainAsync(string subdomain, CancellationToken ct);
     Task<CustomDomainDnsResult> EnsureCustomDomainAsync(string hostname, string verificationToken, CancellationToken ct);
     Task<CustomDomainDnsResult> CheckCustomDomainAsync(string hostname, string verificationToken, CancellationToken ct);
+    Task<(bool Success, string? Error, IReadOnlyCollection<object> Zones)> ListZonesAsync(CancellationToken ct, string? apiTokenOverride = null);
+    Task<(bool Success, string? Error)> TestConnectivityAsync(CancellationToken ct, string? apiTokenOverride = null);
 }
 
 public record CustomDomainDnsResult(
@@ -263,5 +265,65 @@ public class CloudflareDnsService : ICloudflareDnsService
             return value;
         }
         return _config[configKey];
+    }
+
+    public async Task<(bool Success, string? Error)> TestConnectivityAsync(CancellationToken ct, string? apiTokenOverride = null)
+    {
+        var token = apiTokenOverride;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            token = await GetValueAsync("platform.domains.cloudflare.api_token", "CLOUDFLARE_API_TOKEN", ct);
+        }
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return (false, "Cloudflare API token is missing.");
+        }
+
+        _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var resp = await _http.GetAsync("https://api.cloudflare.com/client/v4/user/tokens/verify", ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            return (false, $"Cloudflare token verify failed: {resp.StatusCode} {body}");
+        }
+        return (true, null);
+    }
+
+    public async Task<(bool Success, string? Error, IReadOnlyCollection<object> Zones)> ListZonesAsync(CancellationToken ct, string? apiTokenOverride = null)
+    {
+        var token = apiTokenOverride;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            token = await GetValueAsync("platform.domains.cloudflare.api_token", "CLOUDFLARE_API_TOKEN", ct);
+        }
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return (false, "Cloudflare API token is missing.", Array.Empty<object>());
+        }
+
+        _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var resp = await _http.GetAsync("https://api.cloudflare.com/client/v4/zones?status=active&per_page=100", ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            return (false, $"Cloudflare zones request failed: {resp.StatusCode} {body}", Array.Empty<object>());
+        }
+
+        var bodyJson = await resp.Content.ReadAsStringAsync(ct);
+        using var doc = JsonDocument.Parse(bodyJson);
+        if (!doc.RootElement.TryGetProperty("result", out var result) || result.ValueKind != JsonValueKind.Array)
+        {
+            return (false, "Invalid Cloudflare zones response.", Array.Empty<object>());
+        }
+
+        var zones = result.EnumerateArray()
+            .Select(x => (object)new
+            {
+                id = x.TryGetProperty("id", out var idNode) ? idNode.GetString() : string.Empty,
+                name = x.TryGetProperty("name", out var nameNode) ? nameNode.GetString() : string.Empty,
+                status = x.TryGetProperty("status", out var statusNode) ? statusNode.GetString() : string.Empty
+            })
+            .ToList();
+        return (true, null, zones);
     }
 }

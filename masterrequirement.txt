@@ -484,3 +484,10 @@ UPDATE [2026-02-20] - PLATFORM DOMAIN GOVERNANCE + CLOUDFLARE/SSL CONFIG UI
   - Subdomain collision policy is deterministic: normalize + numeric suffix increment.
 - Partial:
   - Secure secret storage for Cloudflare token is plain platform settings currently (no KMS integration yet).
+
+## Domain & SSL Management (Advanced) - 2026-02-21 update
+| Module | Status | Developed | Partial / Need to Develop |
+|---|---|---|---|
+| Cloudflare Integration | Partial+ | Token-based API integration, connectivity test API, zones discovery API, subdomain/custom-domain DNS automation | Direct Cloudflare OAuth onboarding UI flow |
+| ACME / Let's Encrypt Orchestration | Partial+ | Configurable ACME client/challenge/directory, issuer command placeholders (`{domain}`, `{email}`, `{challenge}`, `{acmeDirectory}`), provider health check API | Runtime install automation for cert clients + managed renew scheduler dashboard |
+| Platform Owner Domain Console | Developed | Config form now includes ACME controls, Cloudflare test/load-zones action, SSL provider runtime check action | Deeper diagnostics history and command output timeline |

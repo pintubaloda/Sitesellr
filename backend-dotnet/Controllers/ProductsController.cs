@@ -84,7 +84,7 @@ public class ProductsController : BaseApiController
                 CategoryId = input.CategoryId,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
-                Variants = (input.Variants ?? Array.Empty<ProductVariantUpsertRequest>()).Select(v => new ProductVariant
+                Variants = input.Variants.Select(v => new ProductVariant
                 {
                     Id = v.Id == Guid.Empty ? Guid.NewGuid() : v.Id,
                     SKU = v.SKU,

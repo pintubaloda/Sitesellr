@@ -955,3 +955,11 @@ Files:
 - github_commit.txt
 Notes:
 - Bumped ImageSharp to 3.1.10.
+
+[Pending push] 2026-02-21 - fix CS0019 in ProductsController DTO mapping
+Files:
+- backend-dotnet/Controllers/ProductsController.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Removed incompatible `?? Array.Empty<ProductVariantUpsertRequest>()` expression.

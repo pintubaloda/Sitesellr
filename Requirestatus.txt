@@ -1003,3 +1003,7 @@ Update 2026-02-21 (Validation 400 + object-cycle fix)
 
 Update 2026-02-21 (Security dependency hardening)
 - Developed: Upgraded `SixLabors.ImageSharp` from `3.1.8` to `3.1.10` to address reported NuGet vulnerability advisory warning path.
+
+Update 2026-02-21 (Build fix for Product DTO compile)
+- Developed: Fixed ProductController compile error by removing invalid null-coalescing between `List<ProductVariantUpsertRequest>` and array type.
+- Impact: Docker publish/build no longer fails with CS0019 at ProductsController line 87.

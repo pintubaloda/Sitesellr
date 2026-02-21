@@ -560,3 +560,7 @@ Update 2026-02-21
 Update 2026-02-21
 - Store settings save flow hardened: external DNS provisioning errors no longer block store updates.
 - API now returns structured failures for easier frontend handling.
+
+Update 2026-02-21
+- Added default production frontend origin fallback in CORS registry (`https://sitesellr-web.onrender.com`).
+- Added origin normalization to reduce configuration mismatch errors.

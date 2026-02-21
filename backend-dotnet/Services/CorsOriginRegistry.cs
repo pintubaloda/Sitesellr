@@ -72,6 +72,7 @@ public class CorsOriginRegistry : ICorsOriginRegistry
         var fromEnv = (_config["CORS_ORIGINS"] ?? "*")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
+        fromEnv.Add("https://sitesellr-web.onrender.com");
 
         try
         {
@@ -98,8 +99,16 @@ public class CorsOriginRegistry : ICorsOriginRegistry
 
         return fromEnv
             .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x.Trim())
+            .Select(NormalizeOrigin)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static string NormalizeOrigin(string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed == "*") return trimmed;
+        return trimmed.TrimEnd('/');
     }
 }

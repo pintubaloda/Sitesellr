@@ -856,3 +856,12 @@ Files:
 Notes:
 - Added controller-level try/catch for store create/update.
 - Made Cloudflare DNS provisioning best-effort (warning only), not a blocking save failure.
+
+[Pending push] 2026-02-21 - add default render frontend origin to CORS allowlist
+Files:
+- backend-dotnet/Services/CorsOriginRegistry.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Added default allowlist origin for `https://sitesellr-web.onrender.com`.
+- Normalized origins by trimming trailing slash.

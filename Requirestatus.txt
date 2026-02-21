@@ -947,3 +947,8 @@ Update 2026-02-21 (Store save reliability + CORS symptom fix)
 - Developed: Wrapped store create/update flows with explicit exception handling and structured error responses.
 - Developed: Cloudflare subdomain provisioning is now non-blocking on store save (logs warning, does not fail save).
 - Impact: Store settings save no longer fails when Cloudflare config is missing/invalid; frontend will receive API JSON instead of opaque 500/CORS-style browser error.
+
+Update 2026-02-21 (CORS default origin fallback)
+- Developed: Added hard default allowed origin `https://sitesellr-web.onrender.com` in dynamic CORS registry.
+- Developed: Added origin normalization (trim trailing `/`) to prevent false mismatch.
+- Impact: frontend origin stays allowed even when platform/store CORS config is empty or malformed.

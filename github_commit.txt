@@ -734,3 +734,15 @@ Files:
 Notes:
 - Auto default OAuth authorize/token URLs and auto-generate redirect URI when empty.
 - Added configurable SSL price and exposed it in store domain APIs/UI.
+
+[Pending push] 2026-02-21 - strict subdomain policy and wildcard CORS
+Files:
+- backend-dotnet/Services/SubdomainPolicy.cs
+- backend-dotnet/Program.cs
+- backend-dotnet/Controllers/StoresController.cs
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Enforced reserved-word/format validation for store subdomains.
+- Added wildcard-origin CORS matcher for production subdomain storefront/admin setups.

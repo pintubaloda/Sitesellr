@@ -503,3 +503,10 @@ UPDATE [2026-02-20] - PLATFORM DOMAIN GOVERNANCE + CLOUDFLARE/SSL CONFIG UI
 |---|---|---|---|
 | Cloudflare OAuth setup UX | Developed | Default Cloudflare OAuth endpoints auto-provided, redirect URI auto-derivation from current host | Optional one-click Cloudflare app bootstrap is pending |
 | SSL marketplace pricing | Developed | Platform owner can set SSL price (INR), store domain UI displays purchase price, backend returns price with domain records | Real payment capture + invoice + refund lifecycle for SSL purchase |
+
+## Production Domain Safety - 2026-02-21 update
+| Module | Status | Developed | Partial / Need to Develop |
+|---|---|---|---|
+| Tenant subdomain governance | Developed | Strict subdomain validator + reserved keywords + global uniqueness with deterministic suffixing | Reserved list management UI for platform owner |
+| Multi-subdomain CORS | Developed | Pattern-based wildcard subdomain origin matching (`https://*.domain.com`) | Optional per-tenant dynamic CORS policy service |
+| Origin TLS lifecycle | Partial | Cloudflare edge/domain flows implemented | Automated Cloudflare Origin CA / certbot origin cert rotation |

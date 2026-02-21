@@ -871,3 +871,10 @@ Update 2026-02-21 (OAuth defaults + SSL pricing workflow)
 - Developed: Store Domains UI now shows SSL price and uses it in Buy SSL call-to-action.
 - Developed: Store domain list/add/purchase APIs now return `sslPriceInr` so frontend shows consistent pricing from backend config.
 - Partial: Payment gateway charge capture for SSL purchase is still simulated via payment reference; full gateway callback reconciliation remains pending.
+
+Update 2026-02-21 (Subdomain hardening + wildcard CORS support)
+- Developed: Added strict subdomain policy service with DNS-safe pattern checks + reserved name blocking (`www`, `api`, `admin`, etc.).
+- Developed: Onboarding store setup now rejects invalid/reserved subdomains with explicit error codes (`subdomain_invalid`, `subdomain_reserved`).
+- Developed: Store create/update APIs now enforce strict subdomain validation before save.
+- Developed: CORS policy now supports wildcard subdomain origins via `CORS_ORIGINS` patterns like `https://*.ourmaindomain.com`.
+- Partial: Origin TLS (Cloudflare-to-origin certificate lifecycle) is still infrastructure-managed outside app runtime.

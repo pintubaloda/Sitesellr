@@ -75,6 +75,34 @@ if (builder.Environment.IsProduction() && connectionString.Contains("Host=localh
 var corsOrigins = (builder.Configuration["CORS_ORIGINS"] ?? "*")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+bool IsAllowedOrigin(string origin)
+{
+    if (corsOrigins.Length == 0 || corsOrigins.Contains("*")) return true;
+    if (!Uri.TryCreate(origin, UriKind.Absolute, out var originUri)) return false;
+
+    foreach (var configured in corsOrigins)
+    {
+        if (!Uri.TryCreate(configured, UriKind.Absolute, out var configuredUri)) continue;
+        if (string.Equals(configuredUri.Scheme, originUri.Scheme, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(configuredUri.Host, originUri.Host, StringComparison.OrdinalIgnoreCase) &&
+            configuredUri.Port == originUri.Port)
+        {
+            return true;
+        }
+
+        var wildcardHost = configuredUri.Host;
+        if (!wildcardHost.StartsWith("*.", StringComparison.Ordinal)) continue;
+        var suffix = wildcardHost[1..]; // ".example.com"
+        if (originUri.Host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(configuredUri.Scheme, originUri.Scheme, StringComparison.OrdinalIgnoreCase) &&
+            configuredUri.Port == originUri.Port)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Services
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -191,7 +219,7 @@ builder.Services.AddCors(options =>
         }
         else
         {
-            policy.WithOrigins(corsOrigins)
+            policy.SetIsOriginAllowed(IsAllowedOrigin)
                   .AllowCredentials();
         }
 
@@ -1486,27 +1514,20 @@ string GenerateOtp()
 
 var onboardingSessions = new ConcurrentDictionary<Guid, OnboardingMemorySession>();
 
-string SanitizeSubdomain(string? input)
-{
-    if (string.IsNullOrWhiteSpace(input)) return string.Empty;
-    var chars = input.Trim().ToLowerInvariant()
-        .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')
-        .ToArray();
-    var normalized = new string(chars);
-    while (normalized.Contains("--", StringComparison.Ordinal))
-    {
-        normalized = normalized.Replace("--", "-", StringComparison.Ordinal);
-    }
-    normalized = normalized.Trim('-');
-    return normalized.Length > 50 ? normalized[..50] : normalized;
-}
-
 async Task<string> EnsureUniqueStoreSubdomainAsync(AppDbContext db, string? requested, string? fallbackName, CancellationToken ct)
 {
-    var seed = SanitizeSubdomain(string.IsNullOrWhiteSpace(requested) ? fallbackName : requested);
-    if (string.IsNullOrWhiteSpace(seed))
+    string seed;
+    if (!string.IsNullOrWhiteSpace(requested))
     {
-        seed = "store";
+        if (!SubdomainPolicy.TryNormalizeRequested(requested, out var requestedNormalized, out _))
+        {
+            throw new InvalidOperationException("subdomain_invalid");
+        }
+        seed = requestedNormalized;
+    }
+    else
+    {
+        seed = SubdomainPolicy.BuildSeedFromFallback(fallbackName);
     }
 
     var candidate = seed;
@@ -1652,6 +1673,11 @@ api.MapPost("/onboarding/setup-store", async (AppDbContext db, SetupStoreRequest
     onboardingSessions.TryGetValue(req.SessionId, out var session);
     if (session == null) return Results.NotFound();
     if (session.PaymentRequired && !session.PaymentDone) return Results.BadRequest(new { error = "payment_required" });
+
+    if (!SubdomainPolicy.TryNormalizeRequested(req.Subdomain, out _, out var subdomainError))
+    {
+        return Results.BadRequest(new { error = subdomainError ?? "subdomain_invalid" });
+    }
 
     var sub = await EnsureUniqueStoreSubdomainAsync(db, req.Subdomain, req.StoreName, ct);
 

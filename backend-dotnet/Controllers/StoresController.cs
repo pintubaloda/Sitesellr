@@ -51,6 +51,10 @@ public class StoresController : BaseApiController
     public async Task<IActionResult> Create([FromBody] Store input, CancellationToken ct)
     {
         if (Tenancy?.Store != null && Tenancy.Store.MerchantId != input.MerchantId) return Forbid();
+        if (!string.IsNullOrWhiteSpace(input.Subdomain) && !SubdomainPolicy.TryNormalizeRequested(input.Subdomain, out _, out var createError))
+        {
+            return BadRequest(new { error = createError ?? "subdomain_invalid" });
+        }
         input.Subdomain = await EnsureUniqueSubdomainAsync(input.Subdomain, input.Name, null, ct);
         input.Id = Guid.NewGuid();
         input.CreatedAt = DateTimeOffset.UtcNow;
@@ -83,6 +87,10 @@ public class StoresController : BaseApiController
 
         var store = await _db.Stores.FirstOrDefaultAsync(s => s.Id == id, ct);
         if (store == null) return NotFound();
+        if (!string.IsNullOrWhiteSpace(input.Subdomain) && !SubdomainPolicy.TryNormalizeRequested(input.Subdomain, out _, out var updateError))
+        {
+            return BadRequest(new { error = updateError ?? "subdomain_invalid" });
+        }
 
         store.Name = input.Name;
         store.Subdomain = await EnsureUniqueSubdomainAsync(input.Subdomain, input.Name, id, ct);
@@ -102,10 +110,18 @@ public class StoresController : BaseApiController
 
     private async Task<string> EnsureUniqueSubdomainAsync(string? requested, string? fallbackName, Guid? excludingStoreId, CancellationToken ct)
     {
-        var seed = SanitizeSubdomain(string.IsNullOrWhiteSpace(requested) ? fallbackName : requested);
-        if (string.IsNullOrWhiteSpace(seed))
+        string seed;
+        if (!string.IsNullOrWhiteSpace(requested))
         {
-            seed = "store";
+            if (!SubdomainPolicy.TryNormalizeRequested(requested, out var requestedNormalized, out _))
+            {
+                throw new InvalidOperationException("subdomain_invalid");
+            }
+            seed = requestedNormalized;
+        }
+        else
+        {
+            seed = SubdomainPolicy.BuildSeedFromFallback(fallbackName);
         }
 
         var candidate = seed;
@@ -117,20 +133,5 @@ public class StoresController : BaseApiController
         }
 
         return candidate;
-    }
-
-    private static string SanitizeSubdomain(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
-        var chars = value.Trim().ToLowerInvariant()
-            .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')
-            .ToArray();
-        var normalized = new string(chars);
-        while (normalized.Contains("--", StringComparison.Ordinal))
-        {
-            normalized = normalized.Replace("--", "-", StringComparison.Ordinal);
-        }
-        normalized = normalized.Trim('-');
-        return normalized.Length > 50 ? normalized[..50] : normalized;
     }
 }

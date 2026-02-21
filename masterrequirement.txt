@@ -527,3 +527,8 @@ UPDATE [2026-02-20] - PLATFORM DOMAIN GOVERNANCE + CLOUDFLARE/SSL CONFIG UI
 | Direct product media pipeline | Developed | Product media upload API + URL ingestion API + tenancy checks + media persistence rows | Direct signed upload to object storage (browser-to-S3/R2) |
 | Image normalization | Developed | Automatic resize/normalize to 1200x1200 WebP for uploaded/fetched images | Optional per-theme/per-slot variant generation pipeline |
 | Product category UX | Developed | Category list filter + category select in product form + quick category create from dialog | Advanced category tree management UI |
+
+## Product Image Uniformity - 2026-02-21 update
+| Module | Status | Developed | Partial / Need to Develop |
+|---|---|---|---|
+| Automatic image optimization | Developed | External product image URLs are auto-fetched and normalized into same-size optimized assets on save (frontend + backend enforcement) | Background re-optimization job for legacy existing media |

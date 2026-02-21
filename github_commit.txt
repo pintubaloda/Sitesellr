@@ -784,3 +784,13 @@ Notes:
 - Added direct media upload and URL-fetch optimization endpoints for products.
 - Added automatic single-size image normalization (1200x1200 webp).
 - Wired categories list/filter/select and quick create in product UI.
+
+[Pending push] 2026-02-21 - enforce automatic product image normalization
+Files:
+- frontend/src/pages/admin/Products.js
+- backend-dotnet/Controllers/ProductsController.cs
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Enforced automatic normalization of external image URLs at frontend save flow and backend create/update flow.

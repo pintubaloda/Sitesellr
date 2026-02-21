@@ -905,3 +905,8 @@ Update 2026-02-21 (Product direct upload pipeline + image normalization + catego
 - Developed: Category list wired into product page filter and add/edit product form category selector.
 - Developed: Quick category creation added in product add/edit dialog.
 - Partial: CDN object storage push (S3/R2 direct object write) still depends on ASSET_BASE_URL/object-store integration strategy; current pipeline stores in app uploads path and can be fronted by CDN.
+
+Update 2026-02-21 (Automatic image normalization enforced)
+- Developed: Product save flow now auto-normalizes all non-managed image URLs before save, ensuring uniform optimized image output.
+- Developed: Backend Products create/update now also normalizes external image URLs server-side to enforce same-size optimized assets even if frontend is bypassed.
+- Developed: Normalized image pipeline outputs consistent 1200x1200 WebP media for catalog usage.

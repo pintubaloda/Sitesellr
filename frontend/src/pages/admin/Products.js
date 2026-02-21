@@ -64,6 +64,11 @@ const isVideoUrl = (url) => {
   return value.endsWith(".mp4") || value.endsWith(".webm") || value.endsWith(".mov") || value.includes("youtube.com") || value.includes("youtu.be") || value.includes("vimeo.com");
 };
 
+const isManagedMediaUrl = (url) => {
+  const value = (url || "").toLowerCase();
+  return value.includes("/uploads/");
+};
+
 const getStockBadge = (status, stock) => {
   const styles = {
     active: "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400",
@@ -583,7 +588,26 @@ export const Products = () => {
     setSaving(true);
     setError("");
     try {
-      const payload = buildProductPayload(form, storeId, editingProduct);
+      const normalizedImageUrls = [];
+      for (const rawUrl of form.imageUrls || []) {
+        const url = (rawUrl || "").trim();
+        if (!url) continue;
+        if (isManagedMediaUrl(url)) {
+          normalizedImageUrls.push(url);
+          continue;
+        }
+        const fetched = await fetchAndOptimizeImage(url);
+        if (!fetched?.url) {
+          throw new Error("image_normalization_failed");
+        }
+        normalizedImageUrls.push(fetched.url);
+      }
+
+      const payload = buildProductPayload(
+        { ...form, imageUrls: normalizedImageUrls },
+        storeId,
+        editingProduct
+      );
       if (dialogMode === "edit" && editingProduct) {
         const res = await api.put(`/products/${editingProduct.id}`, payload);
         const updated = mapProductFromApi(res.data);
@@ -594,7 +618,7 @@ export const Products = () => {
       }
       setDialogOpen(false);
     } catch (_) {
-      setError("Could not save product. Please try again.");
+      setError("Could not save product. Ensure all image URLs are reachable and valid.");
     } finally {
       setSaving(false);
     }

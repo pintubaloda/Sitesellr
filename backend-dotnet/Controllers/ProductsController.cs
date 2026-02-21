@@ -52,6 +52,17 @@ public class ProductsController : BaseApiController
         if (Tenancy?.Store != null && Tenancy.Store.Id != input.StoreId) return Forbid();
         var check = await _caps.CheckProductsCreateAsync(input.StoreId, input.Variants?.Count ?? 0, ct);
         if (!check.Allowed) return StatusCode(StatusCodes.Status403Forbidden, new { error = check.Error, details = check.Details });
+        if (input.Media?.Count > 0)
+        {
+            try
+            {
+                input.Media = await NormalizeProductMediaAsync(input.StoreId, input.Media, ct);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
         input.Id = Guid.NewGuid();
         input.CreatedAt = DateTimeOffset.UtcNow;
         input.UpdatedAt = DateTimeOffset.UtcNow;
@@ -124,7 +135,16 @@ public class ProductsController : BaseApiController
         if (input.Media?.Count > 0)
         {
             _db.ProductMedia.RemoveRange(product.Media);
-            product.Media = input.Media.Select(m => new ProductMedia
+            IReadOnlyList<ProductMedia> normalizedMedia;
+            try
+            {
+                normalizedMedia = await NormalizeProductMediaAsync(input.StoreId, input.Media, ct);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            product.Media = normalizedMedia.Select(m => new ProductMedia
             {
                 Id = m.Id == Guid.Empty ? Guid.NewGuid() : m.Id,
                 ProductId = product.Id,
@@ -310,6 +330,55 @@ public class ProductsController : BaseApiController
         _db.StoreMediaAssets.Add(row);
         await _db.SaveChangesAsync(ct);
         return Ok(row);
+    }
+
+    private async Task<IReadOnlyList<ProductMedia>> NormalizeProductMediaAsync(Guid storeId, IEnumerable<ProductMedia> media, CancellationToken ct)
+    {
+        var result = new List<ProductMedia>();
+        var index = 0;
+        foreach (var item in media.OrderBy(x => x.SortOrder))
+        {
+            var url = (item.Url ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(url)) continue;
+            if (url.Contains("/uploads/", StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(new ProductMedia
+                {
+                    Id = item.Id,
+                    ProductId = item.ProductId,
+                    Url = url,
+                    SortOrder = index++
+                });
+                continue;
+            }
+
+            if (url.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
+                url.EndsWith(".webm", StringComparison.OrdinalIgnoreCase) ||
+                url.EndsWith(".mov", StringComparison.OrdinalIgnoreCase) ||
+                url.Contains("youtube.com", StringComparison.OrdinalIgnoreCase) ||
+                url.Contains("youtu.be", StringComparison.OrdinalIgnoreCase) ||
+                url.Contains("vimeo.com", StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(new ProductMedia
+                {
+                    Id = item.Id,
+                    ProductId = item.ProductId,
+                    Url = url,
+                    SortOrder = index++
+                });
+                continue;
+            }
+
+            var normalized = await _mediaAssets.FetchAndSaveImageAsync(storeId, url, "product-image", Request, ct);
+            result.Add(new ProductMedia
+            {
+                Id = item.Id,
+                ProductId = item.ProductId,
+                Url = normalized.Url,
+                SortOrder = index++
+            });
+        }
+        return result;
     }
 }
 

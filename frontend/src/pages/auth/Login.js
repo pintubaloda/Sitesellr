@@ -32,6 +32,17 @@ export const Login = () => {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileReset, setTurnstileReset] = useState(0);
   const turnstileSiteKey = process.env.REACT_APP_TURNSTILE_SITE_KEY || "";
+  const resolveLoginError = (err) => {
+    const code = err?.response?.data?.error;
+    const status = err?.response?.status;
+    if (code === "captcha_failed") return "Captcha verification failed. Please retry.";
+    if (status === 423) return "Account temporarily locked due to failed attempts. Try again later.";
+    if (status === 401) return "Invalid email or password.";
+    if (code === "csrf_invalid") return "Session security check failed. Refresh and try again.";
+    if (code === "rate_limited" || status === 429) return "Too many attempts. Please wait and retry.";
+    if (status >= 500) return "Server error during login. Please try again in a moment.";
+    return "Login failed. Check credentials and try again.";
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,10 +74,7 @@ export const Login = () => {
       }
       navigate("/admin");
     } catch (err) {
-      const reason =
-        err?.response?.data?.error === "captcha_failed"
-          ? "Captcha verification failed. Please retry."
-          : "Login failed. Check credentials and try again.";
+      const reason = resolveLoginError(err);
       setError(reason);
       if (err?.response?.data?.error === "captcha_failed") {
         setTurnstileToken("");

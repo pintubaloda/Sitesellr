@@ -963,3 +963,7 @@ Update 2026-02-21 (Product create 500/CORS symptom fix)
 - Developed: New IDs are generated for variant/media rows when incoming IDs are empty, avoiding EF tracking key-collision failures.
 - Developed: Added structured error handling for product create (`product_create_failed`) with server log details.
 - Impact: POST `/api/products` no longer throws hidden 500 from entity graph/id conflicts; browser CORS symptom disappears when backend returns proper API response.
+
+Update 2026-02-21 (Login error diagnostics improved)
+- Developed: Login UI now maps backend auth error codes/statuses to explicit user-facing messages (captcha_failed, locked 423, unauthorized 401, csrf_invalid, rate limited, server error).
+- Impact: login troubleshooting is immediate without generic "Login failed" masking root cause.

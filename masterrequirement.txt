@@ -572,3 +572,6 @@ Update 2026-02-21
 Update 2026-02-21
 - Product create API hardened against nested variant/media key collision and raw graph attach issues.
 - API now emits structured error payloads for create failures.
+
+Update 2026-02-21
+- Login UX now surfaces precise auth failure reasons to reduce production debugging time.

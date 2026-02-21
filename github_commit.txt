@@ -884,3 +884,11 @@ Files:
 Notes:
 - Product create now builds fresh entity graph and assigns IDs for child rows.
 - Added catch/log path returning `product_create_failed` for easier production diagnosis.
+
+[Pending push] 2026-02-21 - improve login error clarity by backend status/code mapping
+Files:
+- frontend/src/pages/auth/Login.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Added status/code-to-message mapping for auth failures.

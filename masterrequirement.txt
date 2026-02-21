@@ -602,3 +602,6 @@ Update 2026-02-21
 
 Update 2026-02-21
 - Dependency update: ImageSharp raised to 3.1.11.
+
+Update 2026-02-21
+- Category module API reliability improved with exception-safe handlers and flat DTO responses.

@@ -1010,3 +1010,8 @@ Update 2026-02-21 (Build fix for Product DTO compile)
 
 Update 2026-02-21 (ImageSharp version bump)
 - Developed: Upgraded `SixLabors.ImageSharp` from `3.1.10` to `3.1.11` per requested security baseline.
+
+Update 2026-02-21 (Category create/list 500 hardening)
+- Developed: Added defensive try/catch with structured error payloads for category list/create endpoints.
+- Developed: Category APIs now return flat response DTO (`CategoryResponse`) to avoid navigation/cycle serialization risks.
+- Developed: Category create now returns explicit `category_create_failed` detail on server exceptions for faster diagnosis.

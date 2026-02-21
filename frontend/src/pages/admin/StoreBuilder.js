@@ -262,6 +262,7 @@ export const StoreBuilder = () => {
   const [playbackIndex, setPlaybackIndex] = useState(null);
   const [isTimelinePlaying, setIsTimelinePlaying] = useState(false);
   const [sessions, setSessions] = useState([]);
+  const [collaborationPaused, setCollaborationPaused] = useState(false);
   const [editorName, setEditorName] = useState("Store Editor");
   const [diffResult, setDiffResult] = useState(null);
   const [remoteCursors, setRemoteCursors] = useState([]);
@@ -381,14 +382,20 @@ export const StoreBuilder = () => {
 
   useEffect(() => {
     loadData();
-  }, [storeId]);
+  }, [storeId, collaborationPaused]);
 
   useEffect(() => {
-    if (!storeId) return undefined;
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    if (!storeId || collaborationPaused) return undefined;
+    const apiBase = process.env.REACT_APP_API_BASE || `${window.location.origin}/api`;
+    const wsBase = apiBase.replace(/\/api\/?$/i, "").replace(/^http:/i, "ws:").replace(/^https:/i, "wss:");
     const clientId = `client_${Math.random().toString(36).slice(2, 10)}`;
-    const ws = new WebSocket(`${protocol}://${window.location.host}/ws/storefront/${storeId}?clientId=${clientId}`);
+    const ws = new WebSocket(`${wsBase}/ws/storefront/${storeId}?clientId=${clientId}`);
     wsRef.current = ws;
+    ws.onerror = () => {
+      // Avoid noisy websocket retries in production when collaboration endpoint is unavailable.
+      setCollaborationPaused(true);
+      setStatus((prev) => prev || "Live collaboration paused.");
+    };
 
     ws.onmessage = (evt) => {
       try {
@@ -436,24 +443,39 @@ export const StoreBuilder = () => {
   }, [selectedNodeId]);
 
   useEffect(() => {
-    if (!storeId) return undefined;
+    if (!storeId || collaborationPaused) return undefined;
     let timer = null;
+    let stopped = false;
+    let failureCount = 0;
     const heartbeat = async () => {
       try {
         await api.post(`/stores/${storeId}/storefront/collaboration/sessions`, { editorName });
         const res = await api.get(`/stores/${storeId}/storefront/collaboration/sessions`);
         setSessions(Array.isArray(res.data) ? res.data : []);
-      } catch {
-        // keep silent for collaboration polling
+        failureCount = 0;
+      } catch (err) {
+        const status = err?.response?.status;
+        failureCount += 1;
+        if (status === 401 || status === 403 || failureCount >= 5) {
+          stopped = true;
+          setCollaborationPaused(true);
+          setStatus((prev) => prev || "Live collaboration paused.");
+          return;
+        }
+      } finally {
+        if (!stopped) {
+          const nextDelay = Math.min(60000, 15000 * Math.max(1, failureCount));
+          timer = setTimeout(heartbeat, nextDelay);
+        }
       }
     };
     heartbeat();
-    timer = setInterval(heartbeat, 15000);
     return () => {
-      clearInterval(timer);
+      stopped = true;
+      clearTimeout(timer);
       api.delete(`/stores/${storeId}/storefront/collaboration/sessions/me`).catch(() => {});
     };
-  }, [storeId, editorName]);
+  }, [storeId, editorName, collaborationPaused]);
 
   const recordSectionsHistory = () => {
     setPastSections((p) => [...p, cloneDeep(sections)]);

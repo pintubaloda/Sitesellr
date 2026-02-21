@@ -929,3 +929,11 @@ Files:
 Notes:
 - Added StoreResponse mapping for list/get/create/update.
 - Added explicit list error handling (`stores_list_failed`).
+
+[Pending push] 2026-02-21 - harden tenancy resolver to avoid global 500 on store/domain lookup errors
+Files:
+- backend-dotnet/Services/TenancyContext.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Store/domain lookup exceptions no longer crash all API requests.

@@ -989,3 +989,8 @@ Update 2026-02-21 (Stores API 500 hardening)
 - Developed: Store responses now use a DTO (`StoreResponse`) instead of returning EF entities directly.
 - Developed: Create/get/update store endpoints now return `StoreResponse` for stable payload shape.
 - Impact: avoids entity-graph serialization issues and gives actionable error detail instead of opaque 500/CORS symptom.
+
+Update 2026-02-21 (Tenancy resolver hardening for /api/stores 500)
+- Developed: Added defensive exception handling in tenancy store/domain resolution path.
+- Developed: API requests now continue even if optional domain lookup tables/config are temporarily unavailable (logs warning, does not crash request pipeline).
+- Impact: prevents global 500 errors on `/api/stores` caused by tenancy lookup failures.

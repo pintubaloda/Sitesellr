@@ -29,11 +29,13 @@ public class TenancyResolver : ITenancyResolver
 {
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
+    private readonly ILogger<TenancyResolver> _logger;
 
-    public TenancyResolver(AppDbContext db, IConfiguration config)
+    public TenancyResolver(AppDbContext db, IConfiguration config, ILogger<TenancyResolver> logger)
     {
         _db = db;
         _config = config;
+        _logger = logger;
     }
 
     public async Task<TenancyContext> ResolveAsync(HttpContext httpContext, CancellationToken ct = default)
@@ -52,42 +54,52 @@ public class TenancyResolver : ITenancyResolver
         Store? store = null;
         Merchant? merchant = null;
 
-        if (storeIdFromHeader.HasValue)
+        try
         {
-            store = await _db.Stores.Include(s => s.Merchant).FirstOrDefaultAsync(s => s.Id == storeIdFromHeader.Value, ct);
-            merchant = store?.Merchant;
-        }
-        else if (!string.IsNullOrWhiteSpace(host))
-        {
-            // Match by subdomain if rootDomain set, otherwise by full host on PrimaryDomain.
-            if (!string.IsNullOrWhiteSpace(rootDomain) && host.EndsWith(rootDomain, StringComparison.OrdinalIgnoreCase))
+            if (storeIdFromHeader.HasValue)
             {
-                var sub = host[..^(rootDomain.Length)].TrimEnd('.'); // take left part before root domain
-                if (!string.IsNullOrEmpty(sub))
+                store = await _db.Stores.Include(s => s.Merchant).FirstOrDefaultAsync(s => s.Id == storeIdFromHeader.Value, ct);
+                merchant = store?.Merchant;
+            }
+            else if (!string.IsNullOrWhiteSpace(host))
+            {
+                // Match by subdomain if rootDomain set, otherwise by full host on PrimaryDomain.
+                if (!string.IsNullOrWhiteSpace(rootDomain) && host.EndsWith(rootDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    var sub = host[..^(rootDomain.Length)].TrimEnd('.'); // take left part before root domain
+                    if (!string.IsNullOrEmpty(sub))
+                    {
+                        store = await _db.Stores.Include(s => s.Merchant)
+                            .FirstOrDefaultAsync(s => s.Subdomain == sub, ct);
+                        merchant = store?.Merchant;
+                    }
+                }
+
+                if (store == null)
                 {
                     store = await _db.Stores.Include(s => s.Merchant)
-                        .FirstOrDefaultAsync(s => s.Subdomain == sub, ct);
+                        .FirstOrDefaultAsync(s => s.Merchant.PrimaryDomain == host, ct);
+                    merchant = store?.Merchant;
+                }
+
+                if (store == null)
+                {
+                    store = await _db.StoreDomains
+                        .Include(d => d.Store)
+                        .ThenInclude(s => s.Merchant)
+                        .Where(d => d.IsVerified && d.Hostname == host)
+                        .Select(d => d.Store)
+                        .FirstOrDefaultAsync(ct);
                     merchant = store?.Merchant;
                 }
             }
-
-            if (store == null)
-            {
-                store = await _db.Stores.Include(s => s.Merchant)
-                    .FirstOrDefaultAsync(s => s.Merchant.PrimaryDomain == host, ct);
-                merchant = store?.Merchant;
-            }
-
-            if (store == null)
-            {
-                store = await _db.StoreDomains
-                    .Include(d => d.Store)
-                    .ThenInclude(s => s.Merchant)
-                    .Where(d => d.IsVerified && d.Hostname == host)
-                    .Select(d => d.Store)
-                    .FirstOrDefaultAsync(ct);
-                merchant = store?.Merchant;
-            }
+        }
+        catch (Exception ex)
+        {
+            // Do not fail all API requests if optional domain-lookup tables/migrations are missing.
+            _logger.LogWarning(ex, "Tenancy store resolution fallback due to lookup error");
+            store = null;
+            merchant = null;
         }
 
         Guid? userId = null;

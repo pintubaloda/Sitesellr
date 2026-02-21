@@ -587,3 +587,6 @@ Update 2026-02-21
 
 Update 2026-02-21
 - Stores API stabilized with DTO output contract and guarded list handler.
+
+Update 2026-02-21
+- Tenancy resolution now fails open for domain lookup errors to keep core authenticated APIs operational.

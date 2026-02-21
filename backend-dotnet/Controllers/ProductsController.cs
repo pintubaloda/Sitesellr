@@ -15,11 +15,13 @@ public class ProductsController : BaseApiController
     private static readonly ConcurrentDictionary<Guid, ProductImportJobStatus> ImportJobs = new();
     private readonly AppDbContext _db;
     private readonly ISubscriptionCapabilityService _caps;
+    private readonly IMediaAssetService _mediaAssets;
 
-    public ProductsController(AppDbContext db, ISubscriptionCapabilityService caps)
+    public ProductsController(AppDbContext db, ISubscriptionCapabilityService caps, IMediaAssetService mediaAssets)
     {
         _db = db;
         _caps = caps;
+        _mediaAssets = mediaAssets;
     }
 
     [HttpGet]
@@ -243,6 +245,72 @@ public class ProductsController : BaseApiController
         if (!ImportJobs.TryGetValue(jobId, out var job)) return NotFound(new { error = "job_not_found" });
         return Ok(job);
     }
+
+    [HttpPost("media/upload")]
+    [Authorize(Policy = Policies.ProductsWrite)]
+    [RequestSizeLimit(10_000_000)]
+    public async Task<IActionResult> UploadMedia([FromQuery] Guid storeId, [FromForm] IFormFile file, [FromForm] string? kind, CancellationToken ct)
+    {
+        if (storeId == Guid.Empty) return BadRequest(new { error = "store_required" });
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        if (file == null || file.Length == 0) return BadRequest(new { error = "file_required" });
+        if (file.Length > 10_000_000) return BadRequest(new { error = "file_too_large" });
+        MediaAssetSaveResult asset;
+        try
+        {
+            asset = await _mediaAssets.SaveUploadedAsync(storeId, file, string.IsNullOrWhiteSpace(kind) ? "product-image" : kind, Request, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+
+        var row = new StoreMediaAsset
+        {
+            StoreId = storeId,
+            FileName = asset.FileName,
+            ContentType = asset.ContentType,
+            SizeBytes = asset.SizeBytes,
+            Url = asset.Url,
+            Kind = asset.Kind,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        _db.StoreMediaAssets.Add(row);
+        await _db.SaveChangesAsync(ct);
+        return Ok(row);
+    }
+
+    [HttpPost("media/fetch-url")]
+    [Authorize(Policy = Policies.ProductsWrite)]
+    public async Task<IActionResult> FetchMediaFromUrl([FromQuery] Guid storeId, [FromBody] ProductMediaFetchRequest req, CancellationToken ct)
+    {
+        if (storeId == Guid.Empty) return BadRequest(new { error = "store_required" });
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        if (string.IsNullOrWhiteSpace(req.Url)) return BadRequest(new { error = "url_required" });
+        MediaAssetSaveResult asset;
+        try
+        {
+            asset = await _mediaAssets.FetchAndSaveImageAsync(storeId, req.Url.Trim(), string.IsNullOrWhiteSpace(req.Kind) ? "product-image" : req.Kind.Trim(), Request, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+
+        var row = new StoreMediaAsset
+        {
+            StoreId = storeId,
+            FileName = asset.FileName,
+            ContentType = asset.ContentType,
+            SizeBytes = asset.SizeBytes,
+            Url = asset.Url,
+            Kind = asset.Kind,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        _db.StoreMediaAssets.Add(row);
+        await _db.SaveChangesAsync(ct);
+        return Ok(row);
+    }
 }
 
 public class ProductImportJobStatus
@@ -260,4 +328,10 @@ public class ProductImportError
 {
     public int Row { get; set; }
     public string Error { get; set; } = string.Empty;
+}
+
+public class ProductMediaFetchRequest
+{
+    public string Url { get; set; } = string.Empty;
+    public string? Kind { get; set; }
 }

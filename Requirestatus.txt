@@ -894,3 +894,14 @@ Update 2026-02-21 (Product media management upgrade)
 - Developed: Optional product video URL support added in product editor and persisted in media list.
 - Developed: Asset preview added in product editor for images and video/link preview.
 - Partial: File upload storage pipeline (instead of URL-based media entry) is still pending.
+
+Update 2026-02-21 (Product direct upload pipeline + image normalization + category list)
+- Developed: Added backend media asset pipeline service used by product and storefront media uploads.
+- Developed: Direct product media file upload endpoint added (`POST /api/products/media/upload?storeId=...`) with store tenancy checks.
+- Developed: Image-from-URL ingestion endpoint added (`POST /api/products/media/fetch-url?storeId=...`) to fetch and optimize external image URLs.
+- Developed: Automatic image optimization to a single normalized size (1200x1200, WebP output) on upload and URL-fetch ingestion.
+- Developed: Product video file upload support (`mp4/webm/mov`) in product media flow.
+- Developed: Product UI now supports direct image/video upload + fetch-and-optimize for URL entries.
+- Developed: Category list wired into product page filter and add/edit product form category selector.
+- Developed: Quick category creation added in product add/edit dialog.
+- Partial: CDN object storage push (S3/R2 direct object write) still depends on ASSET_BASE_URL/object-store integration strategy; current pipeline stores in app uploads path and can be fronted by CDN.

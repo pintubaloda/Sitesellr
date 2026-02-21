@@ -520,3 +520,10 @@ UPDATE [2026-02-20] - PLATFORM DOMAIN GOVERNANCE + CLOUDFLARE/SSL CONFIG UI
 | Module | Status | Developed | Partial / Need to Develop |
 |---|---|---|---|
 | Product media section | Partial+ | Multi-image input, drag-reorder + move controls, optional video URL, preview panel, payload sort-order persistence | Direct binary upload service + media optimization/CDN pipeline |
+
+## Product Upload + Category Wiring - 2026-02-21 update
+| Module | Status | Developed | Partial / Need to Develop |
+|---|---|---|---|
+| Direct product media pipeline | Developed | Product media upload API + URL ingestion API + tenancy checks + media persistence rows | Direct signed upload to object storage (browser-to-S3/R2) |
+| Image normalization | Developed | Automatic resize/normalize to 1200x1200 WebP for uploaded/fetched images | Optional per-theme/per-slot variant generation pipeline |
+| Product category UX | Developed | Category list filter + category select in product form + quick category create from dialog | Advanced category tree management UI |

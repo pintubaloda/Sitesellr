@@ -768,3 +768,19 @@ Files:
 - masterrequirement.txt
 Notes:
 - Added multi-image media support, drag-reorder controls, optional video URL, and media preview UI for products.
+
+[Pending push] 2026-02-21 - product media upload pipeline and category wiring
+Files:
+- backend-dotnet/Services/MediaAssetService.cs
+- backend-dotnet/Controllers/ProductsController.cs
+- backend-dotnet/Controllers/StorefrontController.cs
+- backend-dotnet/Program.cs
+- backend-dotnet/backend-dotnet.csproj
+- frontend/src/pages/admin/Products.js
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Added direct media upload and URL-fetch optimization endpoints for products.
+- Added automatic single-size image normalization (1200x1200 webp).
+- Wired categories list/filter/select and quick create in product UI.

@@ -20,13 +20,15 @@ public class StorefrontController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IEmailService _emailService;
     private readonly ISubscriptionCapabilityService _caps;
+    private readonly IMediaAssetService _mediaAssets;
     private TenancyContext? Tenancy => HttpContext.Items["Tenancy"] as TenancyContext;
 
-    public StorefrontController(AppDbContext db, IEmailService emailService, ISubscriptionCapabilityService caps)
+    public StorefrontController(AppDbContext db, IEmailService emailService, ISubscriptionCapabilityService caps, IMediaAssetService mediaAssets)
     {
         _db = db;
         _emailService = emailService;
         _caps = caps;
+        _mediaAssets = mediaAssets;
     }
 
     [HttpGet("themes")]
@@ -184,37 +186,24 @@ public class StorefrontController : ControllerBase
         if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
         if (file == null || file.Length == 0) return BadRequest(new { error = "file_required" });
         if (file.Length > 10_000_000) return BadRequest(new { error = "file_too_large" });
-
-        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        MediaAssetSaveResult asset;
+        try
         {
-            "image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"
-        };
-        if (!allowed.Contains(file.ContentType)) return BadRequest(new { error = "unsupported_content_type" });
-
-        var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        var uploadDir = Path.Combine(webRoot, "uploads", storeId.ToString("N"));
-        Directory.CreateDirectory(uploadDir);
-
-        var safeName = $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{Guid.NewGuid():N}{Path.GetExtension(file.FileName)}";
-        var savePath = Path.Combine(uploadDir, safeName);
-        await using (var stream = System.IO.File.Create(savePath))
-        {
-            await file.CopyToAsync(stream, ct);
+            asset = await _mediaAssets.SaveUploadedAsync(storeId, file, kind ?? "generic", Request, ct);
         }
-
-        var relativeUrl = $"/uploads/{storeId:N}/{safeName}";
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var cdnBase = Environment.GetEnvironmentVariable("ASSET_BASE_URL");
-        var assetUrl = string.IsNullOrWhiteSpace(cdnBase) ? $"{baseUrl}{relativeUrl}" : $"{cdnBase.TrimEnd('/')}{relativeUrl}";
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
 
         var row = new StoreMediaAsset
         {
             StoreId = storeId,
-            FileName = file.FileName,
-            ContentType = file.ContentType,
-            SizeBytes = file.Length,
-            Url = assetUrl,
-            Kind = string.IsNullOrWhiteSpace(kind) ? "generic" : kind.Trim().ToLowerInvariant(),
+            FileName = asset.FileName,
+            ContentType = asset.ContentType,
+            SizeBytes = asset.SizeBytes,
+            Url = asset.Url,
+            Kind = asset.Kind,
             CreatedAt = DateTimeOffset.UtcNow
         };
         _db.StoreMediaAssets.Add(row);

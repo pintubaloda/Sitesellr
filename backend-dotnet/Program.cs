@@ -117,6 +117,7 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IThemeContractService, ThemeContractService>();
 builder.Services.AddScoped<ISubscriptionCapabilityService, SubscriptionCapabilityService>();
+builder.Services.AddScoped<IMediaAssetService, MediaAssetService>();
 builder.Services.AddHttpClient<ITurnstileService, TurnstileService>();
 builder.Services.AddScoped<IWebAuthnService, WebAuthnService>();
 builder.Services.AddScoped<ITenancyResolver, TenancyResolver>();

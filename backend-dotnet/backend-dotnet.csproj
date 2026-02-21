@@ -29,6 +29,7 @@
     <PackageReference Include="Polly" Version="8.4.2" />
     <PackageReference Include="Otp.NET" Version="1.4.1" />
     <PackageReference Include="Fido2" Version="3.0.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.6" />
   </ItemGroup>
 
 </Project>

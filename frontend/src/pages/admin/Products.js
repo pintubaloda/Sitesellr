@@ -117,6 +117,7 @@ const buildProductPayload = (form, storeId, currentProduct) => {
     currency: "INR",
     status: 1,
     isPublished: true,
+    categoryId: form.categoryId || null,
     variants: [
       {
         id: base.variants?.[0]?.id,
@@ -131,7 +132,17 @@ const buildProductPayload = (form, storeId, currentProduct) => {
   };
 };
 
-const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading, mode }) => {
+const AddProductDialog = ({
+  open,
+  onOpenChange,
+  onSubmit,
+  initialValues,
+  storeId,
+  loading,
+  mode,
+  onUploadFile,
+  onFetchImageFromUrl,
+}) => {
   const [form, setForm] = useState({
     name: "",
     sku: "",
@@ -139,9 +150,13 @@ const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading
     price: "",
     comparePrice: "",
     stock: "",
+    categoryId: "",
+    categoryName: "",
     imageUrls: [""],
     videoUrl: "",
   });
+  const [categories, setCategories] = useState([]);
+  const [addingCategory, setAddingCategory] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -164,10 +179,25 @@ const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading
           ? String(initialValues.raw.compareAtPrice)
           : "",
       stock: initialValues?.stock != null ? String(initialValues.stock) : "",
+      categoryId: initialValues?.raw?.categoryId || "",
+      categoryName: "",
       imageUrls: imageUrls.length ? imageUrls : [""],
       videoUrl,
     });
   }, [open, initialValues]);
+
+  useEffect(() => {
+    if (!open || !storeId) return;
+    const loadCategories = async () => {
+      try {
+        const res = await api.get("/categories", { params: { storeId } });
+        setCategories(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        setCategories([]);
+      }
+    };
+    loadCategories();
+  }, [open, storeId]);
 
   const setField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -204,6 +234,26 @@ const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading
       arr.splice(to, 0, moved);
       return { ...prev, imageUrls: arr };
     });
+  };
+
+  const createCategory = async () => {
+    if (!storeId || !form.categoryName.trim()) return;
+    setAddingCategory(true);
+    try {
+      const name = form.categoryName.trim();
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const res = await api.post("/categories", {
+        storeId,
+        name,
+        slug: slug || `category-${Date.now()}`,
+      });
+      const created = res.data;
+      setCategories((prev) => [...prev, created].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
+      setField("categoryId", created.id);
+      setField("categoryName", "");
+    } finally {
+      setAddingCategory(false);
+    }
   };
 
   return (
@@ -243,17 +293,27 @@ const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading
               </div>
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select>
+                <Select value={form.categoryId || "none"} onValueChange={(value) => setField("categoryId", value === "none" ? "" : value)}>
                   <SelectTrigger data-testid="product-category-select">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="electronics">Electronics</SelectItem>
-                    <SelectItem value="fashion">Fashion</SelectItem>
-                    <SelectItem value="home">Home & Living</SelectItem>
-                    <SelectItem value="beauty">Beauty</SelectItem>
+                    <SelectItem value="none">No category</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="New category name"
+                    value={form.categoryName}
+                    onChange={(e) => setField("categoryName", e.target.value)}
+                  />
+                  <Button type="button" variant="outline" onClick={createCategory} disabled={addingCategory || !form.categoryName.trim()}>
+                    {addingCategory ? "Adding..." : "Add"}
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -345,6 +405,29 @@ const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading
                     value={url}
                     onChange={(e) => setImageAt(idx, e.target.value)}
                   />
+                  <input
+                    id={`product-upload-${idx}`}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const uploaded = await onUploadFile(file, "product-image");
+                      if (uploaded?.url) setImageAt(idx, uploaded.url);
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button type="button" variant="outline" onClick={() => document.getElementById(`product-upload-${idx}`)?.click()}>
+                    Upload
+                  </Button>
+                  <Button type="button" variant="outline" onClick={async () => {
+                    if (!url?.trim()) return;
+                    const fetched = await onFetchImageFromUrl(url.trim());
+                    if (fetched?.url) setImageAt(idx, fetched.url);
+                  }}>
+                    Fetch+Optimize
+                  </Button>
                   <Button type="button" variant="outline" size="icon" onClick={() => moveImage(idx, idx - 1)}><ArrowUp className="w-4 h-4" /></Button>
                   <Button type="button" variant="outline" size="icon" onClick={() => moveImage(idx, idx + 1)}><ArrowDown className="w-4 h-4" /></Button>
                   <Button type="button" variant="outline" size="icon" onClick={() => removeImageField(idx)}><Trash2 className="w-4 h-4" /></Button>
@@ -364,6 +447,22 @@ const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading
                   value={form.videoUrl}
                   onChange={(e) => setField("videoUrl", e.target.value)}
                 />
+                <input
+                  id="product-video-upload"
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const uploaded = await onUploadFile(file, "product-video");
+                    if (uploaded?.url) setField("videoUrl", uploaded.url);
+                    e.target.value = "";
+                  }}
+                />
+                <Button type="button" variant="outline" onClick={() => document.getElementById("product-video-upload")?.click()}>
+                  Upload Video
+                </Button>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -419,6 +518,8 @@ export const Products = () => {
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState(null);
   const [importStatus, setImportStatus] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [categories, setCategories] = useState([]);
   const { data: apiProducts, loading } = useApiList("/products", { storeId, enabled: !!storeId });
   const products = rows;
 
@@ -426,11 +527,26 @@ export const Products = () => {
     setRows((apiProducts ?? []).map(mapProductFromApi));
   }, [apiProducts]);
 
-  const filteredProducts = products.filter(
-    (product) =>
+  useEffect(() => {
+    const loadCategories = async () => {
+      if (!storeId) return;
+      try {
+        const res = await api.get("/categories", { params: { storeId } });
+        setCategories(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        setCategories([]);
+      }
+    };
+    loadCategories();
+  }, [storeId]);
+
+  const filteredProducts = products.filter((product) => {
+    const matchedSearch =
       (product.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.sku || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      (product.sku || "").toLowerCase().includes(searchQuery.toLowerCase());
+    const matchedCategory = categoryFilter === "all" || product.raw?.categoryId === categoryFilter;
+    return matchedSearch && matchedCategory;
+  });
 
   const toggleSelectAll = () => {
     if (selectedProducts.length === filteredProducts.length) {
@@ -539,6 +655,34 @@ export const Products = () => {
     }
   };
 
+  const uploadMediaFile = async (file, kind) => {
+    if (!storeId) return null;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("kind", kind);
+    try {
+      const res = await api.post("/products/media/upload", formData, {
+        params: { storeId },
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return res.data;
+    } catch (err) {
+      setError(err?.response?.data?.error || "Media upload failed.");
+      return null;
+    }
+  };
+
+  const fetchAndOptimizeImage = async (url) => {
+    if (!storeId) return null;
+    try {
+      const res = await api.post("/products/media/fetch-url", { url, kind: "product-image" }, { params: { storeId } });
+      return res.data;
+    } catch (err) {
+      setError(err?.response?.data?.error || "Image fetch failed.");
+      return null;
+    }
+  };
+
   return (
     <div className="space-y-6" data-testid="products-page">
       {/* Page Header */}
@@ -592,16 +736,15 @@ export const Products = () => {
                 data-testid="search-products"
               />
             </div>
-            <Select defaultValue="all">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-40 rounded-lg" data-testid="filter-category">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="electronics">Electronics</SelectItem>
-                <SelectItem value="fashion">Fashion</SelectItem>
-                <SelectItem value="home">Home & Living</SelectItem>
-                <SelectItem value="beauty">Beauty</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select defaultValue="all">
@@ -759,8 +902,11 @@ export const Products = () => {
         onOpenChange={setDialogOpen}
         onSubmit={handleSave}
         initialValues={editingProduct}
+        storeId={storeId}
         loading={saving}
         mode={dialogMode}
+        onUploadFile={uploadMediaFile}
+        onFetchImageFromUrl={fetchAndOptimizeImage}
       />
     </div>
   );

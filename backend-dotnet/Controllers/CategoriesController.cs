@@ -31,9 +31,12 @@ public class CategoriesController : BaseApiController
 
     [HttpPost]
     [Authorize(Policy = Policies.ProductsWrite)]
-    public async Task<IActionResult> Create([FromBody] Category req, CancellationToken ct)
+    public async Task<IActionResult> Create([FromBody] CategoryCreateRequest req, CancellationToken ct)
     {
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
         if (req.StoreId == Guid.Empty) return BadRequest(new { error = "store_required" });
+        if (string.IsNullOrWhiteSpace(req.Name)) return BadRequest(new { error = "name_required" });
+        if (string.IsNullOrWhiteSpace(req.Slug)) return BadRequest(new { error = "slug_required" });
         if (Tenancy?.Store != null && Tenancy.Store.Id != req.StoreId) return Forbid();
         var caps = await _caps.GetCapabilitiesAsync(req.StoreId, ct);
         var current = await _db.Categories.AsNoTracking().CountAsync(x => x.StoreId == req.StoreId, ct);
@@ -42,11 +45,25 @@ public class CategoriesController : BaseApiController
         var slug = req.Slug.Trim().ToLowerInvariant();
         var exists = await _db.Categories.AsNoTracking().AnyAsync(x => x.StoreId == req.StoreId && x.Slug == slug, ct);
         if (exists) return Conflict(new { error = "category_slug_exists" });
-        req.Id = Guid.NewGuid();
-        req.Slug = slug;
-        req.CreatedAt = DateTimeOffset.UtcNow;
-        _db.Categories.Add(req);
+        var row = new Category
+        {
+            Id = Guid.NewGuid(),
+            StoreId = req.StoreId,
+            Name = req.Name.Trim(),
+            Slug = slug,
+            ParentId = req.ParentId,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        _db.Categories.Add(row);
         await _db.SaveChangesAsync(ct);
-        return Ok(req);
+        return Ok(row);
     }
+}
+
+public class CategoryCreateRequest
+{
+    public Guid StoreId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
+    public Guid? ParentId { get; set; }
 }

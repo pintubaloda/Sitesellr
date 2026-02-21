@@ -42,12 +42,12 @@ public class ProductsController : BaseApiController
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);
-        return Ok(products);
+        return Ok(products.Select(ToResponse));
     }
 
     [HttpPost]
     [Authorize(Policy = Policies.ProductsWrite)]
-    public async Task<IActionResult> Create([FromBody] Product input, CancellationToken ct)
+    public async Task<IActionResult> Create([FromBody] ProductUpsertRequest input, CancellationToken ct)
     {
         try
         {
@@ -60,7 +60,13 @@ public class ProductsController : BaseApiController
             IReadOnlyList<ProductMedia> normalizedMedia = Array.Empty<ProductMedia>();
             if (input.Media?.Count > 0)
             {
-                normalizedMedia = await NormalizeProductMediaAsync(input.StoreId, input.Media, ct);
+                var mediaInput = input.Media.Select(m => new ProductMedia
+                {
+                    Id = m.Id,
+                    Url = m.Url,
+                    SortOrder = m.SortOrder
+                });
+                normalizedMedia = await NormalizeProductMediaAsync(input.StoreId, mediaInput, ct);
             }
 
             var created = new Product
@@ -78,7 +84,7 @@ public class ProductsController : BaseApiController
                 CategoryId = input.CategoryId,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
-                Variants = (input.Variants ?? Array.Empty<ProductVariant>()).Select(v => new ProductVariant
+                Variants = (input.Variants ?? Array.Empty<ProductVariantUpsertRequest>()).Select(v => new ProductVariant
                 {
                     Id = v.Id == Guid.Empty ? Guid.NewGuid() : v.Id,
                     SKU = v.SKU,
@@ -97,7 +103,7 @@ public class ProductsController : BaseApiController
 
             _db.Products.Add(created);
             await _db.SaveChangesAsync(ct);
-            return CreatedAtAction(nameof(Get), new { id = created.Id, storeId = created.StoreId }, created);
+            return CreatedAtAction(nameof(Get), new { id = created.Id, storeId = created.StoreId }, ToResponse(created));
         }
         catch (InvalidOperationException ex)
         {
@@ -120,12 +126,12 @@ public class ProductsController : BaseApiController
             .Include(p => p.Variants)
             .Include(p => p.Media)
             .FirstOrDefaultAsync(p => p.Id == id && p.StoreId == storeId, ct);
-        return product == null ? NotFound() : Ok(product);
+        return product == null ? NotFound() : Ok(ToResponse(product));
     }
 
     [HttpPut("{id:guid}")]
     [Authorize(Policy = Policies.ProductsWrite)]
-    public async Task<IActionResult> Update(Guid id, [FromBody] Product input, CancellationToken ct)
+    public async Task<IActionResult> Update(Guid id, [FromBody] ProductUpsertRequest input, CancellationToken ct)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
         if (input.StoreId == Guid.Empty) return BadRequest(new { error = "store_required" });
@@ -177,7 +183,13 @@ public class ProductsController : BaseApiController
             IReadOnlyList<ProductMedia> normalizedMedia;
             try
             {
-                normalizedMedia = await NormalizeProductMediaAsync(input.StoreId, input.Media, ct);
+                var mediaInput = input.Media.Select(m => new ProductMedia
+                {
+                    Id = m.Id,
+                    Url = m.Url,
+                    SortOrder = m.SortOrder
+                });
+                normalizedMedia = await NormalizeProductMediaAsync(input.StoreId, mediaInput, ct);
             }
             catch (InvalidOperationException ex)
             {
@@ -193,7 +205,7 @@ public class ProductsController : BaseApiController
         }
 
         await _db.SaveChangesAsync(ct);
-        return Ok(product);
+        return Ok(ToResponse(product));
     }
 
     [HttpDelete("{id:guid}")]
@@ -427,6 +439,44 @@ public class ProductsController : BaseApiController
         }
         return result;
     }
+
+    private static ProductResponse ToResponse(Product p)
+    {
+        return new ProductResponse
+        {
+            Id = p.Id,
+            StoreId = p.StoreId,
+            Title = p.Title,
+            Description = p.Description,
+            SKU = p.SKU,
+            Price = p.Price,
+            CompareAtPrice = p.CompareAtPrice,
+            Currency = p.Currency,
+            Status = p.Status,
+            IsPublished = p.IsPublished,
+            CategoryId = p.CategoryId,
+            CreatedAt = p.CreatedAt,
+            UpdatedAt = p.UpdatedAt,
+            Variants = (p.Variants ?? Array.Empty<ProductVariant>()).Select(v => new ProductVariantResponse
+            {
+                Id = v.Id,
+                ProductId = v.ProductId,
+                SKU = v.SKU,
+                Price = v.Price,
+                Quantity = v.Quantity,
+                ReservedQuantity = v.ReservedQuantity,
+                AttributesJson = v.AttributesJson,
+                IsDefault = v.IsDefault
+            }).ToList(),
+            Media = (p.Media ?? Array.Empty<ProductMedia>()).Select(m => new ProductMediaResponse
+            {
+                Id = m.Id,
+                ProductId = m.ProductId,
+                Url = m.Url,
+                SortOrder = m.SortOrder
+            }).ToList()
+        };
+    }
 }
 
 public class ProductImportJobStatus
@@ -450,4 +500,77 @@ public class ProductMediaFetchRequest
 {
     public string Url { get; set; } = string.Empty;
     public string? Kind { get; set; }
+}
+
+public class ProductUpsertRequest
+{
+    public Guid Id { get; set; }
+    public Guid StoreId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? SKU { get; set; }
+    public decimal Price { get; set; }
+    public decimal? CompareAtPrice { get; set; }
+    public string Currency { get; set; } = "INR";
+    public ProductStatus Status { get; set; } = ProductStatus.Draft;
+    public bool IsPublished { get; set; }
+    public Guid? CategoryId { get; set; }
+    public List<ProductVariantUpsertRequest> Variants { get; set; } = new();
+    public List<ProductMediaUpsertRequest> Media { get; set; } = new();
+}
+
+public class ProductVariantUpsertRequest
+{
+    public Guid Id { get; set; }
+    public string? SKU { get; set; }
+    public decimal Price { get; set; }
+    public int Quantity { get; set; }
+    public string? AttributesJson { get; set; }
+    public bool IsDefault { get; set; }
+}
+
+public class ProductResponse
+{
+    public Guid Id { get; set; }
+    public Guid StoreId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? SKU { get; set; }
+    public decimal Price { get; set; }
+    public decimal? CompareAtPrice { get; set; }
+    public string Currency { get; set; } = "INR";
+    public ProductStatus Status { get; set; }
+    public bool IsPublished { get; set; }
+    public Guid? CategoryId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public List<ProductVariantResponse> Variants { get; set; } = new();
+    public List<ProductMediaResponse> Media { get; set; } = new();
+}
+
+public class ProductVariantResponse
+{
+    public Guid Id { get; set; }
+    public Guid ProductId { get; set; }
+    public string? SKU { get; set; }
+    public decimal Price { get; set; }
+    public int Quantity { get; set; }
+    public int ReservedQuantity { get; set; }
+    public string? AttributesJson { get; set; }
+    public bool IsDefault { get; set; }
+}
+
+public class ProductMediaResponse
+{
+    public Guid Id { get; set; }
+    public Guid ProductId { get; set; }
+    public string Url { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+}
+
+public class ProductMediaUpsertRequest
+{
+    public Guid Id { get; set; }
+    public string Url { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
 }

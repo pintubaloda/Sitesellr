@@ -994,3 +994,9 @@ Update 2026-02-21 (Tenancy resolver hardening for /api/stores 500)
 - Developed: Added defensive exception handling in tenancy store/domain resolution path.
 - Developed: API requests now continue even if optional domain lookup tables/config are temporarily unavailable (logs warning, does not crash request pipeline).
 - Impact: prevents global 500 errors on `/api/stores` caused by tenancy lookup failures.
+
+Update 2026-02-21 (Validation 400 + object-cycle fix)
+- Developed: Replaced category create entity binding with `CategoryCreateRequest` DTO to remove `Store` navigation validation errors.
+- Developed: Replaced product create/update entity binding with `ProductUpsertRequest` DTO (+ variant/media DTOs) to remove `Variants[n].Product` validation errors.
+- Developed: Product and store APIs now return flat response DTOs to prevent JSON object-cycle serialization failures.
+- Impact: fixed errors `The Store field is required`, `Variants[0].Product is required`, and `possible object cycle was detected`.

@@ -937,3 +937,13 @@ Files:
 - github_commit.txt
 Notes:
 - Store/domain lookup exceptions no longer crash all API requests.
+
+[Pending push] 2026-02-21 - remove entity-binding validation/cycle failures in category/product APIs
+Files:
+- backend-dotnet/Controllers/CategoriesController.cs
+- backend-dotnet/Controllers/ProductsController.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Switched to request/response DTO contracts for category/product APIs.
+- Eliminated navigation-property validation and object cycle serialization issues.

@@ -590,3 +590,6 @@ Update 2026-02-21
 
 Update 2026-02-21
 - Tenancy resolution now fails open for domain lookup errors to keep core authenticated APIs operational.
+
+Update 2026-02-21
+- Category/product API contracts hardened with DTO mapping to prevent navigation validation and cyclic JSON serialization failures.

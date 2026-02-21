@@ -53,7 +53,16 @@ import {
   ChevronLeft,
   ChevronRight,
   ImagePlus,
+  GripVertical,
+  ArrowUp,
+  ArrowDown,
+  Video,
 } from "lucide-react";
+
+const isVideoUrl = (url) => {
+  const value = (url || "").toLowerCase();
+  return value.endsWith(".mp4") || value.endsWith(".webm") || value.endsWith(".mov") || value.includes("youtube.com") || value.includes("youtu.be") || value.includes("vimeo.com");
+};
 
 const getStockBadge = (status, stock) => {
   const styles = {
@@ -79,6 +88,23 @@ const buildProductPayload = (form, storeId, currentProduct) => {
   const price = Number(form.price || 0);
   const stock = Number(form.stock || 0);
   const base = currentProduct?.raw || {};
+  const mediaItems = [];
+  (form.imageUrls || []).forEach((url, index) => {
+    if (!url?.trim()) return;
+    mediaItems.push({
+      id: base.media?.find((m) => (m.url || "").trim() === url.trim())?.id,
+      url: url.trim(),
+      sortOrder: index,
+    });
+  });
+  if (form.videoUrl?.trim()) {
+    mediaItems.push({
+      id: base.media?.find((m) => (m.url || "").trim() === form.videoUrl.trim())?.id,
+      url: form.videoUrl.trim(),
+      sortOrder: mediaItems.length,
+    });
+  }
+
   return {
     ...base,
     id: currentProduct?.id || base.id,
@@ -101,15 +127,7 @@ const buildProductPayload = (form, storeId, currentProduct) => {
         isDefault: true,
       },
     ],
-    media: form.imageUrl
-      ? [
-          {
-            id: base.media?.[0]?.id,
-            url: form.imageUrl.trim(),
-            sortOrder: 0,
-          },
-        ]
-      : [],
+    media: mediaItems,
   };
 };
 
@@ -121,11 +139,21 @@ const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading
     price: "",
     comparePrice: "",
     stock: "",
-    imageUrl: "",
+    imageUrls: [""],
+    videoUrl: "",
   });
 
   useEffect(() => {
     if (!open) return;
+    const sortedMedia = [...(initialValues?.raw?.media || [])].sort(
+      (a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
+    );
+    const imageUrls = sortedMedia
+      .map((m) => m.url || "")
+      .filter((url) => url && !isVideoUrl(url));
+    const videoUrl = sortedMedia
+      .map((m) => m.url || "")
+      .find((url) => isVideoUrl(url)) || "";
     setForm({
       name: initialValues?.name || "",
       sku: initialValues?.sku === "-" ? "" : initialValues?.sku || "",
@@ -136,11 +164,8 @@ const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading
           ? String(initialValues.raw.compareAtPrice)
           : "",
       stock: initialValues?.stock != null ? String(initialValues.stock) : "",
-      imageUrl:
-        initialValues?.image &&
-        !initialValues.image.includes("placehold.co")
-          ? initialValues.image
-          : "",
+      imageUrls: imageUrls.length ? imageUrls : [""],
+      videoUrl,
     });
   }, [open, initialValues]);
 
@@ -150,6 +175,35 @@ const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading
 
   const handleSubmit = async () => {
     await onSubmit(form);
+  };
+
+  const setImageAt = (index, value) => {
+    setForm((prev) => {
+      const next = [...prev.imageUrls];
+      next[index] = value;
+      return { ...prev, imageUrls: next };
+    });
+  };
+
+  const addImageField = () => {
+    setForm((prev) => ({ ...prev, imageUrls: [...prev.imageUrls, ""] }));
+  };
+
+  const removeImageField = (index) => {
+    setForm((prev) => {
+      const next = prev.imageUrls.filter((_, idx) => idx !== index);
+      return { ...prev, imageUrls: next.length ? next : [""] };
+    });
+  };
+
+  const moveImage = (from, to) => {
+    setForm((prev) => {
+      const arr = [...prev.imageUrls];
+      if (to < 0 || to >= arr.length) return prev;
+      const [moved] = arr.splice(from, 1);
+      arr.splice(to, 0, moved);
+      return { ...prev, imageUrls: arr };
+    });
   };
 
   return (
@@ -267,17 +321,68 @@ const AddProductDialog = ({ open, onOpenChange, onSubmit, initialValues, loading
             </div>
           </div>
 
-          {/* Images */}
+          {/* Media Management */}
           <div className="space-y-4">
-            <h4 className="font-medium text-slate-900 dark:text-white">Images</h4>
-            <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-6 text-center">
-              <ImagePlus className="w-10 h-10 mx-auto text-slate-400 mb-4" />
-              <Input
-                placeholder="https://example.com/image.jpg"
-                data-testid="product-image-input"
-                value={form.imageUrl}
-                onChange={(e) => setField("imageUrl", e.target.value)}
-              />
+            <h4 className="font-medium text-slate-900 dark:text-white">Media Management</h4>
+            <p className="text-xs text-slate-500">Add multiple image URLs, drag-reorder or use arrows, optional video URL, and preview assets.</p>
+            <div className="space-y-2">
+              {form.imageUrls.map((url, idx) => (
+                <div
+                  key={`img-${idx}`}
+                  className="flex items-center gap-2"
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData("text/plain", String(idx))}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    const from = Number(e.dataTransfer.getData("text/plain"));
+                    if (!Number.isNaN(from)) moveImage(from, idx);
+                  }}
+                >
+                  <GripVertical className="w-4 h-4 text-slate-400" />
+                  <Input
+                    placeholder="https://example.com/image.jpg"
+                    data-testid={idx === 0 ? "product-image-input" : undefined}
+                    value={url}
+                    onChange={(e) => setImageAt(idx, e.target.value)}
+                  />
+                  <Button type="button" variant="outline" size="icon" onClick={() => moveImage(idx, idx - 1)}><ArrowUp className="w-4 h-4" /></Button>
+                  <Button type="button" variant="outline" size="icon" onClick={() => moveImage(idx, idx + 1)}><ArrowDown className="w-4 h-4" /></Button>
+                  <Button type="button" variant="outline" size="icon" onClick={() => removeImageField(idx)}><Trash2 className="w-4 h-4" /></Button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" onClick={addImageField}>
+                <ImagePlus className="w-4 h-4 mr-2" /> Add Image
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="video_url">Optional Video URL</Label>
+              <div className="flex items-center gap-2">
+                <Video className="w-4 h-4 text-slate-400" />
+                <Input
+                  id="video_url"
+                  placeholder="https://example.com/product.mp4 or YouTube/Vimeo URL"
+                  value={form.videoUrl}
+                  onChange={(e) => setField("videoUrl", e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {form.imageUrls.filter(Boolean).map((url, idx) => (
+                <div key={`preview-${idx}`} className="border rounded-lg p-2">
+                  <p className="text-[11px] text-slate-500 mb-1">Image {idx + 1}</p>
+                  <img src={url} alt={`preview-${idx}`} className="h-24 w-full object-cover rounded bg-slate-100" />
+                </div>
+              ))}
+              {form.videoUrl ? (
+                <div className="border rounded-lg p-2">
+                  <p className="text-[11px] text-slate-500 mb-1">Video</p>
+                  {isVideoUrl(form.videoUrl) && !form.videoUrl.includes("youtube") && !form.videoUrl.includes("vimeo") ? (
+                    <video src={form.videoUrl} controls className="h-24 w-full rounded bg-slate-100" />
+                  ) : (
+                    <a href={form.videoUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">Open video link</a>
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

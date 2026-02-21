@@ -887,3 +887,10 @@ Update 2026-02-21 (Origin TLS lifecycle automation)
 - Developed: Domains config now persists origin TLS settings and exposes them in Domains & SSL module.
 - Developed: Platform Domains UI now includes origin TLS config form + issue/renew action + status refresh (expiry/days remaining visibility).
 - Partial: Scheduler/cron-based automatic renew trigger is not yet added; current renew is owner-triggered API call.
+
+Update 2026-02-21 (Product media management upgrade)
+- Developed: Product Add/Edit now supports multiple image URLs in media section.
+- Developed: Image ordering controls added (drag-and-drop + move up/down) and preserved via `sortOrder` in product payload.
+- Developed: Optional product video URL support added in product editor and persisted in media list.
+- Developed: Asset preview added in product editor for images and video/link preview.
+- Partial: File upload storage pipeline (instead of URL-based media entry) is still pending.

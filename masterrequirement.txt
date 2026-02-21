@@ -515,3 +515,8 @@ UPDATE [2026-02-20] - PLATFORM DOMAIN GOVERNANCE + CLOUDFLARE/SSL CONFIG UI
 | Module | Status | Developed | Partial / Need to Develop |
 |---|---|---|---|
 | Cloudflare-to-origin TLS lifecycle | Partial+ | Configurable issue/renew command, cert/key path status checks, expiry visibility, owner-triggered renew API | Automated scheduled renew worker + failure retry queue + alerting |
+
+## Product Media Management - 2026-02-21 update
+| Module | Status | Developed | Partial / Need to Develop |
+|---|---|---|---|
+| Product media section | Partial+ | Multi-image input, drag-reorder + move controls, optional video URL, preview panel, payload sort-order persistence | Direct binary upload service + media optimization/CDN pipeline |

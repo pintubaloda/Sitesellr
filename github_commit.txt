@@ -759,3 +759,12 @@ Files:
 Notes:
 - Added origin TLS status + issue/renew APIs and platform UI controls.
 - Added DB/env fallback settings for origin cert paths and issuer command.
+
+[Pending push] 2026-02-21 - product media section enhancements
+Files:
+- frontend/src/pages/admin/Products.js
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Added multi-image media support, drag-reorder controls, optional video URL, and media preview UI for products.

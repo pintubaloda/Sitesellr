@@ -1025,3 +1025,13 @@ Files:
 Notes:
 - Replaced anonymous conditional account object with stable object shape.
 - Added null-safe CSRF bearer parsing and null-safe variants mapping.
+
+[Pending push] 2026-02-21 - premium storefront theme redesign (home/plp/pdp/cart/checkout)
+Files:
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- frontend/src/pages/storefront/StorefrontPublic.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Added richer public product payload (media, stock, variants, compare-at, status, createdAt).
+- Implemented premium fashion-style storefront flow with modern PLP filters, PDP gallery/selectors, and upgraded cart/checkout UX.

@@ -76,20 +76,45 @@ public class PublicStorefrontController : ControllerBase
             .ToListAsync(ct);
         pages = ApplyVisibility(pages, x => x.Slug.ToLowerInvariant(), pageRules).ToList();
 
-        var products = await _db.Products.AsNoTracking()
+        var productRows = await _db.Products.AsNoTracking()
             .Where(x => x.StoreId == store.Id)
+            .Include(x => x.Media)
+            .Include(x => x.Variants)
             .OrderByDescending(x => x.CreatedAt)
             .Take(24)
-            .Select(x => new
+            .ToListAsync(ct);
+        var products = productRows.Select(x => new
             {
                 x.Id,
                 x.Title,
                 x.Description,
                 x.CategoryId,
+                x.CreatedAt,
+                x.CompareAtPrice,
+                x.Status,
                 Price = (theme == null || theme.ShowPricing) ? x.Price : (decimal?)null,
-                x.Currency
+                x.Currency,
+                Stock = x.Variants.Sum(v => (v.Quantity - v.ReservedQuantity)),
+                Media = (x.Media ?? Array.Empty<Models.ProductMedia>())
+                    .OrderBy(m => m.SortOrder)
+                    .Select(m => new
+                    {
+                        m.Url,
+                        m.SortOrder
+                    })
+                    .ToList(),
+                Variants = (x.Variants ?? Array.Empty<Models.ProductVariant>())
+                    .OrderBy(v => v.IsDefault ? 0 : 1)
+                    .Select(v => new
+                    {
+                        v.SKU,
+                        v.AttributesJson,
+                        v.Quantity,
+                        v.ReservedQuantity
+                    })
+                    .ToList()
             })
-            .ToListAsync(ct);
+            .ToList();
         products = ApplyVisibility(products, x => x.Id.ToString().ToLowerInvariant(), productRules).ToList();
         var categories = await _db.Categories.AsNoTracking()
             .Where(x => x.StoreId == store.Id)

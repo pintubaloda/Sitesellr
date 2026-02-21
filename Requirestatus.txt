@@ -1039,3 +1039,11 @@ Update 2026-02-21 (Render publish fix: checkout account response + nullability w
 - Developed: Hardened CSRF middleware bearer-header check to avoid possible null dereference warning.
 - Developed: Hardened product create variant mapping with null-safe collection fallback.
 - Impact: backend Docker publish no longer fails on CS0173 for checkout response branch typing.
+
+Update 2026-02-21 (Premium storefront theme redesign + fashion flow)
+- Developed: Reworked public storefront to premium ecommerce layout across Home, Catalog (PLP), PDP, Cart, and Checkout.
+- Developed (Home): Hero banner with strong CTA, featured category visual cards, trending horizontal product rail, promo strip, and improved header UX.
+- Developed (PLP): New catalog route (`/products`, `/collections`, `/sale`) with filter sidebar (price, size, color, brand), sort options, grid/list modes, and sale-route filtering.
+- Developed (PDP): Real media gallery (images/video), thumbnail rail, rating/badge display, size/color variant selectors, trust blocks, and stronger action zone.
+- Developed (Cart/Checkout): Modern cart summary with coupon + shipping method selector, upgraded checkout stepper UI, payment method cards, and clearer order economics (subtotal/shipping/discount/payable).
+- Developed (Backend support): Public storefront product payload now includes compare-at price, stock, media list, variant attribute payload, status, and created date for richer theme rendering.

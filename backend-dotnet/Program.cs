@@ -18,6 +18,7 @@ using System.Collections.Concurrent;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Authentication;
 using System.IO;
 
 // Render/container environments can hit inotify watcher limits. Disable config file watchers.
@@ -180,6 +181,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(Policies.ApiKeysRevoke, policy =>
         policy.Requirements.Add(new AccessRequirement(Permissions.ApiKeysRevoke)));
 });
+builder.Services.AddAuthentication("Bearer")
+    .AddScheme<AuthenticationSchemeOptions, OpaqueTokenAuthenticationHandler>("Bearer", _ => { });
 builder.Services.AddSingleton<IAuthorizationHandler, AccessRequirementHandler>();
 ICorsOriginRegistry? corsRegistry = null;
 builder.Services.AddCors(options =>
@@ -1057,6 +1060,7 @@ app.UseIpRateLimiting();
 app.UseTightSecurityHeaders();
 app.UseCsrfProtection();
 app.UseTenancy();
+app.UseAuthentication();
 app.UseAuthorization();
 
 var api = app.MapGroup("/api");

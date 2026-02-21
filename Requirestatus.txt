@@ -972,3 +972,9 @@ Update 2026-02-21 (Permanent CORS symptom mitigation on backend exceptions)
 - Developed: Added global exception handler middleware that returns structured JSON for unhandled API errors.
 - Developed: Exception responses now explicitly emit CORS headers (`Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials`) when request origin is allowed.
 - Impact: browser will no longer mask backend crashes as opaque CORS failures; real server error is visible to frontend and logs.
+
+Update 2026-02-21 (Auth scheme fix for [Authorize] endpoints)
+- Developed: Added explicit ASP.NET authentication scheme (`Bearer`) backed by opaque access-token validation.
+- Developed: Implemented `OpaqueTokenAuthenticationHandler` to validate bearer token hash against `access_tokens` and token expiry.
+- Developed: Added `app.UseAuthentication()` before authorization middleware.
+- Impact: fixed runtime error "No authenticationScheme was specified..." and restored access to protected APIs (`/api/stores`, `/api/products`, etc.).

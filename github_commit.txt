@@ -900,3 +900,13 @@ Files:
 - github_commit.txt
 Notes:
 - Unhandled exceptions now return `server_error` JSON and include CORS headers for allowed origins.
+
+[Pending push] 2026-02-21 - fix missing authentication scheme for authorize endpoints
+Files:
+- backend-dotnet/Security/OpaqueTokenAuthenticationHandler.cs
+- backend-dotnet/Program.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Added bearer authentication pipeline for opaque tokens.
+- Prevents 500 from missing default challenge/authenticate scheme.

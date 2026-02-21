@@ -578,3 +578,6 @@ Update 2026-02-21
 
 Update 2026-02-21
 - Added global API exception handling with CORS-preserving error responses for cross-origin deployments.
+
+Update 2026-02-21
+- Added production auth middleware wiring for opaque bearer tokens to support all `[Authorize]` APIs correctly.

@@ -957,3 +957,9 @@ Update 2026-02-21 (Product media upload/url/video save reliability)
 - Developed: Product save no longer fails when external image URL optimization fails; system now falls back to original URL.
 - Developed: Backend product media normalization now treats image fetch/optimize as best-effort and logs warning instead of blocking save.
 - Developed: Upload + URL + video mixed media flow supported in single product save request.
+
+Update 2026-02-21 (Product create 500/CORS symptom fix)
+- Developed: Product create now maps request into a new entity graph (product/variants/media) instead of directly attaching raw request object.
+- Developed: New IDs are generated for variant/media rows when incoming IDs are empty, avoiding EF tracking key-collision failures.
+- Developed: Added structured error handling for product create (`product_create_failed`) with server log details.
+- Impact: POST `/api/products` no longer throws hidden 500 from entity graph/id conflicts; browser CORS symptom disappears when backend returns proper API response.

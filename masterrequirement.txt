@@ -568,3 +568,7 @@ Update 2026-02-21
 Update 2026-02-21
 - Product media flow hardened: image optimization is best-effort and no longer blocks product save.
 - Mixed media mode (uploaded images + URL images + optional video URL) is now stable in save flow.
+
+Update 2026-02-21
+- Product create API hardened against nested variant/media key collision and raw graph attach issues.
+- API now emits structured error payloads for create failures.

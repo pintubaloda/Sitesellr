@@ -49,28 +49,65 @@ public class ProductsController : BaseApiController
     [Authorize(Policy = Policies.ProductsWrite)]
     public async Task<IActionResult> Create([FromBody] Product input, CancellationToken ct)
     {
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
-        if (input.StoreId == Guid.Empty) return BadRequest(new { error = "store_required" });
-        if (Tenancy?.Store != null && Tenancy.Store.Id != input.StoreId) return Forbid();
-        var check = await _caps.CheckProductsCreateAsync(input.StoreId, input.Variants?.Count ?? 0, ct);
-        if (!check.Allowed) return StatusCode(StatusCodes.Status403Forbidden, new { error = check.Error, details = check.Details });
-        if (input.Media?.Count > 0)
+        try
         {
-            try
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (input.StoreId == Guid.Empty) return BadRequest(new { error = "store_required" });
+            if (Tenancy?.Store != null && Tenancy.Store.Id != input.StoreId) return Forbid();
+            var check = await _caps.CheckProductsCreateAsync(input.StoreId, input.Variants?.Count ?? 0, ct);
+            if (!check.Allowed) return StatusCode(StatusCodes.Status403Forbidden, new { error = check.Error, details = check.Details });
+
+            IReadOnlyList<ProductMedia> normalizedMedia = Array.Empty<ProductMedia>();
+            if (input.Media?.Count > 0)
             {
-                input.Media = (await NormalizeProductMediaAsync(input.StoreId, input.Media, ct)).ToList();
+                normalizedMedia = await NormalizeProductMediaAsync(input.StoreId, input.Media, ct);
             }
-            catch (InvalidOperationException ex)
+
+            var created = new Product
             {
-                return BadRequest(new { error = ex.Message });
-            }
+                Id = Guid.NewGuid(),
+                StoreId = input.StoreId,
+                Title = input.Title,
+                Description = input.Description,
+                SKU = input.SKU,
+                Price = input.Price,
+                CompareAtPrice = input.CompareAtPrice,
+                Currency = string.IsNullOrWhiteSpace(input.Currency) ? "INR" : input.Currency,
+                Status = input.Status,
+                IsPublished = input.IsPublished,
+                CategoryId = input.CategoryId,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                Variants = (input.Variants ?? Array.Empty<ProductVariant>()).Select(v => new ProductVariant
+                {
+                    Id = v.Id == Guid.Empty ? Guid.NewGuid() : v.Id,
+                    SKU = v.SKU,
+                    Price = v.Price,
+                    Quantity = v.Quantity,
+                    AttributesJson = v.AttributesJson,
+                    IsDefault = v.IsDefault
+                }).ToList(),
+                Media = normalizedMedia.Select(m => new ProductMedia
+                {
+                    Id = m.Id == Guid.Empty ? Guid.NewGuid() : m.Id,
+                    Url = m.Url,
+                    SortOrder = m.SortOrder
+                }).ToList()
+            };
+
+            _db.Products.Add(created);
+            await _db.SaveChangesAsync(ct);
+            return CreatedAtAction(nameof(Get), new { id = created.Id, storeId = created.StoreId }, created);
         }
-        input.Id = Guid.NewGuid();
-        input.CreatedAt = DateTimeOffset.UtcNow;
-        input.UpdatedAt = DateTimeOffset.UtcNow;
-        _db.Products.Add(input);
-        await _db.SaveChangesAsync(ct);
-        return CreatedAtAction(nameof(Get), new { id = input.Id, storeId = input.StoreId }, input);
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Create product failed for store {StoreId}", input.StoreId);
+            return StatusCode(500, new { error = "product_create_failed", detail = ex.Message });
+        }
     }
 
     [HttpGet("{id:guid}")]

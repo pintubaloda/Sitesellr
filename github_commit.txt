@@ -875,3 +875,12 @@ Files:
 Notes:
 - Product save now supports upload or URL media without hard failure when remote URL is temporarily unreachable.
 - Video URL remains optional and saved in same media set.
+
+[Pending push] 2026-02-21 - fix product create 500 from nested entity key conflicts
+Files:
+- backend-dotnet/Controllers/ProductsController.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Product create now builds fresh entity graph and assigns IDs for child rows.
+- Added catch/log path returning `product_create_failed` for easier production diagnosis.

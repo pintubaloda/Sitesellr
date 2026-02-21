@@ -660,12 +660,12 @@ public class PublicStorefrontController : ControllerBase
             orderId = order.Id,
             total = order.Total,
             currency = order.Currency,
-            account = autoCredentialCreated ? new
+            account = new
             {
-                created = true,
+                created = autoCredentialCreated,
                 email,
-                password = generatedPassword
-            } : new { created = false, email }
+                password = autoCredentialCreated ? generatedPassword : (string?)null
+            }
         });
     }
 

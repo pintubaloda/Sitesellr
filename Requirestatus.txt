@@ -1033,3 +1033,9 @@ Update 2026-02-21 (Checkout validation UX + first-order account flow)
 - Developed: Added explicit checkout handling for existing-customer path (`login_required_existing_customer`) with a login CTA.
 - Developed: First-time checkout account path now displays generated login credentials on success and auto-redirects to customer dashboard/login page using active storefront session.
 - Developed: Checkout page visual refresh (modern card headers, status alerts, cleaner summary panel) without changing theme identity.
+
+Update 2026-02-21 (Render publish fix: checkout account response + nullability warnings)
+- Developed: Fixed compile error in public checkout response by returning a single stable account object shape (`created`, `email`, `password|null`).
+- Developed: Hardened CSRF middleware bearer-header check to avoid possible null dereference warning.
+- Developed: Hardened product create variant mapping with null-safe collection fallback.
+- Impact: backend Docker publish no longer fails on CS0173 for checkout response branch typing.

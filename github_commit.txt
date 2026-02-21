@@ -1014,3 +1014,14 @@ Notes:
 - Frontend now surfaces ASP.NET validation errors directly instead of generic "Checkout failed".
 - Existing email/mobile during checkout now shows login-required guidance.
 - First-time checkout now shows generated credentials and auto-redirects user to logged-in customer dashboard flow.
+
+[Pending push] 2026-02-21 - fix render publish CS0173 in checkout response
+Files:
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- backend-dotnet/Security/CsrfMiddleware.cs
+- backend-dotnet/Controllers/ProductsController.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Replaced anonymous conditional account object with stable object shape.
+- Added null-safe CSRF bearer parsing and null-safe variants mapping.

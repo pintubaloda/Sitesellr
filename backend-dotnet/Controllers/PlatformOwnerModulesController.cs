@@ -188,7 +188,7 @@ public class PlatformOwnerModulesController : ControllerBase
             .ToListAsync(ct);
 
         var map = await _db.PlatformBrandingSettings.AsNoTracking()
-            .Where(x => x.Key.StartsWith("platform.api.", StringComparison.OrdinalIgnoreCase))
+            .Where(x => EF.Functions.ILike(x.Key, "platform.api.%"))
             .ToDictionaryAsync(x => x.Key, x => x.Value, ct);
 
         return Ok(new
@@ -330,7 +330,7 @@ public class PlatformOwnerModulesController : ControllerBase
             .ToListAsync(ct);
 
         var cfg = await _db.PlatformBrandingSettings.AsNoTracking()
-            .Where(x => x.Key.StartsWith("platform.domains.", StringComparison.OrdinalIgnoreCase))
+            .Where(x => EF.Functions.ILike(x.Key, "platform.domains.%"))
             .ToDictionaryAsync(x => x.Key, x => x.Value, ct);
 
         var cloudflareApiToken = cfg.GetValueOrDefault("platform.domains.cloudflare.api_token", string.Empty);
@@ -368,6 +368,13 @@ public class PlatformOwnerModulesController : ControllerBase
                 acmeClient = cfg.GetValueOrDefault("platform.domains.acme.client", _config["ACME_CLIENT"] ?? "certbot"),
                 acmeChallengeMethod = cfg.GetValueOrDefault("platform.domains.acme.challenge_method", _config["ACME_CHALLENGE_METHOD"] ?? "dns-01"),
                 acmeDirectoryUrl = cfg.GetValueOrDefault("platform.domains.acme.directory_url", _config["ACME_DIRECTORY_URL"] ?? "https://acme-v02.api.letsencrypt.org/directory"),
+                cloudflareOauthAuthorizeUrl = cfg.GetValueOrDefault("platform.domains.cloudflare.oauth.authorize_url", _config["CLOUDFLARE_OAUTH_AUTHORIZE_URL"] ?? string.Empty),
+                cloudflareOauthTokenUrl = cfg.GetValueOrDefault("platform.domains.cloudflare.oauth.token_url", _config["CLOUDFLARE_OAUTH_TOKEN_URL"] ?? string.Empty),
+                cloudflareOauthClientId = cfg.GetValueOrDefault("platform.domains.cloudflare.oauth.client_id", _config["CLOUDFLARE_OAUTH_CLIENT_ID"] ?? string.Empty),
+                cloudflareOauthClientSecret = string.Empty,
+                cloudflareOauthRedirectUri = cfg.GetValueOrDefault("platform.domains.cloudflare.oauth.redirect_uri", _config["CLOUDFLARE_OAUTH_REDIRECT_URI"] ?? string.Empty),
+                cloudflareOauthScope = cfg.GetValueOrDefault("platform.domains.cloudflare.oauth.scope", _config["CLOUDFLARE_OAUTH_SCOPE"] ?? "zone:read dns_records:edit"),
+                cloudflareOauthPostConnectRedirect = cfg.GetValueOrDefault("platform.domains.cloudflare.oauth.post_connect_redirect", _config["CLOUDFLARE_OAUTH_POST_CONNECT_REDIRECT"] ?? "/admin/platform-domains"),
                 runtime = new
                 {
                     cloudflareConfigured = !string.IsNullOrWhiteSpace(cloudflareApiToken) && !string.IsNullOrWhiteSpace(cloudflareZoneId) && !string.IsNullOrWhiteSpace(platformBaseDomain) && !string.IsNullOrWhiteSpace(platformIngressHost),
@@ -386,6 +393,101 @@ public class PlatformOwnerModulesController : ControllerBase
             return BadRequest(new { error = result.Error ?? "cloudflare_zones_failed" });
         }
         return Ok(new { zones = result.Zones });
+    }
+
+    [HttpGet("domains/cloudflare-oauth/start")]
+    public async Task<IActionResult> StartCloudflareOAuth(CancellationToken ct)
+    {
+        var settings = await _db.PlatformBrandingSettings.AsNoTracking()
+            .Where(x => EF.Functions.ILike(x.Key, "platform.domains.cloudflare.oauth.%"))
+            .ToDictionaryAsync(x => x.Key, x => x.Value, ct);
+
+        var authorizeUrl = settings.GetValueOrDefault("platform.domains.cloudflare.oauth.authorize_url", _config["CLOUDFLARE_OAUTH_AUTHORIZE_URL"] ?? string.Empty);
+        var clientId = settings.GetValueOrDefault("platform.domains.cloudflare.oauth.client_id", _config["CLOUDFLARE_OAUTH_CLIENT_ID"] ?? string.Empty);
+        var redirectUri = settings.GetValueOrDefault("platform.domains.cloudflare.oauth.redirect_uri", _config["CLOUDFLARE_OAUTH_REDIRECT_URI"] ?? string.Empty);
+        var scope = settings.GetValueOrDefault("platform.domains.cloudflare.oauth.scope", _config["CLOUDFLARE_OAUTH_SCOPE"] ?? "zone:read dns_records:edit");
+
+        if (string.IsNullOrWhiteSpace(authorizeUrl) || string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(redirectUri))
+        {
+            return BadRequest(new { error = "cloudflare_oauth_not_configured" });
+        }
+
+        var state = Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
+
+        await UpsertSettingsAsync(new Dictionary<string, string>
+        {
+            ["platform.domains.cloudflare.oauth.pending_state"] = state,
+            ["platform.domains.cloudflare.oauth.pending_state_at"] = DateTimeOffset.UtcNow.ToString("O")
+        }, ct);
+
+        var url = $"{authorizeUrl}?response_type=code&client_id={Uri.EscapeDataString(clientId)}&redirect_uri={Uri.EscapeDataString(redirectUri)}&scope={Uri.EscapeDataString(scope)}&state={Uri.EscapeDataString(state)}";
+        return Ok(new { url });
+    }
+
+    [AllowAnonymous]
+    [HttpGet("domains/cloudflare-oauth/callback")]
+    public async Task<IActionResult> CompleteCloudflareOAuth([FromQuery] string? code, [FromQuery] string? state, CancellationToken ct)
+    {
+        var settings = await _db.PlatformBrandingSettings.AsNoTracking()
+            .Where(x => EF.Functions.ILike(x.Key, "platform.domains.cloudflare.oauth.%"))
+            .ToDictionaryAsync(x => x.Key, x => x.Value, ct);
+        var pendingState = settings.GetValueOrDefault("platform.domains.cloudflare.oauth.pending_state", string.Empty);
+        var tokenUrl = settings.GetValueOrDefault("platform.domains.cloudflare.oauth.token_url", _config["CLOUDFLARE_OAUTH_TOKEN_URL"] ?? string.Empty);
+        var clientId = settings.GetValueOrDefault("platform.domains.cloudflare.oauth.client_id", _config["CLOUDFLARE_OAUTH_CLIENT_ID"] ?? string.Empty);
+        var clientSecret = settings.GetValueOrDefault("platform.domains.cloudflare.oauth.client_secret", _config["CLOUDFLARE_OAUTH_CLIENT_SECRET"] ?? string.Empty);
+        var redirectUri = settings.GetValueOrDefault("platform.domains.cloudflare.oauth.redirect_uri", _config["CLOUDFLARE_OAUTH_REDIRECT_URI"] ?? string.Empty);
+        var postConnectRedirect = settings.GetValueOrDefault("platform.domains.cloudflare.oauth.post_connect_redirect", _config["CLOUDFLARE_OAUTH_POST_CONNECT_REDIRECT"] ?? "/admin/platform-domains");
+
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(state) || !string.Equals(state, pendingState, StringComparison.Ordinal))
+        {
+            return Redirect($"{postConnectRedirect}?cf_connect=failed&reason=state_or_code_invalid");
+        }
+        if (string.IsNullOrWhiteSpace(tokenUrl) || string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret) || string.IsNullOrWhiteSpace(redirectUri))
+        {
+            return Redirect($"{postConnectRedirect}?cf_connect=failed&reason=oauth_config_missing");
+        }
+
+        try
+        {
+            using var http = new HttpClient();
+            var form = new Dictionary<string, string>
+            {
+                ["grant_type"] = "authorization_code",
+                ["code"] = code,
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
+                ["redirect_uri"] = redirectUri
+            };
+            var resp = await http.PostAsync(tokenUrl, new FormUrlEncodedContent(form), ct);
+            if (!resp.IsSuccessStatusCode)
+            {
+                return Redirect($"{postConnectRedirect}?cf_connect=failed&reason=token_exchange_failed");
+            }
+
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            var accessToken = doc.RootElement.TryGetProperty("access_token", out var node) ? node.GetString() : null;
+            if (string.IsNullOrWhiteSpace(accessToken))
+            {
+                return Redirect($"{postConnectRedirect}?cf_connect=failed&reason=token_missing");
+            }
+
+            await UpsertSettingsAsync(new Dictionary<string, string>
+            {
+                ["platform.domains.cloudflare.api_token"] = accessToken.Trim(),
+                ["platform.domains.cloudflare.oauth.pending_state"] = string.Empty,
+                ["platform.domains.cloudflare.oauth.connected_at"] = DateTimeOffset.UtcNow.ToString("O")
+            }, ct);
+
+            return Redirect($"{postConnectRedirect}?cf_connect=ok");
+        }
+        catch
+        {
+            return Redirect($"{postConnectRedirect}?cf_connect=failed&reason=exception");
+        }
     }
 
     [HttpPost("domains/test-cloudflare")]
@@ -442,8 +544,18 @@ public class PlatformOwnerModulesController : ControllerBase
             ["platform.domains.ssl.require_marketplace_purchase"] = req.SslRequireMarketplacePurchase.Trim().ToLowerInvariant(),
             ["platform.domains.acme.client"] = req.AcmeClient.Trim().ToLowerInvariant(),
             ["platform.domains.acme.challenge_method"] = req.AcmeChallengeMethod.Trim().ToLowerInvariant(),
-            ["platform.domains.acme.directory_url"] = req.AcmeDirectoryUrl.Trim()
+            ["platform.domains.acme.directory_url"] = req.AcmeDirectoryUrl.Trim(),
+            ["platform.domains.cloudflare.oauth.authorize_url"] = req.CloudflareOauthAuthorizeUrl.Trim(),
+            ["platform.domains.cloudflare.oauth.token_url"] = req.CloudflareOauthTokenUrl.Trim(),
+            ["platform.domains.cloudflare.oauth.client_id"] = req.CloudflareOauthClientId.Trim(),
+            ["platform.domains.cloudflare.oauth.redirect_uri"] = req.CloudflareOauthRedirectUri.Trim(),
+            ["platform.domains.cloudflare.oauth.scope"] = req.CloudflareOauthScope.Trim(),
+            ["platform.domains.cloudflare.oauth.post_connect_redirect"] = req.CloudflareOauthPostConnectRedirect.Trim()
         };
+        if (!string.IsNullOrWhiteSpace(req.CloudflareOauthClientSecret))
+        {
+            kv["platform.domains.cloudflare.oauth.client_secret"] = req.CloudflareOauthClientSecret.Trim();
+        }
         if (!string.IsNullOrWhiteSpace(req.CloudflareApiToken))
         {
             kv["platform.domains.cloudflare.api_token"] = req.CloudflareApiToken.Trim();
@@ -462,7 +574,7 @@ public class PlatformOwnerModulesController : ControllerBase
     public async Task<IActionResult> Config(CancellationToken ct)
     {
         var map = await _db.PlatformBrandingSettings.AsNoTracking()
-            .Where(x => x.Key.StartsWith("platform.config.", StringComparison.OrdinalIgnoreCase))
+            .Where(x => EF.Functions.ILike(x.Key, "platform.config.%"))
             .ToDictionaryAsync(x => x.Key, x => x.Value, ct);
         return Ok(new
         {
@@ -554,6 +666,13 @@ public class PlatformDomainsConfigRequest
     public string AcmeClient { get; set; } = "certbot";
     public string AcmeChallengeMethod { get; set; } = "dns-01";
     public string AcmeDirectoryUrl { get; set; } = "https://acme-v02.api.letsencrypt.org/directory";
+    public string CloudflareOauthAuthorizeUrl { get; set; } = string.Empty;
+    public string CloudflareOauthTokenUrl { get; set; } = string.Empty;
+    public string CloudflareOauthClientId { get; set; } = string.Empty;
+    public string CloudflareOauthClientSecret { get; set; } = string.Empty;
+    public string CloudflareOauthRedirectUri { get; set; } = string.Empty;
+    public string CloudflareOauthScope { get; set; } = "zone:read dns_records:edit";
+    public string CloudflareOauthPostConnectRedirect { get; set; } = "/admin/platform-domains";
 }
 
 public class CloudflareTestRequest

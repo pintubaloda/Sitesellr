@@ -53,6 +53,13 @@ export default function PlatformModule({ moduleKey = "reports" }) {
     acmeClient: "certbot",
     acmeChallengeMethod: "dns-01",
     acmeDirectoryUrl: "https://acme-v02.api.letsencrypt.org/directory",
+    cloudflareOauthAuthorizeUrl: "",
+    cloudflareOauthTokenUrl: "",
+    cloudflareOauthClientId: "",
+    cloudflareOauthClientSecret: "",
+    cloudflareOauthRedirectUri: "",
+    cloudflareOauthScope: "zone:read dns_records:edit",
+    cloudflareOauthPostConnectRedirect: "",
   });
   const [cloudflareTestResult, setCloudflareTestResult] = useState("");
   const [sslTestResult, setSslTestResult] = useState("");
@@ -163,6 +170,22 @@ export default function PlatformModule({ moduleKey = "reports" }) {
       }
     } catch (err) {
       setError(err?.response?.data?.message || err?.response?.data?.error || "SSL provider test failed.");
+    }
+  };
+
+  const startCloudflareOAuth = async () => {
+    setError("");
+    setMessage("");
+    try {
+      const res = await api.get("/platform/owner/domains/cloudflare-oauth/start");
+      const url = res?.data?.url;
+      if (!url) {
+        setError("Cloudflare OAuth start URL is not available.");
+        return;
+      }
+      window.location.href = url;
+    } catch (err) {
+      setError(err?.response?.data?.error || "Cloudflare OAuth connect failed to start.");
     }
   };
 
@@ -453,6 +476,37 @@ export default function PlatformModule({ moduleKey = "reports" }) {
                 <Label>Require SSL Marketplace Purchase</Label>
                 <Input value={domainsConfigForm.sslRequireMarketplacePurchase || "true"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslRequireMarketplacePurchase: e.target.value }))} />
               </div>
+              <div className="md:col-span-2 pt-2">
+                <p className="text-sm font-semibold">Cloudflare OAuth Connect</p>
+              </div>
+              <div className="space-y-2">
+                <Label>OAuth Authorize URL</Label>
+                <Input value={domainsConfigForm.cloudflareOauthAuthorizeUrl || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthAuthorizeUrl: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>OAuth Token URL</Label>
+                <Input value={domainsConfigForm.cloudflareOauthTokenUrl || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthTokenUrl: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>OAuth Client ID</Label>
+                <Input value={domainsConfigForm.cloudflareOauthClientId || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthClientId: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>OAuth Client Secret (optional update)</Label>
+                <Input type="password" value={domainsConfigForm.cloudflareOauthClientSecret || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthClientSecret: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>OAuth Redirect URI</Label>
+                <Input value={domainsConfigForm.cloudflareOauthRedirectUri || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthRedirectUri: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>OAuth Scope</Label>
+                <Input value={domainsConfigForm.cloudflareOauthScope || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthScope: e.target.value }))} />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>OAuth Post-Connect Redirect</Label>
+                <Input value={domainsConfigForm.cloudflareOauthPostConnectRedirect || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthPostConnectRedirect: e.target.value }))} />
+              </div>
               <div className="md:col-span-2 flex items-center justify-between">
                 <p className="text-xs text-slate-500">
                   Runtime status: Cloudflare {data?.config?.runtime?.cloudflareConfigured ? "configured" : "missing"} · Let&apos;s Encrypt {data?.config?.runtime?.letsEncryptConfigured ? "configured" : "missing"}
@@ -460,6 +514,7 @@ export default function PlatformModule({ moduleKey = "reports" }) {
                 <Button onClick={saveDomainsConfig}>Save Domain Config</Button>
               </div>
               <div className="md:col-span-2 flex flex-wrap gap-2">
+                <Button variant="outline" onClick={startCloudflareOAuth}>Connect Cloudflare (OAuth)</Button>
                 <Button variant="outline" onClick={testCloudflare}>Test Cloudflare + Load Zones</Button>
                 <Button variant="outline" onClick={testSslProvider}>Test SSL Provider Command</Button>
               </div>

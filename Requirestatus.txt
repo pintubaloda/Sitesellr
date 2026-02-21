@@ -857,3 +857,10 @@ Update 2026-02-21 (Advanced Domain/SSL automation hardening)
 - Developed: Domain config save now persists ACME settings in platform settings store.
 - Partial: Cloudflare direct OAuth-style auth flow is not implemented; token-based secure API integration is implemented.
 - Partial: ACME issuance depends on runtime tool installation (`certbot`/`acme.sh`/`lego`) and valid command template in config.
+
+Update 2026-02-21 (Module load fix + Cloudflare OAuth-style connect)
+- Developed: Fixed EF query translation issue in platform-owner modules by replacing `StartsWith(..., StringComparison...)` database filters with PostgreSQL-safe `EF.Functions.ILike(...)` filters.
+- Impact: Resolved "Could not load module data" for API & Integrations, Platform Configuration, Domains & SSL (Platform), Reporting & Intelligence modules.
+- Developed: Added Cloudflare OAuth-style connect flow endpoints (`start` + `callback`) with state handling, token exchange, and platform token persistence.
+- Developed: Added OAuth config fields in Domains & SSL platform UI and backend config persistence for authorize/token URLs, client id/secret, redirect URI, scope, post-connect redirect.
+- Partial: OAuth flow requires correct Cloudflare OAuth app credentials/endpoints configured in platform domain settings.

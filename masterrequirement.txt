@@ -491,3 +491,9 @@ UPDATE [2026-02-20] - PLATFORM DOMAIN GOVERNANCE + CLOUDFLARE/SSL CONFIG UI
 | Cloudflare Integration | Partial+ | Token-based API integration, connectivity test API, zones discovery API, subdomain/custom-domain DNS automation | Direct Cloudflare OAuth onboarding UI flow |
 | ACME / Let's Encrypt Orchestration | Partial+ | Configurable ACME client/challenge/directory, issuer command placeholders (`{domain}`, `{email}`, `{challenge}`, `{acmeDirectory}`), provider health check API | Runtime install automation for cert clients + managed renew scheduler dashboard |
 | Platform Owner Domain Console | Developed | Config form now includes ACME controls, Cloudflare test/load-zones action, SSL provider runtime check action | Deeper diagnostics history and command output timeline |
+
+## Platform Owner Domain/Auth Improvements - 2026-02-21 follow-up
+| Module | Status | Developed | Partial / Need to Develop |
+|---|---|---|---|
+| Platform module reliability | Developed | Fixed database query compatibility for platform API/config/domains/report modules using PostgreSQL-safe `ILike` filters | Add automated backend smoke check in CI for owner-module endpoints |
+| Cloudflare OAuth-style connect | Partial+ | OAuth start/callback flow, CSRF-style state check, token exchange persistence, owner UI controls | Finalize production Cloudflare OAuth endpoint/app setup values and verify on deployed env |

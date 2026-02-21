@@ -710,3 +710,14 @@ Notes:
 - Added Cloudflare token test + zone discovery APIs and UI actions.
 - Added ACME config fields and SSL provider health-check endpoint.
 - Added runtime executable verification for SSL issuer command.
+
+[Pending push] 2026-02-21 - platform modules load fix + Cloudflare OAuth connect
+Files:
+- backend-dotnet/Controllers/PlatformOwnerModulesController.cs
+- frontend/src/pages/admin/PlatformModule.js
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Replaced non-translatable EF filters with ILike to fix module API load failures.
+- Added Cloudflare OAuth-style connect start/callback and persisted OAuth config fields.

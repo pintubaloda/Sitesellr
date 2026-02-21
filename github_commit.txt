@@ -830,3 +830,12 @@ Files:
 - masterrequirement.txt
 Notes:
 - Fixed "Select a store first" by binding save flow to active store context and login tenancy store fallback.
+
+[Pending push] 2026-02-21 - fix store update validation (merchant required)
+Files:
+- backend-dotnet/Controllers/StoresController.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Introduced StoreUpsertRequest DTO for create/update.
+- Eliminated entity navigation validation causing 400 on missing Merchant payload.

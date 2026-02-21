@@ -547,3 +547,8 @@ UPDATE [2026-02-20] - PLATFORM DOMAIN GOVERNANCE + CLOUDFLARE/SSL CONFIG UI
 | Module | Status | Developed | Partial / Need to Develop |
 |---|---|---|---|
 | Active store auto-binding | Developed | Login tenancy now returns current store id; frontend active-store hook auto-binds store context from auth/access + stores list | Multi-store explicit switch memory per user/device |
+
+Update 2026-02-21
+- Store API hardening completed for create/update request contract.
+- Replaced entity binding with DTO contract to prevent navigation validation failures in production.
+- Store update/create now supports scalar-only payloads from frontend safely.

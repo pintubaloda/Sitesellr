@@ -48,24 +48,43 @@ public class StoresController : BaseApiController
 
     [HttpPost]
     [Authorize(Policy = Policies.StoreSettingsWrite)]
-    public async Task<IActionResult> Create([FromBody] Store input, CancellationToken ct)
+    public async Task<IActionResult> Create([FromBody] StoreUpsertRequest input, CancellationToken ct)
     {
-        if (Tenancy?.Store != null && Tenancy.Store.MerchantId != input.MerchantId) return Forbid();
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        var merchantId = input.MerchantId;
+        if (!merchantId.HasValue && Tenancy?.Store != null)
+        {
+            merchantId = Tenancy.Store.MerchantId;
+        }
+        if (!merchantId.HasValue || merchantId.Value == Guid.Empty)
+        {
+            return BadRequest(new { error = "merchant_required" });
+        }
+        if (Tenancy?.Store != null && Tenancy.Store.MerchantId != merchantId.Value) return Forbid();
         if (!string.IsNullOrWhiteSpace(input.Subdomain) && !SubdomainPolicy.TryNormalizeRequested(input.Subdomain, out _, out var createError))
         {
             return BadRequest(new { error = createError ?? "subdomain_invalid" });
         }
-        input.Subdomain = await EnsureUniqueSubdomainAsync(input.Subdomain, input.Name, null, ct);
-        input.Id = Guid.NewGuid();
-        input.CreatedAt = DateTimeOffset.UtcNow;
-        input.UpdatedAt = DateTimeOffset.UtcNow;
-        _db.Stores.Add(input);
-        await _db.SaveChangesAsync(ct);
-        if (!string.IsNullOrWhiteSpace(input.Subdomain))
+        var created = new Store
         {
-            await _cloudflareDns.EnsureTenantSubdomainAsync(input.Subdomain, ct);
+            Id = Guid.NewGuid(),
+            MerchantId = merchantId.Value,
+            Name = input.Name.Trim(),
+            Subdomain = await EnsureUniqueSubdomainAsync(input.Subdomain, input.Name, null, ct),
+            Currency = string.IsNullOrWhiteSpace(input.Currency) ? "INR" : input.Currency.Trim(),
+            Timezone = string.IsNullOrWhiteSpace(input.Timezone) ? "Asia/Kolkata" : input.Timezone.Trim(),
+            Status = input.Status,
+            IsWholesaleEnabled = input.IsWholesaleEnabled,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        _db.Stores.Add(created);
+        await _db.SaveChangesAsync(ct);
+        if (!string.IsNullOrWhiteSpace(created.Subdomain))
+        {
+            await _cloudflareDns.EnsureTenantSubdomainAsync(created.Subdomain, ct);
         }
-        return CreatedAtAction(nameof(Get), new { id = input.Id }, input);
+        return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 
     [HttpGet("{id:guid}")]
@@ -123,10 +142,9 @@ public class StoresController : BaseApiController
 
     [HttpPut("{id:guid}")]
     [Authorize(Policy = Policies.StoreSettingsWrite)]
-    public async Task<IActionResult> Update(Guid id, [FromBody] Store input, CancellationToken ct)
+    public async Task<IActionResult> Update(Guid id, [FromBody] StoreUpsertRequest input, CancellationToken ct)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
-        if (id != input.Id && input.Id != Guid.Empty) return BadRequest(new { error = "id_mismatch" });
         if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
 
         var store = await _db.Stores.FirstOrDefaultAsync(s => s.Id == id, ct);
@@ -136,10 +154,16 @@ public class StoresController : BaseApiController
             return BadRequest(new { error = updateError ?? "subdomain_invalid" });
         }
 
-        store.Name = input.Name;
+        if (input.MerchantId.HasValue && input.MerchantId.Value != Guid.Empty)
+        {
+            if (Tenancy?.Store != null && Tenancy.Store.MerchantId != input.MerchantId.Value) return Forbid();
+            store.MerchantId = input.MerchantId.Value;
+        }
+
+        store.Name = input.Name.Trim();
         store.Subdomain = await EnsureUniqueSubdomainAsync(input.Subdomain, input.Name, id, ct);
-        store.Currency = input.Currency;
-        store.Timezone = input.Timezone;
+        store.Currency = string.IsNullOrWhiteSpace(input.Currency) ? store.Currency : input.Currency.Trim();
+        store.Timezone = string.IsNullOrWhiteSpace(input.Timezone) ? store.Timezone : input.Timezone.Trim();
         store.Status = input.Status;
         store.IsWholesaleEnabled = input.IsWholesaleEnabled;
         store.UpdatedAt = DateTimeOffset.UtcNow;
@@ -178,6 +202,17 @@ public class StoresController : BaseApiController
 
         return candidate;
     }
+}
+
+public class StoreUpsertRequest
+{
+    public Guid? MerchantId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Subdomain { get; set; }
+    public string Currency { get; set; } = "INR";
+    public string Timezone { get; set; } = "Asia/Kolkata";
+    public StoreStatus Status { get; set; } = StoreStatus.Active;
+    public bool IsWholesaleEnabled { get; set; }
 }
 
 public class StoreCorsOriginsRequest

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -86,9 +85,7 @@ export default function Marketing() {
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={load} disabled={loading}>Refresh</Button>
-          <Button asChild className="bg-blue-600 hover:bg-blue-700">
-            <Link to="/admin/store-builder">Open Builder</Link>
-          </Button>
+          <Button variant="outline" onClick={load} disabled={loading}>Reload</Button>
         </div>
       </div>
 

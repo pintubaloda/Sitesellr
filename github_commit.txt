@@ -1184,3 +1184,20 @@ Files:
 - masterrequirement.txt
 Notes:
 - Removed unused checkout template config JSON path to reduce code weight and avoid unnecessary payload/model complexity.
+
+[Pending push] 2026-02-22 - remove complete Store Builder module (frontend/backend/platform owner)
+Files:
+- frontend/src/App.js
+- frontend/src/components/layouts/DashboardLayout.js
+- frontend/src/pages/admin/Marketing.js
+- frontend/src/pages/admin/StoreBuilder.js (deleted)
+- frontend/src/pages/admin/PlatformThemes.js (deleted)
+- backend-dotnet/Controllers/StorefrontController.cs (deleted)
+- backend-dotnet/Services/StorefrontRealtimeService.cs (deleted)
+- backend-dotnet/Program.cs
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Store Builder logic removed end-to-end from admin and platform owner surfaces.
+- Realtime storefront collaboration endpoint removed with module deletion.

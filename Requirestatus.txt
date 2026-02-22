@@ -1133,3 +1133,12 @@ Update 2026-02-22 (Lightweight cleanup for compile stability)
 - Refactor: Removed unused `CheckoutTemplateConfigJson` handling from API model/request/frontend state to keep checkout-template feature minimal and low-weight.
 - Kept only required field `CheckoutTemplateSlug` for template selection.
 - DB compatibility is preserved (existing optional column remains harmless), while runtime/app logic now uses the slimmer contract.
+
+Update 2026-02-22 (Store Builder module removal)
+- Removed complete Store Builder module from frontend store owner UI.
+- Removed Platform Themes page/module from platform owner UI.
+- Removed Store Builder / Platform Themes routes from app router.
+- Removed Store Builder and Platform Themes sidebar entries.
+- Removed backend Store Builder controller (`StorefrontController`) including store storefront management endpoints.
+- Removed storefront collaboration realtime service and websocket endpoint mapping.
+- Retained public storefront runtime (`/s/:subdomain`) and checkout/customer flows.

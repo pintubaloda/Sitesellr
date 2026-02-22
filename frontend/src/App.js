@@ -15,7 +15,6 @@ import Dashboard from "./pages/admin/Dashboard";
 import Products from "./pages/admin/Products";
 import Orders from "./pages/admin/Orders";
 import Customers from "./pages/admin/Customers";
-import StoreBuilder from "./pages/admin/StoreBuilder";
 import Marketing from "./pages/admin/Marketing";
 import Analytics from "./pages/admin/Analytics";
 import Settings from "./pages/admin/Settings";
@@ -23,7 +22,6 @@ import Merchants from "./pages/admin/Merchants";
 import PlatformRbac from "./pages/admin/PlatformRbac";
 import AuditLogs from "./pages/admin/AuditLogs";
 import MerchantOps from "./pages/admin/MerchantOps";
-import PlatformThemes from "./pages/admin/PlatformThemes";
 import StorefrontPublic from "./pages/storefront/StorefrontPublic";
 import DomainsSsl from "./pages/admin/DomainsSsl";
 import PlatformModule from "./pages/admin/PlatformModule";
@@ -65,7 +63,6 @@ function App() {
             <Route path="products" element={<Products />} />
             <Route path="orders" element={<Orders />} />
             <Route path="customers" element={<Customers />} />
-            <Route path="store-builder" element={<StoreBuilder />} />
             <Route path="marketing" element={<Marketing />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
@@ -73,7 +70,6 @@ function App() {
             <Route path="platform-rbac" element={<PlatformRbac />} />
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="merchant-ops" element={<MerchantOps />} />
-            <Route path="platform-themes" element={<PlatformThemes />} />
             <Route path="domains-ssl" element={<DomainsSsl />} />
             <Route path="platform-payments" element={<PlatformModule moduleKey="payments" />} />
             <Route path="platform-billing" element={<PlatformModule moduleKey="billing" />} />

@@ -699,3 +699,12 @@ Update 2026-02-22 (Code Weight Optimization)
 - Checkout template feature simplified to use only `CheckoutTemplateSlug`.
 - Removed unused configuration JSON plumbing from backend model/request and frontend store settings state.
 - Net effect: lighter payload, lower code complexity, same functionality for selecting checkout style.
+
+Update 2026-02-22 (Store Builder Reset)
+- As requested, removed complete Store Builder implementation from:
+  - Frontend store owner module
+  - Platform owner module (Platform Themes)
+  - Backend management APIs/controller
+- Removed related realtime collaboration service/websocket wiring.
+- Public storefront rendering and customer checkout/account runtime kept operational.
+- This creates a clean baseline for implementing new Store Builder logic later.

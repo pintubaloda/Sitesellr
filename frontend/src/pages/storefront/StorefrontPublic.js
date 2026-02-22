@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import api from "../../lib/api";
+import { resolveThemeRuntime } from "./theme-runtime";
 
 const parseJsonArray = (value) => {
   if (!value) return [];
@@ -800,6 +801,9 @@ export default function StorefrontPublic() {
 
   if (error) return <div className="min-h-screen p-10">{error}</div>;
   if (!data) return <div className="min-h-screen p-10">Loading storefront...</div>;
+  const runtime = resolveThemeRuntime(data?.theme?.activeTheme);
+  const RuntimeComponent = runtime.Component;
+  const useIsolatedRuntime = Boolean(RuntimeComponent) && ["home", "catalog", "pdp"].includes(mode);
 
   return (
     <div
@@ -846,7 +850,45 @@ export default function StorefrontPublic() {
         </div>
       ) : null}
 
-      {mode === "home" ? (
+      {useIsolatedRuntime ? (
+        <RuntimeComponent
+          subdomain={subdomain}
+          mode={mode}
+          categories={categories}
+          searchedProducts={searchedProducts}
+          categoryNameById={categoryNameById}
+          showPricing={showPricing}
+          currencyText={currencyText}
+          productImageUrl={productImageUrl}
+          productRating={productRating}
+          productBadge={productBadge}
+          primary={primary}
+          addToCart={addToCart}
+          isPreviewMode={isPreviewMode}
+          categoryId={categoryId}
+          setCategoryId={setCategoryId}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          selectedBrand={selectedBrand}
+          setSelectedBrand={setSelectedBrand}
+          selectedSize={selectedSize}
+          setSelectedSize={setSelectedSize}
+          selectedColor={selectedColor}
+          setSelectedColor={setSelectedColor}
+          catalogMeta={catalogMeta}
+          pdp={pdp}
+          pdpMedia={pdpMedia}
+          pdpImage={pdpImage}
+          setPdpImage={setPdpImage}
+          pdpSizes={pdpSizes}
+          pdpSize={pdpSize}
+          setPdpSize={setPdpSize}
+          pdpColors={pdpColors}
+          pdpColor={pdpColor}
+          setPdpColor={setPdpColor}
+          themeAssetBase={themeAssetBase}
+        />
+      ) : mode === "home" ? (
         <main className="max-w-7xl mx-auto px-4 py-8 space-y-10">
           <section className={`relative rounded-3xl overflow-hidden min-h-[420px] border border-slate-200 ${runtimePack.heroStyle === "minimal" ? "bg-white" : ""}`}>
             <img

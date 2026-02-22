@@ -635,3 +635,7 @@ Update 2026-02-22 (Theme preview safety)
 Storefront Theme Runtime (Latest)
 - Developed: Theme import action/feedback, UI-first theme setting controls, runtime-pack driven storefront rendering differences.
 - Partial: Full isolated per-theme component runtime engine (true code-level theme package renderer) is not yet completed.
+
+Theme Runtime Isolation
+- Developed: runtime resolver + isolated Kuzma renderer component for home/catalog/pdp.
+- Pending: isolate cart/checkout/login/page into per-theme runtime packs for full end-to-end isolation.

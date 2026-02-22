@@ -1089,3 +1089,13 @@ Files:
 - github_commit.txt
 Notes:
 - `theme.manifest.json` keys are now read case-insensitively.
+
+[Pending push] 2026-02-22 - add isolated runtime pack renderer (Kuzma)
+Files:
+- frontend/src/pages/storefront/theme-runtime/index.js
+- frontend/src/pages/storefront/theme-runtime/KuzmaFashionRuntime.js
+- frontend/src/pages/storefront/StorefrontPublic.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Kuzma theme now renders through its own component runtime for home/catalog/pdp.

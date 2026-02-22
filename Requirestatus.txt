@@ -1074,3 +1074,9 @@ Update 2026-02-22 (Theme import UX + UI settings + per-theme runtime rendering)
 - Developed: Public storefront now resolves theme asset base (`/theme-packages/{slug}/{version}/assets`) so imported theme packs can drive hero/preview assets.
 - Partial: Full code-isolated template runtime (separate React component packs per theme) still pending; current runtime is variant-driven with differentiated layout behaviors.
 - Fix 2026-02-22: Theme ZIP manifest parser now uses case-insensitive JSON property binding, so `name`/`slug` lowercase keys import correctly.
+
+Update 2026-02-22 (True isolated per-theme runtime packs - initial)
+- Developed: Added isolated storefront runtime-pack architecture with runtime resolver (`theme-runtime/index.js`) mapping theme slug -> dedicated renderer component.
+- Developed: Added dedicated `KuzmaFashionRuntime` renderer component for Home/Catalog/PDP so Kuzma no longer uses the same UI tree as default themes.
+- Developed: Storefront now delegates rendering to package-specific component when a runtime pack exists (currently `kuzma-fashion-pro`), with fallback to default renderer for all other themes.
+- Note: Cart/Checkout/Login/Page routes still use shared default renderer in this phase; next phase can isolate those per runtime pack too.

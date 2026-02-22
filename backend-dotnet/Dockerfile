@@ -13,6 +13,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends certbot python3-certbot-dns-cloudflare ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/publish .
 
 EXPOSE 5000

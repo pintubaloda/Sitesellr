@@ -74,8 +74,12 @@ function DnsRecordCard({ domain }) {
           <p><span className="text-slate-400">Host:</span> {domain.mapping?.host}
             <CopyButton value={domain.mapping?.host ?? ""} />
           </p>
-          <p><span className="text-slate-400">Value:</span> {domain.mapping?.target}
-            <CopyButton value={domain.mapping?.target ?? ""} />
+          <p>
+            <span className="text-slate-400">Value:</span>{" "}
+            {domain.mapping?.target
+              ? <>{domain.mapping.target}<CopyButton value={domain.mapping.target} /></>
+              : <span className="text-amber-600 font-sans">(platform ingress host not configured — set it in Platform → Domains &amp; SSL config)</span>
+            }
           </p>
         </div>
         <div className="bg-white dark:bg-slate-900 rounded p-2 border">
@@ -329,12 +333,20 @@ export default function DomainsSsl() {
                     </p>
                   )}
 
-                  {/* Error */}
-                  {d.lastError && (
-                    <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
-                      ⚠ {d.lastError}
-                    </p>
-                  )}
+                  {/* Error — suppress internal platform-config errors from merchant view */}
+                  {d.lastError && (() => {
+                    const internalError = /env var|not configured|ingress host|api token|zone.?id|platform config/i.test(d.lastError);
+                    if (internalError) return (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                        ⚠ DNS auto-setup is pending platform configuration. Add the DNS records manually above, then click Verify DNS.
+                      </p>
+                    );
+                    return (
+                      <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
+                        ⚠ {d.lastError}
+                      </p>
+                    );
+                  })()}
 
                   {/* Issuing spinner */}
                   {d.sslStatus === "issuing" && (

@@ -160,6 +160,15 @@ export default function StorefrontPublic() {
     const path = location.pathname.replace(`/s/${subdomain}`, "").replace(/^\//, "");
     return path || "";
   }, [location.pathname, subdomain]);
+  const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const previewThemeIdQuery = queryParams.get("previewThemeId");
+  const previewStoreIdQuery = queryParams.get("storeId");
+  const previewRequestParams = useMemo(() => {
+    const params = {};
+    if (previewThemeIdQuery) params.previewThemeId = previewThemeIdQuery;
+    if (previewStoreIdQuery) params.storeId = previewStoreIdQuery;
+    return params;
+  }, [previewStoreIdQuery, previewThemeIdQuery]);
   const slugParts = slug.split("/").filter(Boolean);
   const mode = !slug
     ? "home"
@@ -190,12 +199,9 @@ export default function StorefrontPublic() {
   useEffect(() => {
     const run = async () => {
       try {
-        const query = new URLSearchParams(location.search);
-        const previewThemeId = query.get("previewThemeId");
-        const storeId = query.get("storeId");
         const params = {};
-        if (previewThemeId) params.previewThemeId = previewThemeId;
-        if (storeId) params.storeId = storeId;
+        if (previewThemeIdQuery) params.previewThemeId = previewThemeIdQuery;
+        if (previewStoreIdQuery) params.storeId = previewStoreIdQuery;
         const res = await api.get(`/public/storefront/${subdomain}`, { params });
         setData(res.data);
         setError("");
@@ -204,7 +210,7 @@ export default function StorefrontPublic() {
       }
     };
     run();
-  }, [subdomain, location.search]);
+  }, [subdomain, previewThemeIdQuery, previewStoreIdQuery]);
 
   useEffect(() => {
     const run = async () => {
@@ -213,10 +219,8 @@ export default function StorefrontPublic() {
         return;
       }
       try {
-        const query = new URLSearchParams(location.search);
-        const storeId = query.get("storeId");
         const res = await api.get(`/public/storefront/${subdomain}/pages/${slug}`, {
-          params: storeId ? { storeId } : {},
+          params: previewStoreIdQuery ? { storeId: previewStoreIdQuery } : {},
         });
         setPage(res.data);
       } catch {
@@ -224,7 +228,7 @@ export default function StorefrontPublic() {
       }
     };
     run();
-  }, [slug, subdomain]);
+  }, [slug, subdomain, previewStoreIdQuery]);
 
   useEffect(() => {
     const run = async () => {
@@ -252,9 +256,9 @@ export default function StorefrontPublic() {
     : /iPad|Tablet/i.test(navigator.userAgent)
       ? "tablet"
       : "desktop";
-  const customerType = (new URLSearchParams(location.search).get("customerType") || "retail").toLowerCase();
-  const isLoggedIn = (new URLSearchParams(location.search).get("loggedIn") || "false").toLowerCase() === "true";
-  const queryCategoryId = new URLSearchParams(location.search).get("category");
+  const customerType = (queryParams.get("customerType") || "retail").toLowerCase();
+  const isLoggedIn = (queryParams.get("loggedIn") || "false").toLowerCase() === "true";
+  const queryCategoryId = queryParams.get("category");
   let defaultMoq = 10;
   let packSize = 1;
   let visibilityConfig = {};
@@ -392,6 +396,8 @@ export default function StorefrontPublic() {
         { label: "Sale", path: "/sale" },
       ];
   const navItems = menu.length ? menu : defaultMenu;
+  const isPreviewMode = Boolean(previewThemeIdQuery || previewStoreIdQuery || data?.previewThemeId);
+  const previewReadOnlyMessage = "Preview mode is read-only. Apply theme to take live orders.";
   const cartCount = cart.reduce((n, i) => n + i.quantity, 0);
   const cartTotal = cart.reduce((n, i) => n + (Number(i.price || 0) * i.quantity), 0);
   const normalizedConfiguredOfferCode = configuredOfferCode.toLowerCase();
@@ -418,6 +424,10 @@ export default function StorefrontPublic() {
       : "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
   const addToCart = (product, qty = 1) => {
+    if (isPreviewMode) {
+      setReservation((prev) => ({ ...prev, message: previewReadOnlyMessage }));
+      return;
+    }
     setCart((prev) => {
       const idx = prev.findIndex((x) => x.id === product.id);
       if (idx < 0) return [...prev, { id: product.id, title: product.title, price: Number(product.price || 0), quantity: qty }];
@@ -459,18 +469,23 @@ export default function StorefrontPublic() {
     async (targetId) => {
       const reservationId = targetId || reservation.id;
       if (!reservationId) return;
+      if (isPreviewMode) return;
       try {
-        await api.post(`/public/storefront/${subdomain}/cart/release`, { reservationId });
+        await api.post(`/public/storefront/${subdomain}/cart/release`, { reservationId }, { params: previewRequestParams });
       } catch {
         // no-op
       }
       setReservation((prev) => (prev.id === reservationId ? { id: "", cartKey: "", loading: false, message: "" } : prev));
     },
-    [reservation.id, subdomain]
+    [reservation.id, subdomain, isPreviewMode, previewRequestParams]
   );
 
   const reserveStock = useCallback(
     async (force = false) => {
+      if (isPreviewMode) {
+        setReservation({ id: "", cartKey: "", loading: false, message: previewReadOnlyMessage });
+        return false;
+      }
       if (!cart.length) {
         setReservation({ id: "", cartKey: "", loading: false, message: "Cart is empty." });
         return false;
@@ -483,7 +498,7 @@ export default function StorefrontPublic() {
       try {
         const res = await api.post(`/public/storefront/${subdomain}/cart/reserve`, {
           items: cart.map((x) => ({ productId: x.id, quantity: x.quantity })),
-        });
+        }, { params: previewRequestParams });
         setReservation({
           id: res.data?.reservationId || "",
           cartKey,
@@ -502,10 +517,14 @@ export default function StorefrontPublic() {
         return false;
       }
     },
-    [cart, cartKey, releaseReservation, reservation.cartKey, reservation.id, subdomain]
+    [cart, cartKey, releaseReservation, reservation.cartKey, reservation.id, subdomain, isPreviewMode, previewRequestParams, previewReadOnlyMessage]
   );
 
   const submitQuote = async (product) => {
+    if (isPreviewMode) {
+      window.alert(previewReadOnlyMessage);
+      return;
+    }
     const name = window.prompt("Your name");
     if (!name) return;
     const email = window.prompt("Your email");
@@ -520,7 +539,7 @@ export default function StorefrontPublic() {
         email,
         phone,
         message,
-      });
+      }, { params: previewRequestParams });
       window.alert("Quote request submitted.");
     } catch {
       window.alert("Could not submit quote request.");
@@ -529,6 +548,11 @@ export default function StorefrontPublic() {
 
   const checkout = async () => {
     setCheckoutAccount(null);
+    if (isPreviewMode) {
+      setCheckoutStatus("warn");
+      setCheckoutMessage(previewReadOnlyMessage);
+      return;
+    }
     if (!checkoutForm.name || !checkoutForm.email || !checkoutForm.phone) {
       setCheckoutStatus("error");
       setCheckoutMessage("Fill name, email, and phone.");
@@ -557,7 +581,7 @@ export default function StorefrontPublic() {
         postalCode: checkoutForm.postalCode,
         paymentMethod: checkoutForm.paymentMethod,
         items: cart.map((x) => ({ productId: x.id, quantity: x.quantity })),
-      });
+      }, { params: previewRequestParams });
       setCheckoutStatus("success");
       setCheckoutMessage(`Order created: ${res.data?.orderId}`);
       if (res.data?.account?.created) {
@@ -584,6 +608,11 @@ export default function StorefrontPublic() {
       if (apiError?.error === "login_required_existing_customer") {
         setCheckoutStatus("warn");
         setCheckoutMessage("This email/mobile already exists. Please login to continue checkout.");
+        return;
+      }
+      if (apiError?.error === "preview_mode_read_only") {
+        setCheckoutStatus("warn");
+        setCheckoutMessage(previewReadOnlyMessage);
         return;
       }
       if (apiError?.error === "invalid_state") {
@@ -740,6 +769,11 @@ export default function StorefrontPublic() {
           </div>
         </div>
       </header>
+      {isPreviewMode ? (
+        <div className="bg-amber-50 border-b border-amber-200 text-amber-800 text-sm px-4 py-2 text-center">
+          Preview Mode: browsing only. Orders, quotes, and cart checkout are disabled until this theme is active.
+        </div>
+      ) : null}
 
       {mode === "home" ? (
         <main className="max-w-7xl mx-auto px-4 py-8 space-y-10">
@@ -806,7 +840,7 @@ export default function StorefrontPublic() {
                     <p className="text-xs text-slate-500 mt-1">{categoryNameById.get(String(p.categoryId || "")) || "General"}</p>
                     <p className="text-sm mt-1 font-semibold">{showPricing ? currencyText(p.price, p.currency) : "Login to view price"}</p>
                     <div className="mt-3 flex items-center gap-2">
-                      <button className="flex-1 px-3 py-2 rounded-lg border text-sm hover:bg-slate-50" onClick={() => addToCart(p, wholesaleMode ? defaultMoq : 1)}>Quick Add</button>
+                      <button className="flex-1 px-3 py-2 rounded-lg border text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isPreviewMode} onClick={() => addToCart(p, wholesaleMode ? defaultMoq : 1)}>Quick Add</button>
                       <Link to={`/s/${subdomain}/products/${p.id}`} className="px-3 py-2 rounded-lg text-sm text-white" style={{ backgroundColor: primary }}>View</Link>
                     </div>
                   </div>
@@ -917,7 +951,7 @@ export default function StorefrontPublic() {
                         {showPricing && Number(p.compareAtPrice || 0) > Number(p.price || 0) ? <p className="text-sm line-through text-slate-400">{currencyText(p.compareAtPrice, p.currency)}</p> : null}
                       </div>
                       <div className="mt-4 flex gap-2">
-                        <button className="px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: primary }} onClick={() => addToCart(p, wholesaleMode ? defaultMoq : 1)}>Quick Add</button>
+                        <button className="px-4 py-2 rounded-lg text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled={isPreviewMode} style={{ backgroundColor: primary }} onClick={() => addToCart(p, wholesaleMode ? defaultMoq : 1)}>Quick Add</button>
                         <Link to={`/s/${subdomain}/products/${p.id}`} className="px-4 py-2 rounded-lg border text-sm">Quick View</Link>
                       </div>
                     </div>
@@ -994,9 +1028,9 @@ export default function StorefrontPublic() {
             ) : null}
 
             <div className="mt-8 grid sm:grid-cols-2 gap-3">
-              <button className="px-5 py-3 rounded-xl text-white font-medium" style={{ backgroundColor: primary }} onClick={() => addToCart(pdp, wholesaleMode ? defaultMoq : 1)}>Add to cart</button>
+              <button className="px-5 py-3 rounded-xl text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed" disabled={isPreviewMode} style={{ backgroundColor: primary }} onClick={() => addToCart(pdp, wholesaleMode ? defaultMoq : 1)}>Add to cart</button>
               <Link className="px-5 py-3 rounded-xl border font-medium text-center" to={`/s/${subdomain}/checkout`}>Buy now</Link>
-              {wholesaleMode ? <button className="sm:col-span-2 px-5 py-3 rounded-xl border font-medium" onClick={() => submitQuote(pdp)}>Request Quote</button> : null}
+              {wholesaleMode ? <button className="sm:col-span-2 px-5 py-3 rounded-xl border font-medium disabled:opacity-50 disabled:cursor-not-allowed" disabled={isPreviewMode} onClick={() => submitQuote(pdp)}>Request Quote</button> : null}
             </div>
 
             <div className="mt-7 grid sm:grid-cols-3 gap-3">
@@ -1057,9 +1091,9 @@ export default function StorefrontPublic() {
                 <div className="mt-4 flex gap-2">
                   <button
                     type="button"
-                    className="px-4 py-2.5 rounded-lg border w-full"
+                    className="px-4 py-2.5 rounded-lg border w-full disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => reserveStock(true)}
-                    disabled={reservation.loading}
+                    disabled={reservation.loading || isPreviewMode}
                   >
                     {reservation.loading ? "Reserving..." : "Reserve stock"}
                   </button>
@@ -1195,7 +1229,7 @@ export default function StorefrontPublic() {
                   className="w-full h-10 border rounded-lg px-3 text-sm"
                 />
               </div>
-              <button className="mt-4 w-full px-5 py-3 rounded-lg text-white font-medium" style={{ backgroundColor: primary }} onClick={checkout}>Place order</button>
+              <button className="mt-4 w-full px-5 py-3 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed" disabled={isPreviewMode} style={{ backgroundColor: primary }} onClick={checkout}>Place order</button>
               <p className="mt-3 text-xs text-slate-500 text-center">Secure checkout • SSL encrypted</p>
             </div>
           </div>

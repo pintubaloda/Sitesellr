@@ -628,3 +628,6 @@ Update 2026-02-21 (Storefront operational controls)
 Update 2026-02-22 (Theme import pipeline usage)
 - Added real external fashion template package for platform import workflow testing and go-live onboarding.
 - Theme package follows mandatory manifest + assets structure and can be imported directly by Platform Owner.
+
+Update 2026-02-22 (Theme preview safety)
+- Preview mode converted to read-only showroom behavior: all storefront pages are viewable, but order/quote/cart commit actions are blocked until theme is active/live.

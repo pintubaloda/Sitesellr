@@ -1060,3 +1060,8 @@ Update 2026-02-22 (External template onboarding: Kuzma Fashion)
 - Developed: Added local theme package at `theme-imports/kuzma-fashion-pro/` with `theme.manifest.json` + `assets/*` mapped to platform theme contract.
 - Developed: Generated upload-ready archive `theme-imports/kuzma-fashion-pro.zip` for Platform Owner theme import.
 - Developed: Added usage guide `theme-imports/kuzma-fashion-pro/README_IMPORT.md` including store-owner offer and payment-mode config JSON.
+
+Update 2026-02-22 (Preview mode read-only enforcement)
+- Developed: Enforced preview-mode read-only on backend public actions (`quote-inquiries`, `checkout`, `cart/reserve`, `cart/release`) when preview query context is present.
+- Developed: Frontend storefront now detects preview mode and blocks transactional actions (add to cart, reserve stock, quote submit, place order) with clear banner + message.
+- Developed: Preview URLs can now safely show all pages/layouts without creating real orders.

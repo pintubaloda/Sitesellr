@@ -1058,3 +1058,13 @@ Files:
 Notes:
 - External GitHub template converted into Sitesellr theme-import contract format.
 - Package is ready for Platform Owner upload from `/admin/platform-themes`.
+
+[Pending push] 2026-02-22 - enforce preview mode as non-transactional
+Files:
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- frontend/src/pages/storefront/StorefrontPublic.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Preview browsing remains available, but order/quote/cart mutation APIs are blocked in preview context.
+- UI now surfaces explicit preview read-only state.

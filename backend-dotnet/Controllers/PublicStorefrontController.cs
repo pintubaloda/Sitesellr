@@ -456,8 +456,9 @@ public class PublicStorefrontController : ControllerBase
     }
 
     [HttpPost("{subdomain}/quote-inquiries")]
-    public async Task<IActionResult> CreateQuoteInquiry(string subdomain, [FromBody] QuoteInquiryCreateRequest req, CancellationToken ct)
+    public async Task<IActionResult> CreateQuoteInquiry(string subdomain, [FromBody] QuoteInquiryCreateRequest req, [FromQuery] Guid? previewThemeId, [FromQuery] Guid? storeId, CancellationToken ct)
     {
+        if (IsPreviewReadOnly(previewThemeId, storeId)) return Conflict(new { error = "preview_mode_read_only" });
         var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
         var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
         if (store == null) return NotFound(new { error = "store_not_found" });
@@ -505,8 +506,9 @@ public class PublicStorefrontController : ControllerBase
     }
 
     [HttpPost("{subdomain}/checkout")]
-    public async Task<IActionResult> PublicCheckout(string subdomain, [FromBody] PublicCheckoutRequest req, CancellationToken ct)
+    public async Task<IActionResult> PublicCheckout(string subdomain, [FromBody] PublicCheckoutRequest req, [FromQuery] Guid? previewThemeId, [FromQuery] Guid? storeId, CancellationToken ct)
     {
+        if (IsPreviewReadOnly(previewThemeId, storeId)) return Conflict(new { error = "preview_mode_read_only" });
         var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
         var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
         if (store == null) return NotFound(new { error = "store_not_found" });
@@ -695,8 +697,9 @@ public class PublicStorefrontController : ControllerBase
     }
 
     [HttpPost("{subdomain}/cart/reserve")]
-    public async Task<IActionResult> ReserveStock(string subdomain, [FromBody] StockReservationRequest req, CancellationToken ct)
+    public async Task<IActionResult> ReserveStock(string subdomain, [FromBody] StockReservationRequest req, [FromQuery] Guid? previewThemeId, [FromQuery] Guid? storeId, CancellationToken ct)
     {
+        if (IsPreviewReadOnly(previewThemeId, storeId)) return Conflict(new { error = "preview_mode_read_only" });
         var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
         var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
         if (store == null) return NotFound(new { error = "store_not_found" });
@@ -731,8 +734,9 @@ public class PublicStorefrontController : ControllerBase
     }
 
     [HttpPost("{subdomain}/cart/release")]
-    public async Task<IActionResult> ReleaseStock(string subdomain, [FromBody] StockReleaseRequest req, CancellationToken ct)
+    public async Task<IActionResult> ReleaseStock(string subdomain, [FromBody] StockReleaseRequest req, [FromQuery] Guid? previewThemeId, [FromQuery] Guid? storeId, CancellationToken ct)
     {
+        if (IsPreviewReadOnly(previewThemeId, storeId)) return Conflict(new { error = "preview_mode_read_only" });
         if (!ReservationBuckets.TryGetValue(req.ReservationId.Trim(), out var rows))
             return Ok(new { released = true, skipped = true });
         foreach (var r in rows)
@@ -826,6 +830,11 @@ public class PublicStorefrontController : ControllerBase
         var session = await _db.StoreCustomerSessions.AsNoTracking()
             .FirstOrDefaultAsync(x => x.StoreId == storeId && x.TokenHash == hash && x.ExpiresAt > DateTimeOffset.UtcNow, ct);
         return session?.CustomerId;
+    }
+
+    private static bool IsPreviewReadOnly(Guid? previewThemeId, Guid? storeId)
+    {
+        return previewThemeId.HasValue || storeId.HasValue;
     }
 }
 

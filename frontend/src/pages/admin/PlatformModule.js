@@ -28,6 +28,559 @@ const StatusDot = ({ ok }) => (
   <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${ok ? "bg-green-500" : "bg-red-400"}`} />
 );
 
+
+// ─── Smart Domains Setup Wizard ───────────────────────────────────────────────
+// Auto-detects server details, pre-fills sensible defaults, guides through setup
+
+const ACME_PRESETS = {
+  certbot: {
+    label: "Certbot (recommended)",
+    command: "certbot certonly --dns-cloudflare --dns-cloudflare-credentials /etc/cloudflare/credentials.ini -d {domain} --email {email} --agree-tos --non-interactive --cert-name {domain}",
+    challengeMethod: "dns-01",
+    directoryUrl: "https://acme-v02.api.letsencrypt.org/directory",
+  },
+  "acme.sh": {
+    label: "acme.sh",
+    command: "acme.sh --issue --dns dns_cf -d {domain} --server {acmeDirectory}",
+    challengeMethod: "dns-01",
+    directoryUrl: "https://acme-v02.api.letsencrypt.org/directory",
+  },
+  "acme.sh-staging": {
+    label: "acme.sh (staging/test)",
+    command: "acme.sh --issue --dns dns_cf -d {domain} --server {acmeDirectory} --test",
+    challengeMethod: "dns-01",
+    directoryUrl: "https://acme-staging-v02.api.letsencrypt.org/directory",
+  },
+};
+
+const ORIGIN_TLS_PRESETS = {
+  cloudflare_origin_ca: {
+    label: "Cloudflare Origin CA (recommended)",
+    description: "Free cert from Cloudflare. Works only with Cloudflare proxying.",
+    command: "",
+    certPath: "/etc/ssl/cloudflare-origin.crt",
+    keyPath: "/etc/ssl/cloudflare-origin.key",
+  },
+  letsencrypt: {
+    label: "Let's Encrypt (same as merchant SSL)",
+    description: "Re-uses certbot/acme.sh for origin cert too.",
+    command: "certbot certonly --standalone -d {host} --email admin@{host} --agree-tos --non-interactive",
+    certPath: "/etc/letsencrypt/live/{host}/fullchain.pem",
+    keyPath: "/etc/letsencrypt/live/{host}/privkey.pem",
+  },
+  self_signed: {
+    label: "Self-signed (dev/testing only)",
+    description: "Generates a self-signed cert. Not for production.",
+    command: "openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout {keyPath} -out {certPath} -subj /CN={host}",
+    certPath: "/etc/ssl/origin-selfsigned.crt",
+    keyPath: "/etc/ssl/origin-selfsigned.key",
+  },
+};
+
+function StepBadge({ n, done, active }) {
+  return (
+    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 border-2 transition-all ${
+      done ? "bg-green-500 border-green-500 text-white" :
+      active ? "border-blue-500 bg-blue-50 text-blue-600" :
+      "border-slate-300 text-slate-400 bg-white"
+    }`}>
+      {done ? "✓" : n}
+    </div>
+  );
+}
+
+function InlineResult({ result }) {
+  if (!result) return null;
+  return (
+    <div className={`text-xs px-3 py-2 rounded border mt-2 ${result.ok
+      ? "text-green-700 bg-green-50 border-green-200"
+      : "text-red-700 bg-red-50 border-red-200"}`}>
+      {result.ok ? "✅" : "❌"} {result.message}
+    </div>
+  );
+}
+
+function DomainsSetupWizard({
+  data, domainsConfigForm, setDomainsConfigForm,
+  zones, setZones,
+  cloudflareTestResult, setCloudflareTestResult,
+  sslTestResult, setSslTestResult,
+  originTlsResult, setOriginTlsResult,
+  originTlsStatus, setOriginTlsStatus,
+  cfTesting, setCfTesting, sslTesting, setSslTesting,
+  originTlsIssuing, setOriginTlsIssuing, domainsSaving, loading,
+  saveDomainsConfig, testCloudflare, testSslProvider,
+  startCloudflareOAuth, refreshOriginTlsStatus, issueOriginTls,
+  cfRuntime, leRuntime,
+}) {
+  const [acmePreset, setAcmePreset] = useState("certbot");
+  const [originPreset, setOriginPreset] = useState("cloudflare_origin_ca");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showOAuth, setShowOAuth] = useState(false);
+
+  // Auto-detect server base from current URL on first load
+  const [autoDetected] = useState(() => {
+    const host = window.location.hostname;
+    const isLocalhost = host === "localhost" || host === "127.0.0.1";
+    return {
+      host,
+      isLocalhost,
+      suggestedBaseDomain: isLocalhost ? "" : host.split(".").slice(-2).join("."),
+      suggestedIngressHost: isLocalhost ? "" : host,
+      callbackUrl: `${window.location.origin}/api/platform/owner/domains/cloudflare-oauth/callback`,
+    };
+  });
+
+  // Apply ACME preset
+  const applyAcmePreset = (key) => {
+    const preset = ACME_PRESETS[key];
+    if (!preset) return;
+    setAcmePreset(key);
+    setDomainsConfigForm((p) => ({
+      ...p,
+      acmeClient: key === "certbot" ? "certbot" : "acme.sh",
+      sslIssuerCommand: preset.command,
+      acmeChallengeMethod: preset.challengeMethod,
+      acmeDirectoryUrl: preset.directoryUrl,
+    }));
+  };
+
+  // Apply Origin TLS preset
+  const applyOriginPreset = (key) => {
+    const preset = ORIGIN_TLS_PRESETS[key];
+    if (!preset) return;
+    setOriginPreset(key);
+    const host = domainsConfigForm.platformIngressHost || autoDetected.host;
+    setDomainsConfigForm((p) => ({
+      ...p,
+      originTlsMode: key,
+      originTlsIssuerCommand: preset.command.replace(/\{host\}/g, host),
+      originTlsCertPath: preset.certPath.replace(/\{host\}/g, host),
+      originTlsKeyPath: preset.keyPath.replace(/\{host\}/g, host),
+    }));
+  };
+
+  // Auto-fill base domain + ingress host from current server if empty
+  const autoFillServer = () => {
+    setDomainsConfigForm((p) => ({
+      ...p,
+      platformBaseDomain: p.platformBaseDomain || autoDetected.suggestedBaseDomain,
+      platformIngressHost: p.platformIngressHost || autoDetected.suggestedIngressHost,
+      cloudflareOauthRedirectUri: p.cloudflareOauthRedirectUri || autoDetected.callbackUrl,
+      cloudflareOauthPostConnectRedirect: p.cloudflareOauthPostConnectRedirect || "/admin/platform-domains",
+    }));
+  };
+
+  const step1Done = cfRuntime;
+  const step2Done = leRuntime;
+  const step3Done = originTlsStatus?.certFileExists && originTlsStatus?.keyFileExists;
+
+  const set = (k) => (e) => setDomainsConfigForm((p) => ({ ...p, [k]: e.target.value }));
+
+  return (
+    <div className="space-y-4">
+      {/* Summary metrics */}
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+        <Metric label="Subdomains" value={data?.summary?.totalSubdomains ?? 0} />
+        <Metric label="Custom Domains" value={data?.summary?.totalCustomDomains ?? 0} />
+        <Metric label="Verified" value={data?.summary?.verifiedCustomDomains ?? 0} />
+        <Metric label="SSL Active" value={data?.summary?.activeSslCustomDomains ?? 0} />
+        <Metric label="SSL Pending" value={data?.summary?.pendingSslCustomDomains ?? 0} />
+        <Metric label="Awaiting Payment" value={data?.summary?.paymentRequiredSslCustomDomains ?? 0} />
+      </div>
+
+      {/* Overall status bar */}
+      <Card className={`border-2 ${step1Done && step2Done ? "border-green-400 bg-green-50" : "border-amber-300 bg-amber-50"}`}>
+        <CardContent className="py-3 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex gap-4 text-sm">
+            <span><StatusDot ok={step1Done} />{step1Done ? "Cloudflare ready" : "Cloudflare not set up"}</span>
+            <span><StatusDot ok={step2Done} />{step2Done ? "SSL/ACME ready" : "SSL not set up"}</span>
+            <span><StatusDot ok={step3Done} />{step3Done ? "Origin TLS ready" : "Origin TLS not set up"}</span>
+          </div>
+          <button
+            onClick={autoFillServer}
+            className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+          >
+            ⚡ Auto-fill server details
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* ── STEP 1: Cloudflare ──────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <StepBadge n={1} done={step1Done} active={!step1Done} />
+            <div>
+              <CardTitle className="text-base">Cloudflare DNS</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Connect your Cloudflare account for automatic DNS record provisioning</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Token */}
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>API Token <span className="text-red-500">*</span></Label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder={data?.config?.cloudflareApiTokenMasked ? `Current: ${data.config.cloudflareApiTokenMasked}` : "Paste token — or use OAuth below"}
+                value={domainsConfigForm.cloudflareApiToken}
+                onChange={set("cloudflareApiToken")}
+              />
+              <p className="text-xs text-slate-400">
+                <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noreferrer" className="text-blue-500 underline">
+                  Create token
+                </a>{" "}with Zone:Read + DNS:Edit permissions, or use OAuth Connect below.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Platform Base Domain <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder="e.g. yourplatform.com"
+                value={domainsConfigForm.platformBaseDomain || ""}
+                onChange={set("platformBaseDomain")}
+              />
+              <p className="text-xs text-slate-400">Root domain of your platform. Merchant subdomains will be created under this.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Platform Ingress Host <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder={autoDetected.suggestedIngressHost || "e.g. app.yourplatform.com"}
+                value={domainsConfigForm.platformIngressHost || ""}
+                onChange={set("platformIngressHost")}
+              />
+              <p className="text-xs text-slate-400">Your server's public hostname/IP — custom domains CNAME point here.{autoDetected.suggestedIngressHost && <span className="text-blue-500"> Detected: {autoDetected.suggestedIngressHost}</span>}</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Cloudflare Zone ID</Label>
+              <Input
+                placeholder="Auto-filled when you test & load zones below"
+                value={domainsConfigForm.cloudflareZoneId || ""}
+                onChange={set("cloudflareZoneId")}
+              />
+            </div>
+          </div>
+
+          {/* Zone picker after test */}
+          {zones.length > 0 && (
+            <div className="border rounded-lg p-3 bg-slate-50">
+              <p className="text-xs font-semibold mb-2 text-slate-600">Select Zone for {domainsConfigForm.platformBaseDomain || "your domain"}:</p>
+              <div className="space-y-1 max-h-36 overflow-auto">
+                {zones.map((zone) => (
+                  <button
+                    key={zone.id}
+                    type="button"
+                    onClick={() => setDomainsConfigForm((p) => ({ ...p, cloudflareZoneId: zone.id }))}
+                    className={`w-full text-left text-xs border rounded px-2.5 py-2 transition-colors ${
+                      domainsConfigForm.cloudflareZoneId === zone.id
+                        ? "bg-blue-100 border-blue-400 font-semibold text-blue-800"
+                        : "hover:bg-white bg-white"
+                    }`}
+                  >
+                    {domainsConfigForm.cloudflareZoneId === zone.id && "✓ "}{zone.name}
+                    <span className="text-slate-400 ml-1.5 font-mono">{zone.id}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <InlineResult result={cloudflareTestResult} />
+
+          {/* Actions row */}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button variant="outline" onClick={testCloudflare} disabled={cfTesting} className="text-xs">
+              {cfTesting ? "Testing…" : "🔍 Test & Load Zones"}
+            </Button>
+            <Button variant="outline" onClick={startCloudflareOAuth} className="text-xs">
+              🔗 OAuth Connect (no token needed)
+            </Button>
+            <button
+              onClick={() => setShowOAuth(!showOAuth)}
+              className="text-xs text-slate-500 underline"
+            >
+              {showOAuth ? "Hide" : "Show"} OAuth config
+            </button>
+          </div>
+
+          {/* OAuth config — collapsed by default */}
+          {showOAuth && (
+            <div className="border rounded-lg p-3 bg-slate-50 space-y-3 mt-2">
+              <p className="text-xs font-semibold text-slate-600">Cloudflare OAuth App Config (optional — for "Connect Cloudflare" button)</p>
+              <div className="grid md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">OAuth Client ID</Label>
+                  <Input className="text-xs h-8" value={domainsConfigForm.cloudflareOauthClientId || ""} onChange={set("cloudflareOauthClientId")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">OAuth Client Secret</Label>
+                  <Input type="password" className="text-xs h-8" placeholder="Leave blank to keep existing" autoComplete="new-password" value={domainsConfigForm.cloudflareOauthClientSecret || ""} onChange={set("cloudflareOauthClientSecret")} />
+                </div>
+                <div className="space-y-1 md:col-span-2">
+                  <Label className="text-xs">Redirect URI (auto-generated)</Label>
+                  <Input className="text-xs h-8 bg-slate-100" value={domainsConfigForm.cloudflareOauthRedirectUri || autoDetected.callbackUrl} onChange={set("cloudflareOauthRedirectUri")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Authorize URL</Label>
+                  <Input className="text-xs h-8" value={domainsConfigForm.cloudflareOauthAuthorizeUrl || ""} onChange={set("cloudflareOauthAuthorizeUrl")} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Token URL</Label>
+                  <Input className="text-xs h-8" value={domainsConfigForm.cloudflareOauthTokenUrl || ""} onChange={set("cloudflareOauthTokenUrl")} />
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── STEP 2: SSL / ACME ─────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <StepBadge n={2} done={step2Done} active={step1Done && !step2Done} />
+            <div>
+              <CardTitle className="text-base">SSL Certificate Issuance</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Choose your ACME client — command is pre-filled automatically</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Preset picker */}
+          <div>
+            <Label className="mb-2 block">ACME Client</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {Object.entries(ACME_PRESETS).map(([key, p]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyAcmePreset(key)}
+                  className={`text-xs border rounded-lg px-3 py-2.5 text-left transition-colors ${
+                    acmePreset === key
+                      ? "bg-blue-50 border-blue-400 text-blue-800 font-semibold"
+                      : "hover:bg-slate-50"
+                  }`}
+                >
+                  {acmePreset === key && "✓ "}{p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Contact Email <span className="text-red-500">*</span></Label>
+              <Input
+                type="email"
+                placeholder="ssl@yourplatform.com"
+                value={domainsConfigForm.sslContactEmail || ""}
+                onChange={set("sslContactEmail")}
+              />
+              <p className="text-xs text-slate-400">Let's Encrypt sends expiry warnings to this address.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>SSL Price (INR)</Label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="number"
+                  value={domainsConfigForm.sslPriceInr || "999"}
+                  onChange={set("sslPriceInr")}
+                  className="w-32"
+                />
+                <select
+                  className="flex-1 border rounded px-2 py-2 text-sm"
+                  value={domainsConfigForm.sslRequireMarketplacePurchase}
+                  onChange={set("sslRequireMarketplacePurchase")}
+                >
+                  <option value="true">Paid — users must purchase</option>
+                  <option value="false">Free for all users</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Auto-filled command — show as code, allow editing */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label>SSL Issuer Command <span className="text-slate-400 font-normal text-xs">(auto-filled)</span></Label>
+              <button onClick={() => setShowAdvanced(!showAdvanced)} className="text-xs text-slate-400 underline">
+                {showAdvanced ? "Hide" : "Edit"} advanced fields
+              </button>
+            </div>
+            <textarea
+              className="w-full border rounded px-3 py-2 text-xs font-mono bg-slate-50 resize-y"
+              rows={3}
+              value={domainsConfigForm.sslIssuerCommand || ""}
+              onChange={set("sslIssuerCommand")}
+            />
+            <p className="text-xs text-slate-400">Placeholders: <code className="bg-slate-100 px-1 rounded">&#123;domain&#125;</code> <code className="bg-slate-100 px-1 rounded">&#123;email&#125;</code> <code className="bg-slate-100 px-1 rounded">&#123;challenge&#125;</code> <code className="bg-slate-100 px-1 rounded">&#123;acmeDirectory&#125;</code></p>
+          </div>
+
+          {showAdvanced && (
+            <div className="grid md:grid-cols-2 gap-3 border rounded-lg p-3 bg-slate-50">
+              <div className="space-y-1">
+                <Label className="text-xs">Challenge Method</Label>
+                <Input className="h-8 text-xs" value={domainsConfigForm.acmeChallengeMethod || "dns-01"} onChange={set("acmeChallengeMethod")} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">ACME Directory URL</Label>
+                <Input className="h-8 text-xs" value={domainsConfigForm.acmeDirectoryUrl || ""} onChange={set("acmeDirectoryUrl")} />
+              </div>
+            </div>
+          )}
+
+          <InlineResult result={sslTestResult} />
+
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={testSslProvider} disabled={sslTesting} className="text-xs">
+              {sslTesting ? "Checking…" : "🔍 Test SSL Provider"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── STEP 3: Origin TLS ─────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <StepBadge n={3} done={step3Done} active={step1Done && step2Done && !step3Done} />
+            <div>
+              <CardTitle className="text-base">Origin TLS (Cloudflare → Your Server)</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Encrypts traffic between Cloudflare edge and your origin server</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Preset picker */}
+          <div>
+            <Label className="mb-2 block">Origin Certificate Mode</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {Object.entries(ORIGIN_TLS_PRESETS).map(([key, p]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyOriginPreset(key)}
+                  className={`text-xs border rounded-lg px-3 py-2.5 text-left transition-colors ${
+                    originPreset === key
+                      ? "bg-blue-50 border-blue-400 text-blue-800 font-semibold"
+                      : "hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="font-medium">{originPreset === key && "✓ "}{p.label}</div>
+                  <div className="text-slate-400 mt-0.5 font-normal">{p.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Cert Path <span className="text-slate-400 font-normal text-xs">(auto-filled)</span></Label>
+              <Input className="font-mono text-xs" value={domainsConfigForm.originTlsCertPath || ""} onChange={set("originTlsCertPath")} placeholder="/etc/ssl/origin.crt" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Key Path <span className="text-slate-400 font-normal text-xs">(auto-filled)</span></Label>
+              <Input className="font-mono text-xs" value={domainsConfigForm.originTlsKeyPath || ""} onChange={set("originTlsKeyPath")} placeholder="/etc/ssl/origin.key" />
+            </div>
+            {originPreset !== "cloudflare_origin_ca" && (
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Issuer Command <span className="text-slate-400 font-normal text-xs">(auto-filled)</span></Label>
+                <textarea
+                  className="w-full border rounded px-3 py-2 text-xs font-mono bg-slate-50 resize-y"
+                  rows={2}
+                  value={domainsConfigForm.originTlsIssuerCommand || ""}
+                  onChange={set("originTlsIssuerCommand")}
+                />
+              </div>
+            )}
+          </div>
+
+          {originTlsStatus && (
+            <div className="text-xs bg-slate-50 border rounded px-3 py-2.5 space-y-1">
+              <p className="font-semibold">Current Status</p>
+              <div className="flex gap-4 flex-wrap">
+                <span><StatusDot ok={originTlsStatus.certFileExists} />Cert {originTlsStatus.certFileExists ? "exists" : "missing"}</span>
+                <span><StatusDot ok={originTlsStatus.keyFileExists} />Key {originTlsStatus.keyFileExists ? "exists" : "missing"}</span>
+                {originTlsStatus.daysRemaining != null && (
+                  <span><StatusDot ok={originTlsStatus.daysRemaining > 14} />{originTlsStatus.daysRemaining} days remaining</span>
+                )}
+                {originTlsStatus.expiresAt && (
+                  <span className="text-slate-400">Expires {new Date(originTlsStatus.expiresAt).toLocaleDateString()}</span>
+                )}
+              </div>
+              {originTlsStatus.message && <p className="text-slate-500">{originTlsStatus.message}</p>}
+            </div>
+          )}
+
+          <InlineResult result={originTlsResult} />
+
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={refreshOriginTlsStatus} className="text-xs">
+              🔄 Check Status
+            </Button>
+            <Button variant="outline" onClick={issueOriginTls} disabled={originTlsIssuing} className="text-xs">
+              {originTlsIssuing ? "Issuing…" : "🔐 Issue / Renew Origin Cert"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Save ───────────────────────────────────────────────────────────── */}
+      <div className="flex justify-end">
+        <Button onClick={saveDomainsConfig} disabled={domainsSaving} className="px-8">
+          {domainsSaving ? "Saving…" : "💾 Save All Configuration"}
+        </Button>
+      </div>
+
+      {/* ── Domain list ────────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader><CardTitle>Tenant Subdomains</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {(data?.subdomains || []).map((row) => (
+            <div key={row.id} className="text-sm border rounded p-2 flex items-center gap-3">
+              <div className="flex-1">
+                <p className="font-medium">{row.subdomain || "—"} <span className="text-slate-400">·</span> {row.name}</p>
+                <p className="text-slate-500 text-xs">{row.merchantName}</p>
+              </div>
+            </div>
+          ))}
+          {!loading && (data?.subdomains || []).length === 0 && <p className="text-sm text-slate-500">No subdomains yet.</p>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Custom Domains</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {(data?.customDomains || []).map((row) => (
+            <div key={row.id} className="text-sm border rounded p-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="font-medium">{row.hostname}</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${row.isVerified ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+                    {row.isVerified ? "verified" : "unverified"}
+                  </span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${row.sslStatus === "active" ? "bg-green-100 text-green-700" : row.sslStatus === "failed" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
+                    ssl: {row.sslStatus}
+                  </span>
+                </div>
+              </div>
+              <p className="text-slate-400 text-xs mt-0.5">{row.merchantName} · {row.storeName} · dns: {row.dnsStatus}</p>
+              {row.lastError && <p className="text-red-600 text-xs mt-1">{row.lastError}</p>}
+            </div>
+          ))}
+          {!loading && (data?.customDomains || []).length === 0 && <p className="text-sm text-slate-500">No custom domains yet.</p>}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function PlatformModule({ moduleKey = "reports" }) {
   const module = CONTENT[moduleKey] || CONTENT.reports;
   const [data, setData] = useState(null);
@@ -431,262 +984,40 @@ export default function PlatformModule({ moduleKey = "reports" }) {
 
       {/* ── domains ──────────────────────────────────────────────────────────── */}
       {moduleKey === "domains" ? (
-        <>
-          {/* Summary metrics */}
-          <div className="grid md:grid-cols-6 gap-3">
-            <Metric label="Subdomains" value={data?.summary?.totalSubdomains ?? 0} />
-            <Metric label="Custom Domains" value={data?.summary?.totalCustomDomains ?? 0} />
-            <Metric label="Verified" value={data?.summary?.verifiedCustomDomains ?? 0} />
-            <Metric label="SSL Active" value={data?.summary?.activeSslCustomDomains ?? 0} />
-            <Metric label="SSL Pending" value={data?.summary?.pendingSslCustomDomains ?? 0} />
-            <Metric label="Awaiting Payment" value={data?.summary?.paymentRequiredSslCustomDomains ?? 0} />
-          </div>
-
-          {/* Runtime readiness */}
-          <Card>
-            <CardHeader><CardTitle>Configuration Readiness</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-sm">
-                <StatusDot ok={cfRuntime} />
-                Cloudflare DNS: {cfRuntime ? "configured" : "not configured (api_token / zone_id / base_domain / ingress_host required)"}
-              </p>
-              <p className="text-sm mt-1">
-                <StatusDot ok={leRuntime} />
-                Let&apos;s Encrypt: {leRuntime ? "configured" : "not configured (ssl_issuer_command / contact_email required)"}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Config form */}
-          <Card>
-            <CardHeader><CardTitle>Cloudflare + Let&apos;s Encrypt Configuration</CardTitle></CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-3">
-              {/* Cloudflare */}
-              <div className="space-y-2">
-                <Label>Cloudflare API Token</Label>
-                <Input
-                  type="password"
-                  placeholder={data?.config?.cloudflareApiTokenMasked ? `Current: ${data.config.cloudflareApiTokenMasked}` : "Enter to set or update"}
-                  value={domainsConfigForm.cloudflareApiToken}
-                  onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareApiToken: e.target.value }))}
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Cloudflare Zone ID</Label>
-                <Input value={domainsConfigForm.cloudflareZoneId || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareZoneId: e.target.value }))} placeholder="auto-filled when zone selected below" />
-              </div>
-              <div className="space-y-2">
-                <Label>Platform Base Domain</Label>
-                <Input value={domainsConfigForm.platformBaseDomain || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, platformBaseDomain: e.target.value }))} placeholder="yourplatform.com" />
-              </div>
-              <div className="space-y-2">
-                <Label>Platform Ingress Host</Label>
-                <Input value={domainsConfigForm.platformIngressHost || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, platformIngressHost: e.target.value }))} placeholder="ingress.yourplatform.com" />
-              </div>
-
-              {/* Let's Encrypt */}
-              <div className="md:col-span-2 pt-2 border-t">
-                <p className="text-sm font-semibold mb-3">Let&apos;s Encrypt / ACME</p>
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>SSL Issuer Command</Label>
-                <Input value={domainsConfigForm.sslIssuerCommand || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslIssuerCommand: e.target.value }))} placeholder="certbot certonly --dns-cloudflare -d {domain} --email {email} --agree-tos --non-interactive" />
-                <p className="text-xs text-slate-400">Supported placeholders: {"{domain}"} {"{email}"} {"{challenge}"} {"{acmeDirectory}"}</p>
-              </div>
-              <div className="space-y-2">
-                <Label>SSL Contact Email</Label>
-                <Input value={domainsConfigForm.sslContactEmail || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslContactEmail: e.target.value }))} placeholder="ssl@yourplatform.com" />
-              </div>
-              <div className="space-y-2">
-                <Label>SSL Price (INR)</Label>
-                <Input type="number" value={domainsConfigForm.sslPriceInr || "999"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslPriceInr: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>ACME Client</Label>
-                <Input value={domainsConfigForm.acmeClient || "certbot"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, acmeClient: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>ACME Challenge Method</Label>
-                <Input value={domainsConfigForm.acmeChallengeMethod || "dns-01"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, acmeChallengeMethod: e.target.value }))} />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>ACME Directory URL</Label>
-                <Input value={domainsConfigForm.acmeDirectoryUrl || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, acmeDirectoryUrl: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Require SSL Marketplace Purchase</Label>
-                <select
-                  className="w-full border rounded px-3 py-2 text-sm"
-                  value={domainsConfigForm.sslRequireMarketplacePurchase}
-                  onChange={(e) => setDomainsConfigForm((p) => ({ ...p, sslRequireMarketplacePurchase: e.target.value }))}
-                >
-                  <option value="true">Yes (users must purchase)</option>
-                  <option value="false">No (free for all users)</option>
-                </select>
-              </div>
-
-              {/* Origin TLS */}
-              <div className="md:col-span-2 pt-2 border-t">
-                <p className="text-sm font-semibold mb-3">Origin TLS (Cloudflare → Origin Server)</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Origin TLS Mode</Label>
-                <Input value={domainsConfigForm.originTlsMode || "cloudflare_origin_ca"} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, originTlsMode: e.target.value }))} />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Origin TLS Issuer Command</Label>
-                <Input value={domainsConfigForm.originTlsIssuerCommand || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, originTlsIssuerCommand: e.target.value }))} placeholder="your command with {host} {certPath} {keyPath} {mode}" />
-              </div>
-              <div className="space-y-2">
-                <Label>Origin TLS Cert Path</Label>
-                <Input value={domainsConfigForm.originTlsCertPath || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, originTlsCertPath: e.target.value }))} placeholder="/etc/ssl/origin.crt" />
-              </div>
-              <div className="space-y-2">
-                <Label>Origin TLS Key Path</Label>
-                <Input value={domainsConfigForm.originTlsKeyPath || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, originTlsKeyPath: e.target.value }))} placeholder="/etc/ssl/origin.key" />
-              </div>
-
-              {/* OAuth */}
-              <div className="md:col-span-2 pt-2 border-t">
-                <p className="text-sm font-semibold mb-3">Cloudflare OAuth Connect</p>
-              </div>
-              <div className="space-y-2">
-                <Label>OAuth Authorize URL</Label>
-                <Input value={domainsConfigForm.cloudflareOauthAuthorizeUrl || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthAuthorizeUrl: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>OAuth Token URL</Label>
-                <Input value={domainsConfigForm.cloudflareOauthTokenUrl || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthTokenUrl: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>OAuth Client ID</Label>
-                <Input value={domainsConfigForm.cloudflareOauthClientId || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthClientId: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>OAuth Client Secret</Label>
-                <Input type="password" placeholder="Leave blank to keep existing" value={domainsConfigForm.cloudflareOauthClientSecret || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthClientSecret: e.target.value }))} autoComplete="new-password" />
-              </div>
-              <div className="space-y-2">
-                <Label>OAuth Redirect URI</Label>
-                <Input value={domainsConfigForm.cloudflareOauthRedirectUri || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthRedirectUri: e.target.value }))} placeholder="Auto-generated from current host if empty" />
-              </div>
-              <div className="space-y-2">
-                <Label>OAuth Scope</Label>
-                <Input value={domainsConfigForm.cloudflareOauthScope || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthScope: e.target.value }))} />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>OAuth Post-Connect Redirect</Label>
-                <Input value={domainsConfigForm.cloudflareOauthPostConnectRedirect || ""} onChange={(e) => setDomainsConfigForm((p) => ({ ...p, cloudflareOauthPostConnectRedirect: e.target.value }))} />
-              </div>
-
-              {/* Save + actions */}
-              <div className="md:col-span-2 flex flex-wrap gap-2 pt-2 border-t">
-                <Button onClick={saveDomainsConfig} disabled={domainsSaving}>
-                  {domainsSaving ? "Saving…" : "Save Domain Config"}
-                </Button>
-                <Button variant="outline" onClick={startCloudflareOAuth}>Connect Cloudflare (OAuth)</Button>
-                <Button variant="outline" onClick={testCloudflare} disabled={cfTesting}>
-                  {cfTesting ? "Testing…" : "Test Cloudflare + Load Zones"}
-                </Button>
-                <Button variant="outline" onClick={testSslProvider} disabled={sslTesting}>
-                  {sslTesting ? "Checking…" : "Test SSL Provider"}
-                </Button>
-                <Button variant="outline" onClick={refreshOriginTlsStatus}>Refresh Origin TLS Status</Button>
-                <Button variant="outline" onClick={issueOriginTls} disabled={originTlsIssuing}>
-                  {originTlsIssuing ? "Issuing…" : "Issue / Renew Origin TLS"}
-                </Button>
-              </div>
-
-              {/* Inline test results */}
-              {cloudflareTestResult && (
-                <p className={`md:col-span-2 text-xs px-3 py-2 rounded border ${cloudflareTestResult.ok ? "text-green-700 bg-green-50 border-green-200" : "text-red-700 bg-red-50 border-red-200"}`}>
-                  {cloudflareTestResult.ok ? "✅" : "❌"} {cloudflareTestResult.message}
-                </p>
-              )}
-              {sslTestResult && (
-                <p className={`md:col-span-2 text-xs px-3 py-2 rounded border ${sslTestResult.ok ? "text-green-700 bg-green-50 border-green-200" : "text-red-700 bg-red-50 border-red-200"}`}>
-                  {sslTestResult.ok ? "✅" : "❌"} {sslTestResult.message}
-                </p>
-              )}
-              {originTlsResult && (
-                <p className={`md:col-span-2 text-xs px-3 py-2 rounded border ${originTlsResult.ok ? "text-green-700 bg-green-50 border-green-200" : "text-red-700 bg-red-50 border-red-200"}`}>
-                  {originTlsResult.ok ? "✅" : "❌"} {originTlsResult.message}
-                </p>
-              )}
-              {originTlsStatus && (
-                <div className="md:col-span-2 text-xs bg-slate-50 border rounded px-3 py-2 space-y-1">
-                  <p className="font-medium">Origin TLS Status</p>
-                  <p>Configured: {String(originTlsStatus.configured)} · Cert exists: {String(originTlsStatus.certFileExists)} · Key exists: {String(originTlsStatus.keyFileExists)}</p>
-                  <p>Days remaining: {originTlsStatus.daysRemaining ?? "—"} · Expires: {originTlsStatus.expiresAt ? new Date(originTlsStatus.expiresAt).toLocaleDateString() : "—"}</p>
-                  <p className="text-slate-500">{originTlsStatus.message}</p>
-                </div>
-              )}
-
-              {/* Zone picker */}
-              {zones.length > 0 && (
-                <div className="md:col-span-2 border rounded p-3">
-                  <p className="text-sm font-semibold mb-2">Available Cloudflare Zones — click to set Zone ID</p>
-                  <div className="space-y-1 max-h-40 overflow-auto">
-                    {zones.map((zone) => (
-                      <button
-                        key={zone.id}
-                        type="button"
-                        className={`w-full text-left text-xs border rounded px-2 py-1.5 hover:bg-blue-50 transition-colors ${domainsConfigForm.cloudflareZoneId === zone.id ? "bg-blue-50 border-blue-300 font-medium" : ""}`}
-                        onClick={() => setDomainsConfigForm((p) => ({ ...p, cloudflareZoneId: zone.id }))}
-                      >
-                        {zone.name} <span className="text-slate-400">({zone.id})</span>
-                        {domainsConfigForm.cloudflareZoneId === zone.id && <span className="ml-2 text-blue-600">✓ selected</span>}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Tenant subdomains */}
-          <Card>
-            <CardHeader><CardTitle>Tenant Subdomains</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-              {(data?.subdomains || []).map((row) => (
-                <div key={row.id} className="text-sm border rounded p-2">
-                  <p className="font-medium">{row.subdomain || "—"} · {row.name}</p>
-                  <p className="text-slate-500">{row.merchantName}</p>
-                </div>
-              ))}
-              {!loading && (data?.subdomains || []).length === 0 && <p className="text-sm text-slate-500">No subdomains found.</p>}
-            </CardContent>
-          </Card>
-
-          {/* Custom domains */}
-          <Card>
-            <CardHeader><CardTitle>Custom Domains</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-              {(data?.customDomains || []).map((row) => (
-                <div key={row.id} className="text-sm border rounded p-3">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="font-medium">{row.hostname}</p>
-                    <div className="flex gap-1.5 flex-wrap">
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${row.isVerified ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                        {row.isVerified ? "verified" : "unverified"}
-                      </span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${row.sslStatus === "active" ? "bg-green-100 text-green-700" : row.sslStatus === "failed" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
-                        ssl: {row.sslStatus}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-slate-400 text-xs mt-0.5">{row.merchantName} · {row.storeName} · dns: {row.dnsStatus}</p>
-                  {row.lastError && <p className="text-red-600 text-xs mt-1">{row.lastError}</p>}
-                </div>
-              ))}
-              {!loading && (data?.customDomains || []).length === 0 && <p className="text-sm text-slate-500">No custom domains found.</p>}
-            </CardContent>
-          </Card>
-        </>
+        <DomainsSetupWizard
+          data={data}
+          domainsConfigForm={domainsConfigForm}
+          setDomainsConfigForm={setDomainsConfigForm}
+          zones={zones}
+          setZones={setZones}
+          cloudflareTestResult={cloudflareTestResult}
+          setCloudflareTestResult={setCloudflareTestResult}
+          sslTestResult={sslTestResult}
+          setSslTestResult={setSslTestResult}
+          originTlsResult={originTlsResult}
+          setOriginTlsResult={setOriginTlsResult}
+          originTlsStatus={originTlsStatus}
+          setOriginTlsStatus={setOriginTlsStatus}
+          cfTesting={cfTesting}
+          setCfTesting={setCfTesting}
+          sslTesting={sslTesting}
+          setSslTesting={setSslTesting}
+          originTlsIssuing={originTlsIssuing}
+          setOriginTlsIssuing={setOriginTlsIssuing}
+          domainsSaving={domainsSaving}
+          loading={loading}
+          saveDomainsConfig={saveDomainsConfig}
+          testCloudflare={testCloudflare}
+          testSslProvider={testSslProvider}
+          startCloudflareOAuth={startCloudflareOAuth}
+          refreshOriginTlsStatus={refreshOriginTlsStatus}
+          issueOriginTls={issueOriginTls}
+          cfRuntime={cfRuntime}
+          leRuntime={leRuntime}
+        />
       ) : null}
 
-      {/* ── reports ──────────────────────────────────────────────────────────── */}
+            {/* ── reports ──────────────────────────────────────────────────────────── */}
       {moduleKey === "reports" ? (
         <>
           <Card>

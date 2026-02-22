@@ -643,3 +643,5 @@ Theme Runtime Isolation
 - Pending: Build isolated runtime packs for each remaining theme slug to guarantee fully unique UI per theme.
 - Developed: Isolated runtime packs added for electronics-mega-store, grocery-fastcart, and luxury-signature (full key storefront pages).
 - Pending: Continue per-theme isolated runtime implementation for remaining theme slugs.
+- Developed: Unified commerce flow (cart/checkout/login/page) reused across themes; isolated theme runtime retained for home/catalog/pdp.
+- Developed: Add-to-cart toast feedback added at storefront level.

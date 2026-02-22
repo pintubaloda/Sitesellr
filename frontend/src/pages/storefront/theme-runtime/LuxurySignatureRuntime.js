@@ -21,23 +21,6 @@ export default function LuxurySignatureRuntime({
   pdpMedia,
   pdpImage,
   setPdpImage,
-  page,
-  cart,
-  updateCartQty,
-  removeFromCart,
-  payableTotal,
-  checkoutForm,
-  setCheckoutForm,
-  indiaStates,
-  checkout,
-  checkoutMessage,
-  checkoutStatus,
-  authMode,
-  setAuthMode,
-  authForm,
-  setAuthForm,
-  customerAuthSubmit,
-  authState,
   themeAssetBase,
 }) {
   const heroImage = themeAssetBase ? `${themeAssetBase}/banner.jpg` : heroFallback;
@@ -140,83 +123,6 @@ export default function LuxurySignatureRuntime({
             <Link to={`/s/${subdomain}/checkout`} className="h-12 border flex items-center justify-center font-medium">Buy Now</Link>
           </div>
         </section>
-      </main>
-    );
-  }
-
-  if (mode === "cart") {
-    return (
-      <main className="max-w-6xl mx-auto px-4 py-10 grid lg:grid-cols-[1.3fr,0.9fr] gap-6">
-        <section className="border border-amber-200 bg-white p-6 space-y-3">
-          <h2 className="text-2xl font-light">Shopping Bag</h2>
-          {cart.map((item) => (
-            <div key={item.id} className="border border-amber-100 p-3 flex items-center justify-between">
-              <p>{item.title}</p>
-              <div className="flex items-center gap-2">
-                <button className="h-8 w-8 border" onClick={() => updateCartQty(item.id, item.quantity - 1)}>-</button>
-                <span>{item.quantity}</span>
-                <button className="h-8 w-8 border" onClick={() => updateCartQty(item.id, item.quantity + 1)}>+</button>
-                <button className="h-8 px-2 border text-red-600" onClick={() => removeFromCart(item.id)}>x</button>
-              </div>
-            </div>
-          ))}
-        </section>
-        <section className="border border-amber-200 bg-white p-6 h-fit">
-          <p className="text-sm text-slate-500">Total</p>
-          <p className="text-3xl font-semibold mt-1">{currencyText(payableTotal)}</p>
-          <Link to={`/s/${subdomain}/checkout`} className="mt-4 block text-center h-11 leading-[44px] text-black font-medium" style={{ backgroundColor: accent }}>Proceed</Link>
-        </section>
-      </main>
-    );
-  }
-
-  if (mode === "checkout") {
-    return (
-      <main className="max-w-4xl mx-auto px-4 py-10">
-        <section className="border border-amber-200 bg-white p-6 space-y-3">
-          <h2 className="text-2xl font-light">Checkout</h2>
-          <div className="grid md:grid-cols-2 gap-2">
-            <input className="h-10 border px-3" value={checkoutForm.name} onChange={(e) => setCheckoutForm((s) => ({ ...s, name: e.target.value }))} placeholder="Name" />
-            <input className="h-10 border px-3" value={checkoutForm.email} onChange={(e) => setCheckoutForm((s) => ({ ...s, email: e.target.value }))} placeholder="Email" />
-            <input className="h-10 border px-3" value={checkoutForm.phone} onChange={(e) => setCheckoutForm((s) => ({ ...s, phone: e.target.value }))} placeholder="Phone" />
-            <select className="h-10 border px-3" value={checkoutForm.state} onChange={(e) => setCheckoutForm((s) => ({ ...s, state: e.target.value }))}>
-              <option value="">State</option>
-              {indiaStates.map((x) => <option key={x} value={x}>{x}</option>)}
-            </select>
-            <input className="h-10 border px-3 md:col-span-2" value={checkoutForm.addressLine1} onChange={(e) => setCheckoutForm((s) => ({ ...s, addressLine1: e.target.value }))} placeholder="Address" />
-          </div>
-          <button onClick={checkout} className="h-11 px-5 text-black font-medium" style={{ backgroundColor: accent }}>Place Order</button>
-          {checkoutMessage ? <p className={`text-sm ${checkoutStatus === "error" ? "text-red-600" : checkoutStatus === "success" ? "text-emerald-600" : "text-amber-600"}`}>{checkoutMessage}</p> : null}
-        </section>
-      </main>
-    );
-  }
-
-  if (mode === "login") {
-    return (
-      <main className="max-w-md mx-auto px-4 py-12">
-        <section className="border border-amber-200 bg-white p-6 space-y-3">
-          <div className="flex gap-2">
-            <button className={`px-3 py-1.5 border ${authMode === "login" ? "bg-black text-white" : ""}`} onClick={() => setAuthMode("login")}>Login</button>
-            <button className={`px-3 py-1.5 border ${authMode === "register" ? "bg-black text-white" : ""}`} onClick={() => setAuthMode("register")}>Register</button>
-          </div>
-          {authMode === "register" ? <input className="h-10 border px-3 w-full" value={authForm.name} onChange={(e) => setAuthForm((s) => ({ ...s, name: e.target.value }))} placeholder="Name" /> : null}
-          <input className="h-10 border px-3 w-full" value={authForm.email} onChange={(e) => setAuthForm((s) => ({ ...s, email: e.target.value }))} placeholder="Email" />
-          <input className="h-10 border px-3 w-full" type="password" value={authForm.password} onChange={(e) => setAuthForm((s) => ({ ...s, password: e.target.value }))} placeholder="Password" />
-          <button onClick={customerAuthSubmit} className="h-11 w-full text-black font-medium" style={{ backgroundColor: accent }}>{authMode === "register" ? "Register" : "Login"}</button>
-          {authState?.message ? <p className="text-sm text-slate-600">{authState.message}</p> : null}
-        </section>
-      </main>
-    );
-  }
-
-  if (mode === "page") {
-    return (
-      <main className="max-w-5xl mx-auto px-4 py-10">
-        <article className="border border-amber-200 bg-white p-8">
-          <h1 className="text-3xl font-light mb-3">{page?.title || "Page"}</h1>
-          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: page?.content || "" }} />
-        </article>
       </main>
     );
   }

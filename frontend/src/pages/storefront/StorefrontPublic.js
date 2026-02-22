@@ -194,6 +194,7 @@ export default function StorefrontPublic() {
   const [pdpImage, setPdpImage] = useState(0);
   const [pdpSize, setPdpSize] = useState("");
   const [pdpColor, setPdpColor] = useState("");
+  const [cartToast, setCartToast] = useState("");
 
   const slug = useMemo(() => {
     const path = location.pathname.replace(`/s/${subdomain}`, "").replace(/^\//, "");
@@ -495,6 +496,8 @@ export default function StorefrontPublic() {
       next[idx] = { ...next[idx], quantity: next[idx].quantity + qty };
       return next;
     });
+    setCartToast("Added to cart");
+    window.setTimeout(() => setCartToast(""), 1800);
   };
 
   const resolveCategoryVariant = (variantsJson, categoryId) => {
@@ -803,7 +806,7 @@ export default function StorefrontPublic() {
   if (!data) return <div className="min-h-screen p-10">Loading storefront...</div>;
   const runtime = resolveThemeRuntime(data?.theme?.activeTheme);
   const RuntimeComponent = runtime.Component;
-  const useIsolatedRuntime = Boolean(RuntimeComponent) && ["home", "catalog", "pdp", "cart", "checkout", "login", "page"].includes(mode);
+  const useIsolatedRuntime = Boolean(RuntimeComponent) && ["home", "catalog", "pdp"].includes(mode);
 
   return (
     <div
@@ -849,6 +852,11 @@ export default function StorefrontPublic() {
           Preview Mode: browsing only. Orders, quotes, and cart checkout are disabled until this theme is active.
         </div>
       ) : null}
+      {cartToast ? (
+        <div className="fixed top-4 right-4 z-[60] rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-2 text-sm shadow">
+          {cartToast}
+        </div>
+      ) : null}
 
       {useIsolatedRuntime ? (
         <RuntimeComponent
@@ -887,40 +895,6 @@ export default function StorefrontPublic() {
           pdpColor={pdpColor}
           setPdpColor={setPdpColor}
           themeAssetBase={themeAssetBase}
-          page={page}
-          cart={cart}
-          cartCount={cartCount}
-          cartTotal={cartTotal}
-          updateCartQty={updateCartQty}
-          removeFromCart={removeFromCart}
-          coupon={coupon}
-          setCoupon={setCoupon}
-          configuredOfferCode={configuredOfferCode}
-          shippingAmount={shippingAmount}
-          discountAmount={discountAmount}
-          payableTotal={payableTotal}
-          checkoutForm={checkoutForm}
-          setCheckoutForm={setCheckoutForm}
-          indiaStates={indiaStates}
-          checkout={checkout}
-          checkoutStatus={checkoutStatus}
-          checkoutMessage={checkoutMessage}
-          checkoutAccount={checkoutAccount}
-          reservation={reservation}
-          authState={authState}
-          authMode={authMode}
-          setAuthMode={setAuthMode}
-          authForm={authForm}
-          setAuthForm={setAuthForm}
-          customerAuthSubmit={customerAuthSubmit}
-          securityForm={securityForm}
-          setSecurityForm={setSecurityForm}
-          verifyEmailOtp={verifyEmailOtp}
-          forgotPassword={forgotPassword}
-          resetPassword={resetPassword}
-          sessions={sessions}
-          loadSessions={loadSessions}
-          revokeSession={revokeSession}
         />
       ) : mode === "home" ? (
         <main className="max-w-7xl mx-auto px-4 py-8 space-y-10">

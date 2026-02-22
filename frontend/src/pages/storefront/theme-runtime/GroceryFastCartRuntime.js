@@ -21,23 +21,6 @@ export default function GroceryFastCartRuntime({
   pdpMedia,
   pdpImage,
   setPdpImage,
-  page,
-  cart,
-  updateCartQty,
-  removeFromCart,
-  payableTotal,
-  checkoutForm,
-  setCheckoutForm,
-  indiaStates,
-  checkout,
-  checkoutMessage,
-  checkoutStatus,
-  authMode,
-  setAuthMode,
-  authForm,
-  setAuthForm,
-  customerAuthSubmit,
-  authState,
   themeAssetBase,
 }) {
   const heroImage = themeAssetBase ? `${themeAssetBase}/banner.jpg` : heroFallback;
@@ -133,80 +116,6 @@ export default function GroceryFastCartRuntime({
             <Link to={`/s/${subdomain}/checkout`} className="h-11 rounded-lg border flex items-center justify-center font-medium">Buy Now</Link>
           </div>
         </section>
-      </main>
-    );
-  }
-
-  if (mode === "cart") {
-    return (
-      <main className="max-w-5xl mx-auto px-4 py-8 space-y-4">
-        <h2 className="text-2xl font-semibold">Basket</h2>
-        {cart.map((item) => (
-          <div key={item.id} className="rounded-xl border border-emerald-100 bg-white p-3 flex items-center justify-between">
-            <p className="font-medium">{item.title}</p>
-            <div className="flex items-center gap-2">
-              <button className="h-8 w-8 rounded border" onClick={() => updateCartQty(item.id, item.quantity - 1)}>-</button>
-              <span>{item.quantity}</span>
-              <button className="h-8 w-8 rounded border" onClick={() => updateCartQty(item.id, item.quantity + 1)}>+</button>
-              <button className="h-8 px-2 rounded border text-red-600" onClick={() => removeFromCart(item.id)}>x</button>
-            </div>
-          </div>
-        ))}
-        <div className="rounded-xl border border-emerald-100 bg-white p-4 flex items-center justify-between">
-          <p className="font-semibold">Total: {currencyText(payableTotal)}</p>
-          <Link to={`/s/${subdomain}/checkout`} className="h-10 px-4 rounded-lg text-white font-medium leading-[40px]" style={{ backgroundColor: primary }}>Checkout</Link>
-        </div>
-      </main>
-    );
-  }
-
-  if (mode === "checkout") {
-    return (
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        <section className="rounded-xl border border-emerald-100 bg-white p-5 space-y-3">
-          <h2 className="text-xl font-semibold">Fast Checkout</h2>
-          <div className="grid md:grid-cols-2 gap-2">
-            <input className="h-10 rounded-lg border px-3" value={checkoutForm.name} onChange={(e) => setCheckoutForm((s) => ({ ...s, name: e.target.value }))} placeholder="Name" />
-            <input className="h-10 rounded-lg border px-3" value={checkoutForm.email} onChange={(e) => setCheckoutForm((s) => ({ ...s, email: e.target.value }))} placeholder="Email" />
-            <input className="h-10 rounded-lg border px-3" value={checkoutForm.phone} onChange={(e) => setCheckoutForm((s) => ({ ...s, phone: e.target.value }))} placeholder="Phone" />
-            <select className="h-10 rounded-lg border px-3" value={checkoutForm.state} onChange={(e) => setCheckoutForm((s) => ({ ...s, state: e.target.value }))}>
-              <option value="">State</option>
-              {indiaStates.map((x) => <option key={x} value={x}>{x}</option>)}
-            </select>
-            <input className="h-10 rounded-lg border px-3 md:col-span-2" value={checkoutForm.addressLine1} onChange={(e) => setCheckoutForm((s) => ({ ...s, addressLine1: e.target.value }))} placeholder="Address" />
-          </div>
-          <button onClick={checkout} className="h-11 px-5 rounded-lg text-white font-medium" style={{ backgroundColor: primary }}>Place Order</button>
-          {checkoutMessage ? <p className={`text-sm ${checkoutStatus === "error" ? "text-red-600" : checkoutStatus === "success" ? "text-emerald-600" : "text-amber-600"}`}>{checkoutMessage}</p> : null}
-        </section>
-      </main>
-    );
-  }
-
-  if (mode === "login") {
-    return (
-      <main className="max-w-lg mx-auto px-4 py-10">
-        <section className="rounded-xl border border-emerald-100 bg-white p-5 space-y-3">
-          <div className="flex gap-2">
-            <button className={`px-3 py-1.5 rounded border ${authMode === "login" ? "bg-emerald-700 text-white border-emerald-700" : ""}`} onClick={() => setAuthMode("login")}>Login</button>
-            <button className={`px-3 py-1.5 rounded border ${authMode === "register" ? "bg-emerald-700 text-white border-emerald-700" : ""}`} onClick={() => setAuthMode("register")}>Register</button>
-          </div>
-          {authMode === "register" ? <input className="h-10 rounded-lg border px-3 w-full" value={authForm.name} onChange={(e) => setAuthForm((s) => ({ ...s, name: e.target.value }))} placeholder="Name" /> : null}
-          <input className="h-10 rounded-lg border px-3 w-full" value={authForm.email} onChange={(e) => setAuthForm((s) => ({ ...s, email: e.target.value }))} placeholder="Email" />
-          <input className="h-10 rounded-lg border px-3 w-full" type="password" value={authForm.password} onChange={(e) => setAuthForm((s) => ({ ...s, password: e.target.value }))} placeholder="Password" />
-          <button onClick={customerAuthSubmit} className="h-11 px-5 rounded-lg text-white font-medium" style={{ backgroundColor: primary }}>{authMode === "register" ? "Register" : "Login"}</button>
-          {authState?.message ? <p className="text-sm text-slate-600">{authState.message}</p> : null}
-        </section>
-      </main>
-    );
-  }
-
-  if (mode === "page") {
-    return (
-      <main className="max-w-5xl mx-auto px-4 py-10">
-        <article className="rounded-xl border border-emerald-100 bg-white p-8">
-          <h1 className="text-3xl font-semibold mb-3">{page?.title || "Page"}</h1>
-          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: page?.content || "" }} />
-        </article>
       </main>
     );
   }

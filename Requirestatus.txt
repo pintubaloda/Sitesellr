@@ -1090,3 +1090,10 @@ Update 2026-02-22 (Additional isolated runtime packs)
 - Developed: Added isolated runtime pack for Luxury Signature (`luxury-signature`) with dedicated Home/Catalog/PDP/Cart/Checkout/Login/Page renderers.
 - Developed: Theme runtime resolver now dispatches these slugs to their own component runtime files instead of shared UI path.
 - Pending: Remaining catalog themes still on shared renderer; continue adding runtime packs per slug for full marketplace-wide uniqueness.
+
+Update 2026-02-22 (Theme shell isolation + shared commerce core cleanup)
+- Developed: Reverted runtime isolation scope to theme shell pages only (`home`, `catalog`, `pdp`) and moved `cart/checkout/login/page` back to shared common flow across all themes.
+- Developed: Added top-right success toast when Add to Cart is clicked (`Added to cart`).
+- Developed: Removed duplicated per-theme cart/checkout/auth/page implementations from isolated runtime packs to keep codebase clean and reduce drift.
+- Developed: Kept theme-level identity via isolated Home/Catalog/PDP plus shared checkout core that inherits theme token color/font.
+- Note: No DB schema change required for this refactor; existing theme/runtime data model remains valid.

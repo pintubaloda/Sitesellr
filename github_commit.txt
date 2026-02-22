@@ -1118,3 +1118,17 @@ Files:
 - github_commit.txt
 Notes:
 - These theme slugs now render dedicated page layouts across home/catalog/pdp/cart/checkout/login/page.
+
+[Pending push] 2026-02-22 - clean runtime architecture (theme shell + shared commerce core)
+Files:
+- frontend/src/pages/storefront/StorefrontPublic.js
+- frontend/src/pages/storefront/theme-runtime/KuzmaFashionRuntime.js
+- frontend/src/pages/storefront/theme-runtime/ElectronicsRuntime.js
+- frontend/src/pages/storefront/theme-runtime/GroceryFastCartRuntime.js
+- frontend/src/pages/storefront/theme-runtime/LuxurySignatureRuntime.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Theme-specific rendering kept for home/catalog/pdp only.
+- Shared cart/checkout/login/page reused for all themes.
+- Added top-right add-to-cart toast.

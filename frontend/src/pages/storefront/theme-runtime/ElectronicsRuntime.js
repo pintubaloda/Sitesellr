@@ -22,26 +22,6 @@ export default function ElectronicsRuntime({
   pdpMedia,
   pdpImage,
   setPdpImage,
-  page,
-  cart,
-  updateCartQty,
-  removeFromCart,
-  payableTotal,
-  cartTotal,
-  shippingAmount,
-  discountAmount,
-  checkoutForm,
-  setCheckoutForm,
-  indiaStates,
-  checkout,
-  checkoutMessage,
-  checkoutStatus,
-  authMode,
-  setAuthMode,
-  authForm,
-  setAuthForm,
-  customerAuthSubmit,
-  authState,
   themeAssetBase,
 }) {
   const heroImage = themeAssetBase ? `${themeAssetBase}/banner.jpg` : heroFallback;
@@ -143,88 +123,6 @@ export default function ElectronicsRuntime({
             <Link to={`/s/${subdomain}/checkout`} className="h-11 rounded-lg border flex items-center justify-center font-medium">Buy Now</Link>
           </div>
         </section>
-      </main>
-    );
-  }
-
-  if (mode === "cart") {
-    return (
-      <main className="max-w-7xl mx-auto px-4 py-8 grid lg:grid-cols-[1.3fr,0.9fr] gap-5">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 space-y-3">
-          <h2 className="text-xl font-semibold">Tech Cart</h2>
-          {cart.map((item) => (
-            <div key={item.id} className="rounded-lg border p-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="font-medium">{item.title}</p>
-                <p className="text-sm text-slate-500">{currencyText(item.price)}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="h-8 w-8 rounded border" onClick={() => updateCartQty(item.id, item.quantity - 1)}>-</button>
-                <span>{item.quantity}</span>
-                <button className="h-8 w-8 rounded border" onClick={() => updateCartQty(item.id, item.quantity + 1)}>+</button>
-                <button className="h-8 px-2 rounded border text-red-600" onClick={() => removeFromCart(item.id)}>x</button>
-              </div>
-            </div>
-          ))}
-        </section>
-        <section className="rounded-xl border border-slate-200 bg-white p-5 h-fit">
-          <p className="flex justify-between text-sm"><span>Subtotal</span><span>{currencyText(cartTotal)}</span></p>
-          <p className="flex justify-between text-sm"><span>Discount</span><span>- {currencyText(discountAmount)}</span></p>
-          <p className="flex justify-between text-sm"><span>Shipping</span><span>{currencyText(shippingAmount)}</span></p>
-          <p className="flex justify-between text-lg font-semibold border-t mt-2 pt-2"><span>Total</span><span>{currencyText(payableTotal)}</span></p>
-          <Link to={`/s/${subdomain}/checkout`} className="mt-3 block text-center h-11 rounded-lg text-white font-medium leading-[44px]" style={{ backgroundColor: primary }}>Checkout</Link>
-        </section>
-      </main>
-    );
-  }
-
-  if (mode === "checkout") {
-    return (
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 space-y-3">
-          <h2 className="text-xl font-semibold">Checkout</h2>
-          <div className="grid md:grid-cols-2 gap-3">
-            <input className="h-10 rounded-lg border px-3" value={checkoutForm.name} onChange={(e) => setCheckoutForm((s) => ({ ...s, name: e.target.value }))} placeholder="Full name" />
-            <input className="h-10 rounded-lg border px-3" value={checkoutForm.email} onChange={(e) => setCheckoutForm((s) => ({ ...s, email: e.target.value }))} placeholder="Email" />
-            <input className="h-10 rounded-lg border px-3" value={checkoutForm.phone} onChange={(e) => setCheckoutForm((s) => ({ ...s, phone: e.target.value }))} placeholder="Phone" />
-            <select className="h-10 rounded-lg border px-3" value={checkoutForm.state} onChange={(e) => setCheckoutForm((s) => ({ ...s, state: e.target.value }))}>
-              <option value="">State</option>
-              {indiaStates.map((x) => <option key={x} value={x}>{x}</option>)}
-            </select>
-            <input className="h-10 rounded-lg border px-3 md:col-span-2" value={checkoutForm.addressLine1} onChange={(e) => setCheckoutForm((s) => ({ ...s, addressLine1: e.target.value }))} placeholder="Address line 1" />
-          </div>
-          <button onClick={checkout} className="h-11 px-5 rounded-lg text-white font-medium" style={{ backgroundColor: primary }}>Place Order</button>
-          {checkoutMessage ? <p className={`text-sm ${checkoutStatus === "error" ? "text-red-600" : checkoutStatus === "success" ? "text-emerald-600" : "text-amber-600"}`}>{checkoutMessage}</p> : null}
-        </section>
-      </main>
-    );
-  }
-
-  if (mode === "login") {
-    return (
-      <main className="max-w-xl mx-auto px-4 py-10">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 space-y-3">
-          <div className="flex gap-2">
-            <button className={`px-3 py-1.5 rounded border ${authMode === "login" ? "bg-slate-900 text-white" : ""}`} onClick={() => setAuthMode("login")}>Login</button>
-            <button className={`px-3 py-1.5 rounded border ${authMode === "register" ? "bg-slate-900 text-white" : ""}`} onClick={() => setAuthMode("register")}>Register</button>
-          </div>
-          {authMode === "register" ? <input className="h-10 rounded-lg border px-3 w-full" value={authForm.name} onChange={(e) => setAuthForm((s) => ({ ...s, name: e.target.value }))} placeholder="Name" /> : null}
-          <input className="h-10 rounded-lg border px-3 w-full" value={authForm.email} onChange={(e) => setAuthForm((s) => ({ ...s, email: e.target.value }))} placeholder="Email" />
-          <input className="h-10 rounded-lg border px-3 w-full" type="password" value={authForm.password} onChange={(e) => setAuthForm((s) => ({ ...s, password: e.target.value }))} placeholder="Password" />
-          <button onClick={customerAuthSubmit} className="h-11 px-5 rounded-lg text-white font-medium" style={{ backgroundColor: primary }}>{authMode === "register" ? "Register" : "Login"}</button>
-          {authState?.message ? <p className="text-sm text-slate-600">{authState.message}</p> : null}
-        </section>
-      </main>
-    );
-  }
-
-  if (mode === "page") {
-    return (
-      <main className="max-w-5xl mx-auto px-4 py-10">
-        <article className="rounded-xl border border-slate-200 bg-white p-8">
-          <h1 className="text-3xl font-semibold mb-3">{page?.title || "Page"}</h1>
-          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: page?.content || "" }} />
-        </article>
       </main>
     );
   }

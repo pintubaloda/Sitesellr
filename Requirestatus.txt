@@ -1054,3 +1054,9 @@ Update 2026-02-21 (Storefront refinement: footer cleanup + store categories + pa
 - Developed: Featured category cards now render only real categories from the current store.
 - Developed: Checkout payment methods now render dynamically from store theme settings (`catalogVisibilityJson.availablePaymentModes` / `paymentModes`) with safe fallback.
 - Developed: Offer banner text, CTA text, coupon code, and discount percent now read from store theme settings (`catalogVisibilityJson`).
+
+Update 2026-02-22 (External template onboarding: Kuzma Fashion)
+- Developed: Pulled external template source from `https://github.com/Kuzma02/Fashion-eCommerce-Shop-in-React` and prepared import-ready Sitesellr theme package.
+- Developed: Added local theme package at `theme-imports/kuzma-fashion-pro/` with `theme.manifest.json` + `assets/*` mapped to platform theme contract.
+- Developed: Generated upload-ready archive `theme-imports/kuzma-fashion-pro.zip` for Platform Owner theme import.
+- Developed: Added usage guide `theme-imports/kuzma-fashion-pro/README_IMPORT.md` including store-owner offer and payment-mode config JSON.

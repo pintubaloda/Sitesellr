@@ -1046,3 +1046,15 @@ Notes:
 - Removed footer/bottom checkout section.
 - Storefront categories now stay store-scoped in default navigation and category blocks.
 - Checkout shows only configured payment modes; offer/coupon behavior now store-config driven.
+
+[Pending push] 2026-02-22 - add import-ready Kuzma Fashion theme package
+Files:
+- theme-imports/kuzma-fashion-pro/theme.manifest.json
+- theme-imports/kuzma-fashion-pro/README_IMPORT.md
+- theme-imports/kuzma-fashion-pro/assets/*
+- theme-imports/kuzma-fashion-pro.zip
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- External GitHub template converted into Sitesellr theme-import contract format.
+- Package is ready for Platform Owner upload from `/admin/platform-themes`.

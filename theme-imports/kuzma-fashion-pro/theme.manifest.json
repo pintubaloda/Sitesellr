@@ -1,0 +1,22 @@
+{
+  "name": "Kuzma Fashion Pro",
+  "slug": "kuzma-fashion-pro",
+  "category": "Fashion / Apparel",
+  "description": "Modern fashion ecommerce theme imported from Kuzma React storefront and adapted for Sitesellr.",
+  "previewUrl": "",
+  "isPaid": false,
+  "price": 0,
+  "allowedPlanCodesCsv": "",
+  "isActive": true,
+  "isFeatured": true,
+  "featuredRank": 8,
+  "typographyPack": "modern-sans",
+  "layoutVariant": "default",
+  "runtimePackageJson": "{\"heroStyle\":\"default\",\"cardStyle\":\"rounded\",\"plpDensity\":\"comfortable\",\"pdpLayout\":\"split\"}",
+  "templatesJson": "[\"homepage\",\"product_listing\",\"product_detail\",\"cart\",\"static_page\",\"checkout\"]",
+  "sectionSchemasJson": "[{\"name\":\"HeroSection\",\"fields\":[{\"key\":\"title\",\"type\":\"text\"},{\"key\":\"subtitle\",\"type\":\"text\"},{\"key\":\"backgroundImage\",\"type\":\"image\"},{\"key\":\"buttonText\",\"type\":\"text\"},{\"key\":\"buttonUrl\",\"type\":\"url\"}]},{\"name\":\"ProductGridSection\",\"fields\":[{\"key\":\"title\",\"type\":\"text\"},{\"key\":\"collection\",\"type\":\"collection\"}]},{\"name\":\"OfferBannerSection\",\"fields\":[{\"key\":\"title\",\"type\":\"text\"},{\"key\":\"offerCode\",\"type\":\"text\"}]}]",
+  "hookPointsJson": "[\"BeforePrice\",\"AfterPrice\",\"BeforeAddToCart\",\"AfterDescription\"]",
+  "themeVersion": "1.0.0",
+  "plpVariantsJson": "[{\"category\":\"default\",\"variant\":\"fashion-grid\"}]",
+  "pdpVariantsJson": "[{\"category\":\"default\",\"variant\":\"fashion-detail\"}]"
+}

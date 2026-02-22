@@ -624,3 +624,7 @@ Update 2026-02-21 (Storefront operational controls)
 - Added store-owner controlled offer and payment-mode behavior through storefront theme settings (`catalogVisibilityJson`).
 - Enforced store-scoped category rendering in storefront fallback navigation/featured sections.
 - Removed footer-level checkout strip to keep checkout CTA only in flow pages.
+
+Update 2026-02-22 (Theme import pipeline usage)
+- Added real external fashion template package for platform import workflow testing and go-live onboarding.
+- Theme package follows mandatory manifest + assets structure and can be imported directly by Platform Owner.

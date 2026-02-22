@@ -456,6 +456,147 @@ public class PublicStorefrontController : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("{subdomain}/customer/account-summary")]
+    public async Task<IActionResult> CustomerAccountSummary(string subdomain, CancellationToken ct)
+    {
+        var resolved = await ResolveAuthenticatedCustomerForSubdomainAsync(subdomain, ct);
+        if (resolved.Store == null) return NotFound(new { error = "store_not_found" });
+        if (!resolved.CustomerId.HasValue) return Unauthorized(new { error = "not_authenticated" });
+
+        var customer = await _db.Customers.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.StoreId == resolved.Store.Id && x.Id == resolved.CustomerId.Value, ct);
+        if (customer == null) return Unauthorized(new { error = "not_authenticated" });
+
+        var addresses = await _db.CustomerAddresses.AsNoTracking()
+            .Where(x => x.CustomerId == customer.Id)
+            .OrderByDescending(x => x.IsDefault)
+            .ThenByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
+
+        var orders = await _db.Orders.AsNoTracking()
+            .Where(x => x.StoreId == resolved.Store.Id && x.CustomerId == customer.Id)
+            .Include(x => x.Items)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(50)
+            .ToListAsync(ct);
+
+        return Ok(new
+        {
+            customer = new
+            {
+                customer.Id,
+                customer.Name,
+                customer.Email,
+                customer.Phone,
+                customer.CreatedAt
+            },
+            summary = new
+            {
+                orders = orders.Count,
+                delivered = orders.Count(x => x.Status == Models.OrderStatus.Delivered),
+                refunds = orders.Count(x => x.Status == Models.OrderStatus.Refunded),
+                wishlist = 0
+            },
+            addresses = addresses.Select(x => new
+            {
+                x.Id,
+                x.Label,
+                x.Line1,
+                x.Line2,
+                x.City,
+                x.State,
+                x.PostalCode,
+                x.Country,
+                x.IsDefault
+            }).ToList(),
+            orders = orders.Select(x => new
+            {
+                x.Id,
+                x.Status,
+                x.PaymentStatus,
+                x.Total,
+                x.Currency,
+                x.CreatedAt,
+                x.UpdatedAt,
+                ItemCount = x.Items.Count,
+                PrimaryItem = x.Items.OrderByDescending(i => i.Total).Select(i => i.Title).FirstOrDefault() ?? "Order",
+                Items = x.Items.Select(i => new
+                {
+                    i.Id,
+                    i.Title,
+                    i.SKU,
+                    i.Quantity,
+                    i.Price,
+                    i.Total
+                }).ToList()
+            }).ToList()
+        });
+    }
+
+    [HttpPost("{subdomain}/customer/orders/{orderId:guid}/refund-request")]
+    public async Task<IActionResult> SubmitCustomerRefundRequest(string subdomain, Guid orderId, [FromBody] CustomerRefundRequest req, CancellationToken ct)
+    {
+        var resolved = await ResolveAuthenticatedCustomerForSubdomainAsync(subdomain, ct);
+        if (resolved.Store == null) return NotFound(new { error = "store_not_found" });
+        if (!resolved.CustomerId.HasValue) return Unauthorized(new { error = "not_authenticated" });
+
+        var order = await _db.Orders.FirstOrDefaultAsync(
+            x => x.StoreId == resolved.Store.Id && x.Id == orderId && x.CustomerId == resolved.CustomerId.Value,
+            ct);
+        if (order == null) return NotFound(new { error = "order_not_found" });
+
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        if (order.Status != Models.OrderStatus.Refunded && order.Status != Models.OrderStatus.Cancelled)
+        {
+            order.Notes = "refund_request_pending";
+        }
+
+        _db.AuditLogs.Add(new Models.AuditLog
+        {
+            MerchantId = resolved.Store.MerchantId,
+            StoreId = resolved.Store.Id,
+            ActorUserId = null,
+            Action = "customer.refund_request.created",
+            EntityType = "Order",
+            EntityId = order.Id.ToString(),
+            Details = $"reason={req.Reason.Trim()};message={req.Message?.Trim()};customer={resolved.CustomerId}",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { submitted = true, orderId = order.Id, status = order.Status.ToString() });
+    }
+
+    [HttpPost("{subdomain}/customer/support-ticket")]
+    public async Task<IActionResult> SubmitCustomerSupportTicket(string subdomain, [FromBody] CustomerSupportTicketRequest req, CancellationToken ct)
+    {
+        var resolved = await ResolveAuthenticatedCustomerForSubdomainAsync(subdomain, ct);
+        if (resolved.Store == null) return NotFound(new { error = "store_not_found" });
+        if (!resolved.CustomerId.HasValue) return Unauthorized(new { error = "not_authenticated" });
+
+        if (req.OrderId.HasValue)
+        {
+            var validOrder = await _db.Orders.AsNoTracking().AnyAsync(
+                x => x.StoreId == resolved.Store.Id && x.Id == req.OrderId.Value && x.CustomerId == resolved.CustomerId.Value,
+                ct);
+            if (!validOrder) return BadRequest(new { error = "invalid_order_id" });
+        }
+
+        _db.AuditLogs.Add(new Models.AuditLog
+        {
+            MerchantId = resolved.Store.MerchantId,
+            StoreId = resolved.Store.Id,
+            ActorUserId = null,
+            Action = "customer.support_ticket.created",
+            EntityType = req.OrderId.HasValue ? "Order" : "Customer",
+            EntityId = req.OrderId?.ToString() ?? resolved.CustomerId.Value.ToString(),
+            Details = $"subject={req.Subject.Trim()};message={req.Message.Trim()};email={req.Email?.Trim()};customer={resolved.CustomerId}",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { submitted = true });
+    }
+
     [HttpPost("{subdomain}/quote-inquiries")]
     public async Task<IActionResult> CreateQuoteInquiry(string subdomain, [FromBody] QuoteInquiryCreateRequest req, [FromQuery] Guid? previewThemeId, [FromQuery] Guid? storeId, CancellationToken ct)
     {
@@ -833,6 +974,15 @@ public class PublicStorefrontController : ControllerBase
         return session?.CustomerId;
     }
 
+    private async Task<(Models.Store? Store, Guid? CustomerId)> ResolveAuthenticatedCustomerForSubdomainAsync(string subdomain, CancellationToken ct)
+    {
+        var normalizedSubdomain = subdomain.Trim().ToLowerInvariant();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(x => x.Subdomain == normalizedSubdomain, ct);
+        if (store == null) return (null, null);
+        var customerId = await ResolveCurrentCustomerSessionAsync(store.Id, ct);
+        return (store, customerId);
+    }
+
     private static bool IsPreviewReadOnly(Guid? previewThemeId, Guid? storeId)
     {
         return previewThemeId.HasValue || storeId.HasValue;
@@ -944,6 +1094,25 @@ public class CustomerMfaVerifyRequest
     public Guid CustomerId { get; set; }
     [Required, StringLength(6, MinimumLength = 4)]
     public string Otp { get; set; } = string.Empty;
+}
+
+public class CustomerRefundRequest
+{
+    [Required, StringLength(120, MinimumLength = 3)]
+    public string Reason { get; set; } = string.Empty;
+    [StringLength(1200)]
+    public string? Message { get; set; }
+}
+
+public class CustomerSupportTicketRequest
+{
+    public Guid? OrderId { get; set; }
+    [Required, StringLength(160, MinimumLength = 3)]
+    public string Subject { get; set; } = string.Empty;
+    [Required, StringLength(2000, MinimumLength = 8)]
+    public string Message { get; set; } = string.Empty;
+    [EmailAddress, StringLength(320)]
+    public string? Email { get; set; }
 }
 
 public class StockReservationRequest

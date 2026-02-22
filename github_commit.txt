@@ -1132,3 +1132,14 @@ Notes:
 - Theme-specific rendering kept for home/catalog/pdp only.
 - Shared cart/checkout/login/page reused for all themes.
 - Added top-right add-to-cart toast.
+
+[Pending push] 2026-02-22 - add common customer account module with theme-matched UI + backend APIs
+Files:
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- frontend/src/pages/storefront/StorefrontPublic.js
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Added customer account summary/refund/ticket endpoints using customer session cookie auth.
+- Added `/s/{subdomain}/account` common account UI for all stores with theme color/font/header/footer matching.

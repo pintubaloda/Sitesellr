@@ -645,3 +645,26 @@ Theme Runtime Isolation
 - Pending: Continue per-theme isolated runtime implementation for remaining theme slugs.
 - Developed: Unified commerce flow (cart/checkout/login/page) reused across themes; isolated theme runtime retained for home/catalog/pdp.
 - Developed: Add-to-cart toast feedback added at storefront level.
+
+Update 2026-02-22 (Store Customer Module - Common Across All Stores)
+- Developed:
+  - Common customer account module implemented for all stores (single shared flow).
+  - Storefront account route added: `/s/{subdomain}/account`.
+  - Account UI follows active store theme tokens (primary color + font), and uses existing theme header/footer.
+  - Customer account sections added:
+    - Dashboard summary cards (orders, delivered, refunds, wishlist placeholder)
+    - Orders list + order details
+    - Tracking timeline
+    - Refund request form
+    - Support ticket form
+    - Saved addresses
+- Developed backend APIs for customer account operations:
+  - `GET /api/public/storefront/{subdomain}/customer/account-summary`
+  - `POST /api/public/storefront/{subdomain}/customer/orders/{orderId}/refund-request`
+  - `POST /api/public/storefront/{subdomain}/customer/support-ticket`
+- Security:
+  - APIs are cookie-session authenticated (`sf_customer_session`) and store-scoped.
+  - Refund/ticket actions are recorded in audit logs.
+- Architecture:
+  - This module is shared/common across themes (no per-theme duplication).
+  - Existing isolated theme runtime remains for Home/Catalog/PDP only.

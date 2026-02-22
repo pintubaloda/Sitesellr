@@ -1097,3 +1097,16 @@ Update 2026-02-22 (Theme shell isolation + shared commerce core cleanup)
 - Developed: Removed duplicated per-theme cart/checkout/auth/page implementations from isolated runtime packs to keep codebase clean and reduce drift.
 - Developed: Kept theme-level identity via isolated Home/Catalog/PDP plus shared checkout core that inherits theme token color/font.
 - Note: No DB schema change required for this refactor; existing theme/runtime data model remains valid.
+
+Update 2026-02-22 (Common customer account module + theme-matched storefront account)
+- Developed: Added shared customer account APIs on public storefront backend:
+  - `GET /api/public/storefront/{subdomain}/customer/account-summary`
+  - `POST /api/public/storefront/{subdomain}/customer/orders/{orderId}/refund-request`
+  - `POST /api/public/storefront/{subdomain}/customer/support-ticket`
+- Developed: Account APIs are session-authenticated via existing `sf_customer_session` cookie and strictly store-scoped.
+- Developed: Account summary now returns customer profile, addresses, order list, and summary counters for dashboard cards.
+- Developed: Refund and support-ticket submissions are persisted through audit-log entries for operator follow-up.
+- Developed: Added shared storefront customer-account UI (`/s/{subdomain}/account`) common for all stores while inheriting active theme font/color/header/footer.
+- Developed: Added account actions in UI: order detail view, tracking timeline, refund request form, support ticket form, and saved addresses panel.
+- Developed: Added header `My Account` CTA for authenticated customer sessions.
+- Note: Account module is common across themes; theme-specific runtime remains on Home/Catalog/PDP while account uses shared commerce UI with theme tokens.

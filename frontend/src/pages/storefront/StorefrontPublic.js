@@ -191,6 +191,13 @@ export default function StorefrontPublic() {
   const [authState, setAuthState] = useState({ loading: true, authenticated: false, customer: null, message: "" });
   const [securityForm, setSecurityForm] = useState({ email: "", otp: "", token: "", newPassword: "" });
   const [sessions, setSessions] = useState([]);
+  const [accountData, setAccountData] = useState(null);
+  const [accountLoading, setAccountLoading] = useState(false);
+  const [accountError, setAccountError] = useState("");
+  const [accountMessage, setAccountMessage] = useState("");
+  const [accountSelectedOrderId, setAccountSelectedOrderId] = useState("");
+  const [refundForm, setRefundForm] = useState({ reason: "", message: "" });
+  const [ticketForm, setTicketForm] = useState({ subject: "", message: "" });
   const [pdpImage, setPdpImage] = useState(0);
   const [pdpSize, setPdpSize] = useState("");
   const [pdpColor, setPdpColor] = useState("");
@@ -218,8 +225,10 @@ export default function StorefrontPublic() {
         ? "cart"
         : slug === "checkout"
           ? "checkout"
-          : slug === "login"
+        : slug === "login"
             ? "login"
+            : slugParts[0] === "account"
+              ? "account"
             : slugParts[0] === "products" && slugParts[1]
               ? "pdp"
               : "page";
@@ -281,6 +290,31 @@ export default function StorefrontPublic() {
     };
     run();
   }, [subdomain]);
+
+  useEffect(() => {
+    if (mode !== "account" || !authState.authenticated) {
+      setAccountData(null);
+      setAccountError("");
+      return;
+    }
+    const run = async () => {
+      setAccountLoading(true);
+      try {
+        const res = await api.get(`/public/storefront/${subdomain}/customer/account-summary`, { withCredentials: true });
+        const payload = res.data || {};
+        setAccountData(payload);
+        const firstOrderId = payload?.orders?.[0]?.id || "";
+        setAccountSelectedOrderId((prev) => prev || firstOrderId);
+        setAccountError("");
+      } catch (err) {
+        setAccountError(err?.response?.data?.error || "Could not load account.");
+        setAccountData(null);
+      } finally {
+        setAccountLoading(false);
+      }
+    };
+    run();
+  }, [mode, authState.authenticated, subdomain]);
 
   const menu = parseJsonArray(data?.navigation?.itemsJson);
   const sections = parseJsonArray(data?.homepage?.sectionsJson);
@@ -778,6 +812,8 @@ export default function StorefrontPublic() {
   };
 
   const pdp = mode === "pdp" ? (data?.products || []).find((x) => x.id === slugParts[1]) : null;
+  const accountOrders = Array.isArray(accountData?.orders) ? accountData.orders : [];
+  const selectedAccountOrder = accountOrders.find((x) => x.id === accountSelectedOrderId) || accountOrders[0] || null;
   const tokens = (() => {
     try {
       return JSON.parse(data?.theme?.designTokensJson || "{}");
@@ -794,6 +830,48 @@ export default function StorefrontPublic() {
   const pdpVariantRows = pdp && Array.isArray(pdp.variants) ? pdp.variants : [];
   const pdpSizes = Array.from(new Set(pdpVariantRows.map((v) => String(parseAttributes(v.attributesJson).size || parseAttributes(v.attributesJson).Size || "").trim()).filter(Boolean)));
   const pdpColors = Array.from(new Set(pdpVariantRows.map((v) => String(parseAttributes(v.attributesJson).color || parseAttributes(v.attributesJson).Color || "").trim()).filter(Boolean)));
+
+  const submitRefundRequest = async () => {
+    if (!selectedAccountOrder?.id) return;
+    if (!refundForm.reason.trim()) {
+      setAccountMessage("Please select refund reason.");
+      return;
+    }
+    try {
+      await api.post(
+        `/public/storefront/${subdomain}/customer/orders/${selectedAccountOrder.id}/refund-request`,
+        { reason: refundForm.reason.trim(), message: refundForm.message.trim() },
+        { withCredentials: true }
+      );
+      setAccountMessage("Refund request submitted.");
+      setRefundForm({ reason: "", message: "" });
+    } catch (err) {
+      setAccountMessage(err?.response?.data?.error || "Could not submit refund request.");
+    }
+  };
+
+  const submitSupportTicket = async () => {
+    if (!ticketForm.subject.trim() || !ticketForm.message.trim()) {
+      setAccountMessage("Subject and message are required.");
+      return;
+    }
+    try {
+      await api.post(
+        `/public/storefront/${subdomain}/customer/support-ticket`,
+        {
+          orderId: selectedAccountOrder?.id || null,
+          subject: ticketForm.subject.trim(),
+          message: ticketForm.message.trim(),
+          email: accountData?.customer?.email || authForm.email || null,
+        },
+        { withCredentials: true }
+      );
+      setAccountMessage("Support ticket submitted.");
+      setTicketForm({ subject: "", message: "" });
+    } catch (err) {
+      setAccountMessage(err?.response?.data?.error || "Could not submit support ticket.");
+    }
+  };
 
   useEffect(() => {
     if (!pdp) return;
@@ -838,7 +916,10 @@ export default function StorefrontPublic() {
           </nav>
           <div className="flex items-center gap-2">
             {authState.authenticated ? (
-              <button type="button" onClick={customerLogout} className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">Logout</button>
+              <>
+                <Link to={`/s/${subdomain}/account`} className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">My Account</Link>
+                <button type="button" onClick={customerLogout} className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">Logout</button>
+              </>
             ) : (
               <Link to={`/s/${subdomain}/login`} className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">Login</Link>
             )}
@@ -1444,6 +1525,36 @@ export default function StorefrontPublic() {
             </div>
           </div>
         </main>
+      ) : mode === "account" ? (
+        <main className="max-w-7xl mx-auto px-4 py-8">
+          {!authState.authenticated ? (
+            <div className="rounded-2xl border bg-white p-6">
+              <p className="text-lg font-semibold">Please login to view your account.</p>
+              <p className="text-sm text-slate-600 mt-1">Use your store customer account to track orders, refunds, and support tickets.</p>
+              <Link to={`/s/${subdomain}/login`} className="inline-flex mt-4 px-4 py-2 rounded-lg text-white" style={{ backgroundColor: primary }}>
+                Go to Login
+              </Link>
+            </div>
+          ) : accountLoading ? (
+            <div className="rounded-2xl border bg-white p-6">Loading account...</div>
+          ) : accountError ? (
+            <div className="rounded-2xl border bg-white p-6 text-rose-600">{accountError}</div>
+          ) : (
+            <CustomerAccountView
+              primary={primary}
+              accountData={accountData}
+              selectedOrder={selectedAccountOrder}
+              setSelectedOrderId={setAccountSelectedOrderId}
+              refundForm={refundForm}
+              setRefundForm={setRefundForm}
+              ticketForm={ticketForm}
+              setTicketForm={setTicketForm}
+              submitRefundRequest={submitRefundRequest}
+              submitSupportTicket={submitSupportTicket}
+              accountMessage={accountMessage}
+            />
+          )}
+        </main>
       ) : (
         <main className="max-w-3xl mx-auto px-4 py-8">
           <h2 className="text-2xl font-bold mb-4">{page?.title}</h2>
@@ -1482,4 +1593,191 @@ export default function StorefrontPublic() {
       </footer>
     </div>
   );
+}
+
+function CustomerAccountView({
+  primary,
+  accountData,
+  selectedOrder,
+  setSelectedOrderId,
+  refundForm,
+  setRefundForm,
+  ticketForm,
+  setTicketForm,
+  submitRefundRequest,
+  submitSupportTicket,
+  accountMessage,
+}) {
+  const summary = accountData?.summary || {};
+  const orders = Array.isArray(accountData?.orders) ? accountData.orders : [];
+  const addresses = Array.isArray(accountData?.addresses) ? accountData.addresses : [];
+  const customer = accountData?.customer || {};
+  const timeline = buildOrderTimeline(selectedOrder?.status);
+
+  return (
+    <div className="grid lg:grid-cols-[300px,1fr] gap-6">
+      <aside className="rounded-2xl border bg-white p-5 h-fit">
+        <p className="text-xl font-semibold">My Account</p>
+        <p className="text-sm text-slate-600 mt-1">{customer.email || "Customer"}</p>
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <InfoStat label="Orders" value={summary.orders || 0} />
+          <InfoStat label="Delivered" value={summary.delivered || 0} />
+          <InfoStat label="Refunds" value={summary.refunds || 0} />
+          <InfoStat label="Wishlist" value={summary.wishlist || 0} />
+        </div>
+        <div className="mt-5 space-y-2">
+          {orders.map((order) => (
+            <button
+              key={order.id}
+              type="button"
+              onClick={() => setSelectedOrderId(order.id)}
+              className={`w-full text-left rounded-lg border px-3 py-2 ${selectedOrder?.id === order.id ? "border-slate-900 bg-slate-50" : "border-slate-200"}`}
+            >
+              <p className="text-sm font-semibold truncate">{order.primaryItem}</p>
+              <p className="text-xs text-slate-500 mt-1">{order.id}</p>
+            </button>
+          ))}
+          {orders.length === 0 ? <p className="text-sm text-slate-500">No orders found yet.</p> : null}
+        </div>
+      </aside>
+
+      <section className="space-y-6">
+        <div className="rounded-2xl border bg-white p-5">
+          <p className="text-xl font-semibold">Order Details</p>
+          {selectedOrder ? (
+            <div className="mt-4 space-y-4">
+              <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-slate-500">Order ID</p>
+                  <p className="font-semibold">{selectedOrder.id}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Placed On</p>
+                  <p className="font-semibold">{new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Status</p>
+                  <p className="font-semibold">{String(selectedOrder.status || "").toLowerCase()}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Total</p>
+                  <p className="font-semibold">{currencyText(selectedOrder.total, selectedOrder.currency)}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold mb-2">Items</p>
+                <div className="space-y-2">
+                  {(selectedOrder.items || []).map((item) => (
+                    <div key={item.id} className="rounded-lg border px-3 py-2 text-sm flex items-center justify-between gap-2">
+                      <span className="truncate">{item.title} × {item.quantity}</span>
+                      <span className="font-medium">{currencyText(item.total, selectedOrder.currency)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold mb-2">Tracking Timeline</p>
+                <div className="grid sm:grid-cols-4 gap-2 text-xs">
+                  {timeline.map((step) => (
+                    <div key={step.label} className={`rounded-lg border px-2 py-2 ${step.done ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 text-slate-500"}`}>
+                      {step.done ? "✓ " : "• "}{step.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500 mt-3">Select an order from left panel.</p>
+          )}
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          <div className="rounded-2xl border bg-white p-5">
+            <p className="text-lg font-semibold">Refund Request</p>
+            <select
+              className="w-full h-10 border rounded-lg px-3 mt-3 text-sm"
+              value={refundForm.reason}
+              onChange={(e) => setRefundForm((prev) => ({ ...prev, reason: e.target.value }))}
+            >
+              <option value="">Select reason</option>
+              <option value="Damaged item">Damaged item</option>
+              <option value="Wrong item">Wrong item</option>
+              <option value="Quality issue">Quality issue</option>
+              <option value="Late delivery">Late delivery</option>
+            </select>
+            <textarea
+              className="w-full mt-3 border rounded-lg p-3 text-sm h-24"
+              placeholder="Add details (optional)"
+              value={refundForm.message}
+              onChange={(e) => setRefundForm((prev) => ({ ...prev, message: e.target.value }))}
+            />
+            <button type="button" className="mt-3 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: primary }} onClick={submitRefundRequest}>
+              Submit Refund Request
+            </button>
+          </div>
+
+          <div className="rounded-2xl border bg-white p-5">
+            <p className="text-lg font-semibold">Support Ticket</p>
+            <input
+              className="w-full h-10 border rounded-lg px-3 mt-3 text-sm"
+              placeholder="Subject"
+              value={ticketForm.subject}
+              onChange={(e) => setTicketForm((prev) => ({ ...prev, subject: e.target.value }))}
+            />
+            <textarea
+              className="w-full mt-3 border rounded-lg p-3 text-sm h-24"
+              placeholder="Describe your issue"
+              value={ticketForm.message}
+              onChange={(e) => setTicketForm((prev) => ({ ...prev, message: e.target.value }))}
+            />
+            <button type="button" className="mt-3 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: primary }} onClick={submitSupportTicket}>
+              Raise Ticket
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-5">
+          <p className="text-lg font-semibold">Saved Addresses</p>
+          <div className="grid sm:grid-cols-2 gap-3 mt-3">
+            {addresses.map((addr) => (
+              <div key={addr.id} className="rounded-lg border px-3 py-3 text-sm">
+                <p className="font-semibold">{addr.label}{addr.isDefault ? " • Default" : ""}</p>
+                <p className="text-slate-600 mt-1">
+                  {addr.line1}{addr.line2 ? `, ${addr.line2}` : ""}, {addr.city}, {addr.state} {addr.postalCode}
+                </p>
+              </div>
+            ))}
+            {addresses.length === 0 ? <p className="text-sm text-slate-500">No saved addresses.</p> : null}
+          </div>
+        </div>
+        {accountMessage ? <p className="text-sm text-slate-600">{accountMessage}</p> : null}
+      </section>
+    </div>
+  );
+}
+
+function InfoStat({ label, value }) {
+  return (
+    <div className="rounded-lg border bg-slate-50 px-3 py-2">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="text-base font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function buildOrderTimeline(status) {
+  const normalized = String(status || "").toLowerCase();
+  const indexByStatus = {
+    pending: 0,
+    paid: 1,
+    shipped: 2,
+    delivered: 3,
+    cancelled: 1,
+    refunded: 3,
+  };
+  const doneIndex = indexByStatus[normalized] ?? 0;
+  const labels = ["Order Confirmed", "Payment", "Shipped", "Delivered"];
+  return labels.map((label, idx) => ({ label, done: idx <= doneIndex }));
 }

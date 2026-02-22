@@ -1035,3 +1035,14 @@ Files:
 Notes:
 - Added richer public product payload (media, stock, variants, compare-at, status, createdAt).
 - Implemented premium fashion-style storefront flow with modern PLP filters, PDP gallery/selectors, and upgraded cart/checkout UX.
+
+[Pending push] 2026-02-21 - storefront category/payment/offer refinement
+Files:
+- frontend/src/pages/storefront/StorefrontPublic.js
+- frontend/src/pages/admin/StoreBuilder.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Removed footer/bottom checkout section.
+- Storefront categories now stay store-scoped in default navigation and category blocks.
+- Checkout shows only configured payment modes; offer/coupon behavior now store-config driven.

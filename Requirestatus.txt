@@ -1047,3 +1047,10 @@ Update 2026-02-21 (Premium storefront theme redesign + fashion flow)
 - Developed (PDP): Real media gallery (images/video), thumbnail rail, rating/badge display, size/color variant selectors, trust blocks, and stronger action zone.
 - Developed (Cart/Checkout): Modern cart summary with coupon + shipping method selector, upgraded checkout stepper UI, payment method cards, and clearer order economics (subtotal/shipping/discount/payable).
 - Developed (Backend support): Public storefront product payload now includes compare-at price, stock, media list, variant attribute payload, status, and created date for richer theme rendering.
+
+Update 2026-02-21 (Storefront refinement: footer cleanup + store categories + payment mode availability)
+- Developed: Removed floating bottom checkout strip and footer checkout link from storefront so checkout CTA no longer appears in footer area.
+- Developed: Header fallback menu now uses only current store categories (store-scoped) instead of static Men/Women/Kids defaults.
+- Developed: Featured category cards now render only real categories from the current store.
+- Developed: Checkout payment methods now render dynamically from store theme settings (`catalogVisibilityJson.availablePaymentModes` / `paymentModes`) with safe fallback.
+- Developed: Offer banner text, CTA text, coupon code, and discount percent now read from store theme settings (`catalogVisibilityJson`).

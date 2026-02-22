@@ -1323,6 +1323,11 @@ export const StoreBuilder = () => {
               <div className="space-y-2">
                 <Label>Catalog Visibility JSON</Label>
                 <Textarea rows={2} value={themeSettings.catalogVisibilityJson} onChange={(e) => setThemeSettings((s) => ({ ...s, catalogVisibilityJson: e.target.value }))} />
+                <p className="text-xs text-slate-500">
+                  Manage storefront offer + payment modes here. Example:
+                  {" "}
+                  <code>{'{"offerBannerText":"Flat 15% off today","offerCode":"WELCOME15","offerPercent":15,"availablePaymentModes":["cod","upi"]}'}</code>
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Quote Alert Email</Label>

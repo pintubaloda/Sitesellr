@@ -619,3 +619,8 @@ Update 2026-02-21 (Storefront System execution)
   - Product detail: gallery, variants, trust sections, buy flow.
   - Cart & checkout: modern summary, coupon, shipping method, payment selection.
 - Backend storefront data contract upgraded to support theme-grade rendering requirements (media/variant/stock/compare-at/status metadata).
+
+Update 2026-02-21 (Storefront operational controls)
+- Added store-owner controlled offer and payment-mode behavior through storefront theme settings (`catalogVisibilityJson`).
+- Enforced store-scoped category rendering in storefront fallback navigation/featured sections.
+- Removed footer-level checkout strip to keep checkout CTA only in flow pages.

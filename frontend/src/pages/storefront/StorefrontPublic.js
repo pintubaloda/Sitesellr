@@ -241,6 +241,10 @@ export default function StorefrontPublic() {
   const menu = parseJsonArray(data?.navigation?.itemsJson);
   const sections = parseJsonArray(data?.homepage?.sectionsJson);
   const categories = Array.isArray(data?.categories) ? data.categories : [];
+  const categoryNameById = useMemo(
+    () => new Map(categories.map((c) => [String(c.id), c.name])),
+    [categories]
+  );
   const showPricing = !!data?.theme?.showPricing;
   const wholesaleMode = ["wholesale", "hybrid"].includes((data?.theme?.catalogMode || "retail").toLowerCase());
   const device = /Mobi|Android|iPhone/i.test(navigator.userAgent)
@@ -250,15 +254,49 @@ export default function StorefrontPublic() {
       : "desktop";
   const customerType = (new URLSearchParams(location.search).get("customerType") || "retail").toLowerCase();
   const isLoggedIn = (new URLSearchParams(location.search).get("loggedIn") || "false").toLowerCase() === "true";
+  const queryCategoryId = new URLSearchParams(location.search).get("category");
   let defaultMoq = 10;
   let packSize = 1;
+  let visibilityConfig = {};
   try {
     const cfg = JSON.parse(data?.theme?.catalogVisibilityJson || "{}");
-    if (Number(cfg.defaultMoq) > 0) defaultMoq = Number(cfg.defaultMoq);
-    if (Number(cfg.packSize) > 0) packSize = Number(cfg.packSize);
+    if (cfg && typeof cfg === "object" && !Array.isArray(cfg)) visibilityConfig = cfg;
+    if (Number(cfg?.defaultMoq) > 0) defaultMoq = Number(cfg.defaultMoq);
+    if (Number(cfg?.packSize) > 0) packSize = Number(cfg.packSize);
   } catch {
-    // ignore invalid config
+    visibilityConfig = {};
   }
+  const configuredOfferCode = String(visibilityConfig.offerCode || "WELCOME10").trim();
+  const configuredOfferPercent = Number(visibilityConfig.offerPercent || 10);
+  const offerBannerText = String(
+    visibilityConfig.offerBannerText ||
+    visibilityConfig.promoText ||
+    "Up to 40% off + free shipping above INR 999"
+  ).trim();
+  const offerCtaText = String(visibilityConfig.offerCtaText || "Grab Offer").trim();
+  const paymentModesRaw = Array.isArray(visibilityConfig.availablePaymentModes)
+    ? visibilityConfig.availablePaymentModes
+    : Array.isArray(visibilityConfig.paymentModes)
+      ? visibilityConfig.paymentModes
+      : ["cod", "upi", "card"];
+  const availablePaymentModeList = paymentModesRaw
+    .map((x) => String(x || "").trim().toLowerCase())
+    .filter((x) => ["cod", "upi", "card"].includes(x));
+  const availablePaymentModes = availablePaymentModeList.length > 0 ? availablePaymentModeList : ["cod", "upi", "card"];
+
+  useEffect(() => {
+    if (!queryCategoryId) return;
+    if (categories.some((c) => String(c.id) === String(queryCategoryId))) {
+      setCategoryId(String(queryCategoryId));
+    }
+  }, [queryCategoryId, categories]);
+
+  useEffect(() => {
+    if (availablePaymentModes.includes(checkoutForm.paymentMethod)) return;
+    const [firstMode] = availablePaymentModes;
+    if (!firstMode) return;
+    setCheckoutForm((prev) => ({ ...prev, paymentMethod: firstMode }));
+  }, [checkoutForm.paymentMethod, availablePaymentModes]);
   const products = Array.isArray(data?.products) ? data.products : [];
   const priceCeiling = useMemo(() => {
     const maxPrice = products.reduce((max, p) => Math.max(max, Number(p?.price || 0)), 0);
@@ -282,7 +320,7 @@ export default function StorefrontPublic() {
         if (size) sizeSet.add(size);
         if (color) colorSet.add(color);
       });
-      const brand = String(p?.categoryName || "").trim();
+      const brand = String(categoryNameById.get(String(p?.categoryId || "")) || p?.categoryName || "").trim();
       if (brand) brandSet.add(brand);
     });
     const sizeList = Array.from(sizeSet);
@@ -292,7 +330,7 @@ export default function StorefrontPublic() {
     if (colorList.length === 0) ["Black", "White", "Blue", "Olive", "Brown"].forEach((c) => colorList.push(c));
     if (brandList.length === 0) categories.slice(0, 6).forEach((c) => brandList.push(c.name));
     return { sizeList, colorList, brandList };
-  }, [products, categories]);
+  }, [products, categories, categoryNameById]);
 
   const searchedProducts = useMemo(() => {
     const visible = products
@@ -308,7 +346,8 @@ export default function StorefrontPublic() {
       })
       .filter((p) => {
         if (selectedBrand === "all") return true;
-        return String(p?.categoryName || "").toLowerCase() === selectedBrand.toLowerCase();
+        const brand = String(categoryNameById.get(String(p?.categoryId || "")) || p?.categoryName || "").toLowerCase();
+        return brand === selectedBrand.toLowerCase();
       })
       .filter((p) => {
         if (selectedSize === "all" && selectedColor === "all") return true;
@@ -340,19 +379,25 @@ export default function StorefrontPublic() {
     sortBy,
     slug,
     products,
+    categoryNameById,
   ]);
 
-  const defaultMenu = [
-    { label: "Men", path: "/products" },
-    { label: "Women", path: "/products" },
-    { label: "Kids", path: "/products" },
-    { label: "Collections", path: "/collections" },
-    { label: "Sale", path: "/sale" },
-  ];
+  const defaultMenu = categories.length > 0
+    ? [
+        ...categories.slice(0, 5).map((cat) => ({ label: cat.name, path: `/products?category=${encodeURIComponent(cat.id)}` })),
+        { label: "Sale", path: "/sale" },
+      ]
+    : [
+        { label: "Shop", path: "/products" },
+        { label: "Sale", path: "/sale" },
+      ];
   const navItems = menu.length ? menu : defaultMenu;
   const cartCount = cart.reduce((n, i) => n + i.quantity, 0);
   const cartTotal = cart.reduce((n, i) => n + (Number(i.price || 0) * i.quantity), 0);
-  const discountAmount = coupon.trim().toLowerCase() === "welcome10" ? Math.round(cartTotal * 0.1) : 0;
+  const normalizedConfiguredOfferCode = configuredOfferCode.toLowerCase();
+  const discountAmount = normalizedConfiguredOfferCode && coupon.trim().toLowerCase() === normalizedConfiguredOfferCode
+    ? Math.round(cartTotal * (configuredOfferPercent / 100))
+    : 0;
   const shippingAmount = shippingMethod === "express" ? 149 : 0;
   const payableTotal = Math.max(0, cartTotal + shippingAmount - discountAmount);
   const cartKey = useMemo(
@@ -712,30 +757,32 @@ export default function StorefrontPublic() {
             </div>
           </section>
 
-          <section>
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h2 className="text-2xl font-semibold tracking-tight">Featured Categories</h2>
-              <Link to={`/s/${subdomain}/products`} className="text-sm font-medium underline">See all</Link>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {(categories.length ? categories : [{ id: "men", name: "Men" }, { id: "women", name: "Women" }, { id: "kids", name: "Kids" }, { id: "accessories", name: "Accessories" }]).slice(0, 4).map((cat, idx) => (
-                <Link
-                  key={cat.id}
-                  to={`/s/${subdomain}/products`}
-                  className="group relative rounded-2xl overflow-hidden h-44 border border-slate-200"
-                >
-                  <img src={fallbackCategoryImages[idx % fallbackCategoryImages.length]} alt={cat.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-transparent" />
-                  <p className="absolute left-4 bottom-4 text-white text-lg font-semibold">{cat.name}</p>
-                </Link>
-              ))}
-            </div>
-          </section>
+          {categories.length > 0 ? (
+            <section>
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h2 className="text-2xl font-semibold tracking-tight">Featured Categories</h2>
+                <Link to={`/s/${subdomain}/products`} className="text-sm font-medium underline">See all</Link>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {categories.slice(0, 4).map((cat, idx) => (
+                  <Link
+                    key={cat.id}
+                    to={`/s/${subdomain}/products?category=${encodeURIComponent(cat.id)}`}
+                    className="group relative rounded-2xl overflow-hidden h-44 border border-slate-200"
+                  >
+                    <img src={fallbackCategoryImages[idx % fallbackCategoryImages.length]} alt={cat.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-transparent" />
+                    <p className="absolute left-4 bottom-4 text-white text-lg font-semibold">{cat.name}</p>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <section className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="font-medium">Up to 40% off + free shipping above INR 999</p>
+            <p className="font-medium">{offerBannerText}</p>
             <Link to={`/s/${subdomain}/sale`} className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: primary }}>
-              Grab Offer
+              {offerCtaText}
             </Link>
           </section>
 
@@ -756,6 +803,7 @@ export default function StorefrontPublic() {
                       <span className="text-amber-500">★ {productRating(p.id)}</span>
                     </div>
                     <Link to={`/s/${subdomain}/products/${p.id}`} className="font-medium line-clamp-1 hover:text-slate-700">{p.title}</Link>
+                    <p className="text-xs text-slate-500 mt-1">{categoryNameById.get(String(p.categoryId || "")) || "General"}</p>
                     <p className="text-sm mt-1 font-semibold">{showPricing ? currencyText(p.price, p.currency) : "Login to view price"}</p>
                     <div className="mt-3 flex items-center gap-2">
                       <button className="flex-1 px-3 py-2 rounded-lg border text-sm hover:bg-slate-50" onClick={() => addToCart(p, wholesaleMode ? defaultMoq : 1)}>Quick Add</button>
@@ -862,6 +910,7 @@ export default function StorefrontPublic() {
                         <span className="text-sm text-amber-500">★ {productRating(p.id)}</span>
                       </div>
                       <Link to={`/s/${subdomain}/products/${p.id}`} className="block text-lg font-semibold mt-2 hover:text-slate-700">{p.title}</Link>
+                      <p className="text-xs text-slate-500 mt-1">{categoryNameById.get(String(p.categoryId || "")) || "General"}</p>
                       <p className="text-sm text-slate-500 line-clamp-2 mt-1">{p.description}</p>
                       <div className="mt-3 flex items-center gap-2">
                         <p className="font-semibold">{showPricing ? currencyText(p.price, p.currency) : "Login to view price"}</p>
@@ -994,7 +1043,12 @@ export default function StorefrontPublic() {
                   <div className="pt-3 border-t flex items-center justify-between text-base font-semibold"><span>Total</span><span>{currencyText(payableTotal)}</span></div>
                 </div>
                 <div className="mt-4">
-                  <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Coupon code (WELCOME10)" className="w-full h-10 border rounded-lg px-3 text-sm" />
+                  <input
+                    value={coupon}
+                    onChange={(e) => setCoupon(e.target.value)}
+                    placeholder={configuredOfferCode ? `Coupon code (${configuredOfferCode})` : "Coupon code"}
+                    className="w-full h-10 border rounded-lg px-3 text-sm"
+                  />
                 </div>
                 <div className="mt-4 space-y-2 text-sm">
                   <label className="flex items-center justify-between border rounded-lg px-3 py-2"><span>Standard shipping</span><input type="radio" checked={shippingMethod === "standard"} onChange={() => setShippingMethod("standard")} /></label>
@@ -1072,19 +1126,21 @@ export default function StorefrontPublic() {
 
               <p className="text-lg font-semibold pt-2">Payment Method</p>
               <div className="space-y-2">
-                <label className={`rounded-lg border p-3 flex items-center justify-between cursor-pointer ${checkoutForm.paymentMethod === "upi" ? "border-slate-900 bg-slate-50" : ""}`}>
-                  <span>UPI</span>
-                  <input type="radio" checked={checkoutForm.paymentMethod === "upi"} onChange={() => setCheckoutForm((s) => ({ ...s, paymentMethod: "upi" }))} />
-                </label>
-                <label className={`rounded-lg border p-3 flex items-center justify-between cursor-pointer ${checkoutForm.paymentMethod === "card" ? "border-slate-900 bg-slate-50" : ""}`}>
-                  <span>Card</span>
-                  <input type="radio" checked={checkoutForm.paymentMethod === "card"} onChange={() => setCheckoutForm((s) => ({ ...s, paymentMethod: "card" }))} />
-                </label>
-                <label className={`rounded-lg border p-3 flex items-center justify-between cursor-pointer ${checkoutForm.paymentMethod === "cod" ? "border-slate-900 bg-slate-50" : ""}`}>
-                  <span>Cash on Delivery</span>
-                  <input type="radio" checked={checkoutForm.paymentMethod === "cod"} onChange={() => setCheckoutForm((s) => ({ ...s, paymentMethod: "cod" }))} />
-                </label>
+                {availablePaymentModes.map((modeKey) => {
+                  const label = modeKey === "upi" ? "UPI" : modeKey === "card" ? "Card" : "Cash on Delivery";
+                  return (
+                    <label key={modeKey} className={`rounded-lg border p-3 flex items-center justify-between cursor-pointer ${checkoutForm.paymentMethod === modeKey ? "border-slate-900 bg-slate-50" : ""}`}>
+                      <span>{label}</span>
+                      <input
+                        type="radio"
+                        checked={checkoutForm.paymentMethod === modeKey}
+                        onChange={() => setCheckoutForm((s) => ({ ...s, paymentMethod: modeKey }))}
+                      />
+                    </label>
+                  );
+                })}
               </div>
+              <p className="text-xs text-slate-500">Available modes are controlled by store owner settings.</p>
 
               {reservation.message ? <p className="text-sm text-slate-600">{reservation.message}</p> : null}
               {checkoutMessage ? (
@@ -1132,7 +1188,12 @@ export default function StorefrontPublic() {
                 </div>
               </div>
               <div className="mt-4">
-                <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Coupon code" className="w-full h-10 border rounded-lg px-3 text-sm" />
+                <input
+                  value={coupon}
+                  onChange={(e) => setCoupon(e.target.value)}
+                  placeholder={configuredOfferCode ? `Coupon code (${configuredOfferCode})` : "Coupon code"}
+                  className="w-full h-10 border rounded-lg px-3 text-sm"
+                />
               </div>
               <button className="mt-4 w-full px-5 py-3 rounded-lg text-white font-medium" style={{ backgroundColor: primary }} onClick={checkout}>Place order</button>
               <p className="mt-3 text-xs text-slate-500 text-center">Secure checkout • SSL encrypted</p>
@@ -1195,14 +1256,6 @@ export default function StorefrontPublic() {
           <div className="prose prose-slate max-w-none whitespace-pre-wrap">{page?.content}</div>
         </main>
       )}
-      {cartCount > 0 && mode !== "cart" && mode !== "checkout" ? (
-        <div className="fixed bottom-0 left-0 right-0 border-t bg-white/95 backdrop-blur z-40">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-            <p className="text-sm font-medium">{cartCount} item(s) · INR {cartTotal.toLocaleString()}</p>
-            <Link className="px-4 py-2 rounded-md text-white text-sm" style={{ backgroundColor: primary }} to={`/s/${subdomain}/checkout`}>Checkout</Link>
-          </div>
-        </div>
-      ) : null}
       <footer className="border-t bg-slate-950 text-slate-200 mt-16">
         <div className="max-w-7xl mx-auto px-4 py-10 grid md:grid-cols-4 gap-8 text-sm">
           <div>
@@ -1214,7 +1267,6 @@ export default function StorefrontPublic() {
             <div className="mt-3 space-y-2">
               <Link to={`/s/${subdomain}`} className="block hover:text-white">Home</Link>
               <Link to={`/s/${subdomain}/cart`} className="block hover:text-white">Cart</Link>
-              <Link to={`/s/${subdomain}/checkout`} className="block hover:text-white">Checkout</Link>
             </div>
           </div>
           <div>

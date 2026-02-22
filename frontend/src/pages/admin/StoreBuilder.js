@@ -75,6 +75,16 @@ const parseJsonArray = (value, fallback) => {
   }
 };
 
+const parseJsonObject = (value, fallback = {}) => {
+  if (!value) return fallback;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 const cloneDeep = (value) => JSON.parse(JSON.stringify(value));
 const newNodeId = () => `node_${Math.random().toString(36).slice(2, 10)}`;
 const newMenuId = () => `menu_${Math.random().toString(36).slice(2, 10)}`;
@@ -303,6 +313,33 @@ export const StoreBuilder = () => {
   }, [themes, themeCategoryFilter, themeSearch]);
   const selectedNode = useMemo(() => findNodeByIdInTree(sections, selectedNodeId), [sections, selectedNodeId]);
   const historyFrames = useMemo(() => [...pastSections, sections], [pastSections, sections]);
+  const headerConfig = useMemo(
+    () => parseJsonObject(themeSettings.headerJson, { announcementText: "", showSearch: true, showWishlist: true }),
+    [themeSettings.headerJson]
+  );
+  const footerConfig = useMemo(
+    () => parseJsonObject(themeSettings.footerJson, { aboutText: "", newsletterTitle: "Newsletter", showNewsletter: true }),
+    [themeSettings.footerJson]
+  );
+  const bannerConfig = useMemo(
+    () => parseJsonObject(themeSettings.bannerJson, { image: "", mobileImage: "", heading: "", subheading: "", ctaText: "", ctaUrl: "" }),
+    [themeSettings.bannerJson]
+  );
+  const designTokenConfig = useMemo(
+    () => parseJsonObject(themeSettings.designTokensJson, { primaryColor: "#2563eb", accentColor: "#0f172a", surfaceColor: "#f8fafc", radius: "12px", typographyPack: "modern-sans" }),
+    [themeSettings.designTokensJson]
+  );
+  const catalogConfig = useMemo(
+    () => parseJsonObject(themeSettings.catalogVisibilityJson, { offerBannerText: "", offerCtaText: "", offerCode: "", offerPercent: 10, availablePaymentModes: ["cod", "upi", "card"], defaultMoq: 10, packSize: 1 }),
+    [themeSettings.catalogVisibilityJson]
+  );
+
+  const updateThemeJsonSetting = (field, patch) => {
+    setThemeSettings((prev) => {
+      const existing = parseJsonObject(prev[field], {});
+      return { ...prev, [field]: JSON.stringify({ ...existing, ...patch }, null, 2) };
+    });
+  };
 
   useEffect(() => {
     if (!isTimelinePlaying) return undefined;
@@ -1301,33 +1338,227 @@ export const StoreBuilder = () => {
                 <Input type="file" accept="image/*" onChange={(e) => uploadMedia(e, "favicon")} />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>Header JSON</Label>
-                <Textarea rows={3} value={themeSettings.headerJson} onChange={(e) => setThemeSettings((s) => ({ ...s, headerJson: e.target.value }))} />
+                <Label>Header Announcement Text</Label>
+                <Input
+                  value={headerConfig.announcementText || ""}
+                  onChange={(e) => updateThemeJsonSetting("headerJson", { announcementText: e.target.value })}
+                  placeholder="Trusted Shipping • Easy Returns • Secure Shopping"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="showHeaderSearch"
+                  type="checkbox"
+                  checked={headerConfig.showSearch !== false}
+                  onChange={(e) => updateThemeJsonSetting("headerJson", { showSearch: e.target.checked })}
+                />
+                <Label htmlFor="showHeaderSearch">Show search box in header</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="showHeaderWishlist"
+                  type="checkbox"
+                  checked={headerConfig.showWishlist !== false}
+                  onChange={(e) => updateThemeJsonSetting("headerJson", { showWishlist: e.target.checked })}
+                />
+                <Label htmlFor="showHeaderWishlist">Show wishlist icon in header</Label>
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>Footer JSON</Label>
-                <Textarea rows={3} value={themeSettings.footerJson} onChange={(e) => setThemeSettings((s) => ({ ...s, footerJson: e.target.value }))} />
+                <Label>Footer About Text</Label>
+                <Input
+                  value={footerConfig.aboutText || ""}
+                  onChange={(e) => updateThemeJsonSetting("footerJson", { aboutText: e.target.value })}
+                  placeholder="Professional commerce storefront with retail + wholesale support."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Footer Newsletter Title</Label>
+                <Input
+                  value={footerConfig.newsletterTitle || ""}
+                  onChange={(e) => updateThemeJsonSetting("footerJson", { newsletterTitle: e.target.value })}
+                  placeholder="Newsletter"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="showNewsletter"
+                  type="checkbox"
+                  checked={footerConfig.showNewsletter !== false}
+                  onChange={(e) => updateThemeJsonSetting("footerJson", { showNewsletter: e.target.checked })}
+                />
+                <Label htmlFor="showNewsletter">Show newsletter section in footer</Label>
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>Banner JSON</Label>
-                <Textarea rows={3} value={themeSettings.bannerJson} onChange={(e) => setThemeSettings((s) => ({ ...s, bannerJson: e.target.value }))} />
+                <Label>Homepage Banner Desktop URL</Label>
+                <Input
+                  value={bannerConfig.image || ""}
+                  onChange={(e) => updateThemeJsonSetting("bannerJson", { image: e.target.value, desktop: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Homepage Banner Mobile URL</Label>
+                <Input
+                  value={bannerConfig.mobileImage || ""}
+                  onChange={(e) => updateThemeJsonSetting("bannerJson", { mobileImage: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Banner Headline</Label>
+                <Input
+                  value={bannerConfig.heading || ""}
+                  onChange={(e) => updateThemeJsonSetting("bannerJson", { heading: e.target.value })}
+                  placeholder="Simple is more."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Banner CTA Text</Label>
+                <Input
+                  value={bannerConfig.ctaText || ""}
+                  onChange={(e) => updateThemeJsonSetting("bannerJson", { ctaText: e.target.value })}
+                  placeholder="Shop Now"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Banner CTA URL</Label>
+                <Input
+                  value={bannerConfig.ctaUrl || ""}
+                  onChange={(e) => updateThemeJsonSetting("bannerJson", { ctaUrl: e.target.value })}
+                  placeholder="/products"
+                />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>Design Tokens JSON</Label>
-                <Textarea rows={3} value={themeSettings.designTokensJson} onChange={(e) => setThemeSettings((s) => ({ ...s, designTokensJson: e.target.value }))} />
+                <Label>Primary Color</Label>
+                <Input
+                  value={designTokenConfig.primaryColor || ""}
+                  onChange={(e) => updateThemeJsonSetting("designTokensJson", { primaryColor: e.target.value })}
+                  placeholder="#2563eb"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Accent Color</Label>
+                <Input
+                  value={designTokenConfig.accentColor || ""}
+                  onChange={(e) => updateThemeJsonSetting("designTokensJson", { accentColor: e.target.value })}
+                  placeholder="#0f172a"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Surface Color</Label>
+                <Input
+                  value={designTokenConfig.surfaceColor || ""}
+                  onChange={(e) => updateThemeJsonSetting("designTokensJson", { surfaceColor: e.target.value })}
+                  placeholder="#f8fafc"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Radius</Label>
+                <Input
+                  value={designTokenConfig.radius || ""}
+                  onChange={(e) => updateThemeJsonSetting("designTokensJson", { radius: e.target.value })}
+                  placeholder="12px"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Typography Pack</Label>
+                <select
+                  className="h-10 rounded-md border px-2 bg-transparent w-full"
+                  value={designTokenConfig.typographyPack || "modern-sans"}
+                  onChange={(e) => updateThemeJsonSetting("designTokensJson", { typographyPack: e.target.value })}
+                >
+                  <option value="modern-sans">Modern Sans</option>
+                  <option value="merchant-serif">Merchant Serif</option>
+                  <option value="luxury-display">Luxury Display</option>
+                </select>
               </div>
               <div className="space-y-2">
                 <Label>Catalog Mode</Label>
-                <Input value={themeSettings.catalogMode} onChange={(e) => setThemeSettings((s) => ({ ...s, catalogMode: e.target.value }))} placeholder="retail|wholesale|hybrid" />
+                <select
+                  className="h-10 rounded-md border px-2 bg-transparent w-full"
+                  value={themeSettings.catalogMode}
+                  onChange={(e) => setThemeSettings((s) => ({ ...s, catalogMode: e.target.value }))}
+                >
+                  <option value="retail">Retail</option>
+                  <option value="wholesale">Wholesale</option>
+                  <option value="hybrid">Hybrid</option>
+                </select>
               </div>
               <div className="space-y-2">
-                <Label>Catalog Visibility JSON</Label>
-                <Textarea rows={2} value={themeSettings.catalogVisibilityJson} onChange={(e) => setThemeSettings((s) => ({ ...s, catalogVisibilityJson: e.target.value }))} />
-                <p className="text-xs text-slate-500">
-                  Manage storefront offer + payment modes here. Example:
-                  {" "}
-                  <code>{'{"offerBannerText":"Flat 15% off today","offerCode":"WELCOME15","offerPercent":15,"availablePaymentModes":["cod","upi"]}'}</code>
-                </p>
+                <Label>Offer Banner Text</Label>
+                <Input
+                  value={catalogConfig.offerBannerText || ""}
+                  onChange={(e) => updateThemeJsonSetting("catalogVisibilityJson", { offerBannerText: e.target.value })}
+                  placeholder="Up to 40% off + free shipping above INR 999"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Offer CTA Text</Label>
+                <Input
+                  value={catalogConfig.offerCtaText || ""}
+                  onChange={(e) => updateThemeJsonSetting("catalogVisibilityJson", { offerCtaText: e.target.value })}
+                  placeholder="Grab Offer"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Offer Code</Label>
+                <Input
+                  value={catalogConfig.offerCode || ""}
+                  onChange={(e) => updateThemeJsonSetting("catalogVisibilityJson", { offerCode: e.target.value })}
+                  placeholder="WELCOME10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Offer Percent</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={catalogConfig.offerPercent || 0}
+                  onChange={(e) => updateThemeJsonSetting("catalogVisibilityJson", { offerPercent: Number(e.target.value || 0) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Default MOQ</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={catalogConfig.defaultMoq || 1}
+                  onChange={(e) => updateThemeJsonSetting("catalogVisibilityJson", { defaultMoq: Number(e.target.value || 1) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Pack Size</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={catalogConfig.packSize || 1}
+                  onChange={(e) => updateThemeJsonSetting("catalogVisibilityJson", { packSize: Number(e.target.value || 1) })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Available Payment Modes</Label>
+                <div className="flex flex-wrap gap-4 pt-1">
+                  {["cod", "upi", "card"].map((mode) => {
+                    const current = Array.isArray(catalogConfig.availablePaymentModes) ? catalogConfig.availablePaymentModes : [];
+                    const checked = current.includes(mode);
+                    return (
+                      <label key={mode} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? Array.from(new Set([...current, mode]))
+                              : current.filter((x) => x !== mode);
+                            updateThemeJsonSetting("catalogVisibilityJson", { availablePaymentModes: next });
+                          }}
+                        />
+                        {mode.toUpperCase()}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Quote Alert Email</Label>

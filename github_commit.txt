@@ -1068,3 +1068,17 @@ Files:
 Notes:
 - Preview browsing remains available, but order/quote/cart mutation APIs are blocked in preview context.
 - UI now surfaces explicit preview read-only state.
+
+[Pending push] 2026-02-22 - fix platform import feedback + UI-based settings + per-theme runtime behavior
+Files:
+- frontend/src/pages/admin/PlatformThemes.js
+- frontend/src/pages/admin/StoreBuilder.js
+- frontend/src/pages/storefront/StorefrontPublic.js
+- backend-dotnet/Controllers/StorefrontController.cs
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Platform theme import now provides immediate action feedback and detailed error messages.
+- Store builder replaced key JSON textareas with form controls while persisting same backend model.
+- Storefront now renders differently by theme runtime pack/preset instead of identical layout behavior.

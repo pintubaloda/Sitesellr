@@ -35,8 +35,10 @@ export default function PlatformThemes() {
   const [editingId, setEditingId] = useState("");
   const [editForm, setEditForm] = useState(initialForm);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("info");
   const [previewSubdomain, setPreviewSubdomain] = useState("demo");
   const [zipFile, setZipFile] = useState(null);
+  const [importingZip, setImportingZip] = useState(false);
   const [branding, setBranding] = useState({
     brandName: "Sitesellr",
     logoUrl: "",
@@ -64,6 +66,7 @@ export default function PlatformThemes() {
         landingHeroSubtitle: brandingRes.data?.landingHeroSubtitle || "",
       });
     } catch (err) {
+      setMessageType("error");
       setMessage(err?.response?.status === 403 ? "You are not authorized." : "Could not load themes.");
     }
   };
@@ -74,12 +77,15 @@ export default function PlatformThemes() {
 
   const create = async () => {
     setMessage("");
+    setMessageType("info");
     try {
       await api.post("/platform/themes", { ...form, price: Number(form.price || 0) });
       setForm(initialForm);
       await load();
+      setMessageType("success");
       setMessage("Theme created.");
     } catch (err) {
+      setMessageType("error");
       setMessage(err?.response?.data?.error || "Could not create theme.");
     }
   };
@@ -113,6 +119,7 @@ export default function PlatformThemes() {
   const saveEdit = async () => {
     if (!editingId) return;
     setMessage("");
+    setMessageType("info");
     try {
       await api.put(`/platform/themes/${editingId}`, {
         ...editForm,
@@ -121,63 +128,83 @@ export default function PlatformThemes() {
       });
       setEditingId("");
       await load();
+      setMessageType("success");
       setMessage("Theme updated.");
     } catch (err) {
+      setMessageType("error");
       setMessage(err?.response?.data?.error || "Could not update theme.");
     }
   };
 
   const runLifecycle = async (id, action) => {
     setMessage("");
+    setMessageType("info");
     try {
       await api.post(`/platform/themes/${id}/${action}`);
       await load();
+      setMessageType("success");
       setMessage(`Theme ${action} done.`);
     } catch (err) {
+      setMessageType("error");
       setMessage(err?.response?.data?.error || `Could not ${action} theme.`);
     }
   };
 
   const saveFeatured = async (id, isFeatured, featuredRank) => {
     setMessage("");
+    setMessageType("info");
     try {
       await api.post(`/platform/themes/${id}/feature`, {
         isFeatured,
         featuredRank: Number(featuredRank || 0),
       });
       await load();
+      setMessageType("success");
       setMessage("Featured ranking updated.");
     } catch (err) {
+      setMessageType("error");
       setMessage(err?.response?.data?.error || "Could not update featured ranking.");
     }
   };
 
   const importZip = async () => {
     if (!zipFile) {
+      setMessageType("error");
       setMessage("Select a ZIP file first.");
       return;
     }
     setMessage("");
+    setMessageType("info");
+    setImportingZip(true);
     try {
       const formData = new FormData();
       formData.append("file", zipFile);
-      await api.post("/platform/themes/import-zip", formData, {
+      const res = await api.post("/platform/themes/import-zip", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setZipFile(null);
       await load();
-      setMessage("Theme ZIP imported.");
+      setMessageType("success");
+      setMessage(`Theme ZIP imported: ${res.data?.name || res.data?.slug || "success"}.`);
     } catch (err) {
-      setMessage(err?.response?.data?.error || "Could not import theme zip.");
+      setMessageType("error");
+      const apiError = err?.response?.data?.error;
+      const detail = err?.response?.data?.detail;
+      setMessage(apiError ? `${apiError}${detail ? `: ${detail}` : ""}` : "Could not import theme zip.");
+    } finally {
+      setImportingZip(false);
     }
   };
 
   const saveBranding = async () => {
     setMessage("");
+    setMessageType("info");
     try {
       await api.put("/platform/branding", branding);
+      setMessageType("success");
       setMessage("Platform branding saved.");
     } catch (err) {
+      setMessageType("error");
       setMessage(err?.response?.data?.error || "Could not save platform branding.");
     }
   };
@@ -189,7 +216,19 @@ export default function PlatformThemes() {
         <p className="text-slate-500 dark:text-slate-400">Platform owner theme marketplace management</p>
       </div>
 
-      {message ? <p className="text-sm text-slate-600 dark:text-slate-300">{message}</p> : null}
+      {message ? (
+        <p
+          className={`text-sm px-3 py-2 rounded border ${
+            messageType === "error"
+              ? "text-red-700 border-red-200 bg-red-50"
+              : messageType === "success"
+                ? "text-emerald-700 border-emerald-200 bg-emerald-50"
+                : "text-slate-700 border-slate-200 bg-slate-50"
+          }`}
+        >
+          {message}
+        </p>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -245,7 +284,10 @@ export default function PlatformThemes() {
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row md:items-center gap-3">
           <Input type="file" accept=".zip,application/zip" onChange={(e) => setZipFile(e.target.files?.[0] || null)} />
-          <Button onClick={importZip}>Upload & Import</Button>
+          <Button onClick={importZip} disabled={importingZip || !zipFile}>
+            {importingZip ? "Importing..." : "Upload & Import"}
+          </Button>
+          {zipFile ? <p className="text-xs text-slate-500">Selected: {zipFile.name}</p> : null}
         </CardContent>
       </Card>
 

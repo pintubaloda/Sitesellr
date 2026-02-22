@@ -143,7 +143,8 @@ public class PublicStorefrontController : ControllerBase
                     theme.ActiveTheme.HookPointsJson,
                     theme.ActiveTheme.ThemeVersion,
                     theme.ActiveTheme.PlpVariantsJson,
-                    theme.ActiveTheme.PdpVariantsJson
+                    theme.ActiveTheme.PdpVariantsJson,
+                    AssetBaseUrl = $"/theme-packages/{theme.ActiveTheme.Slug}/{theme.ActiveTheme.ThemeVersion}/assets"
                 },
                 theme.LogoUrl,
                 theme.FaviconUrl,

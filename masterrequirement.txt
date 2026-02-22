@@ -631,3 +631,7 @@ Update 2026-02-22 (Theme import pipeline usage)
 
 Update 2026-02-22 (Theme preview safety)
 - Preview mode converted to read-only showroom behavior: all storefront pages are viewable, but order/quote/cart commit actions are blocked until theme is active/live.
+
+Storefront Theme Runtime (Latest)
+- Developed: Theme import action/feedback, UI-first theme setting controls, runtime-pack driven storefront rendering differences.
+- Partial: Full isolated per-theme component runtime engine (true code-level theme package renderer) is not yet completed.

@@ -66,6 +66,41 @@ const productBadge = (product) => {
 
 const currencyText = (value, currency = "INR") => `${currency} ${Number(value || 0).toLocaleString("en-IN")}`;
 
+const parseJsonObject = (value, fallback = {}) => {
+  if (!value) return fallback;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const inferThemePreset = (theme) => {
+  const slug = String(theme?.slug || "").toLowerCase();
+  const category = String(theme?.category || "").toLowerCase();
+  const key = `${slug} ${category}`;
+  if (key.includes("electr")) {
+    return { heroStyle: "split", headerStyle: "tech", cardStyle: "compact", plpDensity: "compact", pdpLayout: "split", homeTemplate: "showcase" };
+  }
+  if (key.includes("grocery") || key.includes("fmcg")) {
+    return { heroStyle: "banner", headerStyle: "market", cardStyle: "soft", plpDensity: "comfortable", pdpLayout: "stacked", homeTemplate: "market" };
+  }
+  if (key.includes("pharmacy")) {
+    return { heroStyle: "minimal", headerStyle: "minimal", cardStyle: "clean", plpDensity: "comfortable", pdpLayout: "stacked", homeTemplate: "clean" };
+  }
+  if (key.includes("restaurant") || key.includes("food")) {
+    return { heroStyle: "cinema", headerStyle: "minimal", cardStyle: "compact", plpDensity: "compact", pdpLayout: "stacked", homeTemplate: "menu" };
+  }
+  if (key.includes("wholesale") || key.includes("b2b")) {
+    return { heroStyle: "banner", headerStyle: "tech", cardStyle: "compact", plpDensity: "compact", pdpLayout: "stacked", homeTemplate: "b2b" };
+  }
+  if (key.includes("luxury")) {
+    return { heroStyle: "cinema", headerStyle: "minimal", cardStyle: "clean", plpDensity: "comfortable", pdpLayout: "split", homeTemplate: "editorial" };
+  }
+  return { heroStyle: "default", headerStyle: "default", cardStyle: "rounded", plpDensity: "comfortable", pdpLayout: "split", homeTemplate: "editorial" };
+};
+
 const renderMenu = (items, subdomain, context, depth = 0) => {
   if (!Array.isArray(items) || items.length === 0) return null;
   const visible = items.filter((m) => {
@@ -101,8 +136,11 @@ const renderMenu = (items, subdomain, context, depth = 0) => {
   return (
     <ul className={`flex ${depth > 0 ? "flex-col gap-2 mt-2 ml-5 border-l border-slate-200 pl-3" : "items-center gap-5"} text-sm`}>
       {visible.map((m, idx) => (
-        <li key={`${m.path || "link"}-${m.label || "item"}-${idx}`} className="text-slate-600">
-          <Link to={`/s/${subdomain}${m.path === "/" ? "" : (m.path || "")}`} className="hover:text-slate-900 font-medium">
+        <li key={`${m.path || "link"}-${m.label || "item"}-${idx}`} className={context.tone === "dark" ? "text-slate-300" : "text-slate-600"}>
+          <Link
+            to={`/s/${subdomain}${m.path === "/" ? "" : (m.path || "")}`}
+            className={`${context.tone === "dark" ? "hover:text-white" : "hover:text-slate-900"} font-medium`}
+          >
             {m.label || "Link"}
           </Link>
           {renderMenu(m.children || [], subdomain, context, depth + 1)}
@@ -417,11 +455,32 @@ export default function StorefrontPublic() {
   );
   const typographyPack = (data?.theme?.activeTheme?.typographyPack || "modern-sans").toLowerCase();
   const layoutVariant = (data?.theme?.activeTheme?.layoutVariant || "default").toLowerCase();
+  const runtimePackage = parseJsonObject(data?.theme?.activeTheme?.runtimePackageJson, {});
+  const inferredPreset = inferThemePreset(data?.theme?.activeTheme);
+  const runtimePack = {
+    ...inferredPreset,
+    ...runtimePackage,
+    heroStyle: String(runtimePackage.heroStyle || inferredPreset.heroStyle || "default").toLowerCase(),
+    headerStyle: String(runtimePackage.headerStyle || inferredPreset.headerStyle || "default").toLowerCase(),
+    cardStyle: String(runtimePackage.cardStyle || inferredPreset.cardStyle || "rounded").toLowerCase(),
+    plpDensity: String(runtimePackage.plpDensity || inferredPreset.plpDensity || "comfortable").toLowerCase(),
+    pdpLayout: String(runtimePackage.pdpLayout || inferredPreset.pdpLayout || "split").toLowerCase(),
+    homeTemplate: String(runtimePackage.homeTemplate || inferredPreset.homeTemplate || "editorial").toLowerCase(),
+  };
+  const themeAssetBase = data?.theme?.activeTheme?.assetBaseUrl || "";
   const fontFamily = typographyPack === "merchant-serif"
     ? "Georgia, Cambria, 'Times New Roman', Times, serif"
     : typographyPack === "luxury-display"
       ? "'Trebuchet MS', 'Segoe UI', sans-serif"
       : "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  const heroImageFromTheme = themeAssetBase ? `${themeAssetBase}/banner.jpg` : "";
+  const fallbackHeroByTheme = runtimePack.heroStyle === "cinema"
+    ? "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1800&q=80"
+    : runtimePack.heroStyle === "minimal"
+      ? "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=1800&q=80"
+      : runtimePack.heroStyle === "split"
+        ? "https://images.unsplash.com/photo-1517940310602-26535839fe84?auto=format&fit=crop&w=1800&q=80"
+        : fallbackHeroImage;
 
   const addToCart = (product, qty = 1) => {
     if (isPreviewMode) {
@@ -724,6 +783,7 @@ export default function StorefrontPublic() {
   })();
   const primary = tokens.primaryColor || "#2563eb";
   const pdpVariant = pdp ? resolveCategoryVariant(data?.theme?.activeTheme?.pdpVariantsJson, pdp.categoryId) : "default";
+  const resolvedPdpLayout = String(pdpVariant === "default" ? runtimePack.pdpLayout : pdpVariant).toLowerCase();
   const pdpMedia = pdp
     ? (Array.isArray(pdp.media) && pdp.media.length ? pdp.media : [{ url: productImageUrl(pdp), sortOrder: 0 }])
     : [];
@@ -742,9 +802,18 @@ export default function StorefrontPublic() {
   if (!data) return <div className="min-h-screen p-10">Loading storefront...</div>;
 
   return (
-    <div className={`min-h-screen bg-white text-slate-900 ${layoutVariant === "immersive" ? "bg-slate-50" : ""}`} style={{ fontFamily }}>
-      <header className="border-b border-slate-200 bg-white sticky top-0 z-40">
-        <div className="bg-slate-950 text-slate-100 text-xs py-2 px-4 text-center">Trusted Shipping • Easy Returns • Secure Shopping</div>
+    <div
+      className={`min-h-screen text-slate-900 ${
+        layoutVariant === "immersive" ? "bg-slate-50" : "bg-white"
+      } ${runtimePack.homeTemplate === "clean" ? "bg-slate-50" : ""}`}
+      style={{ fontFamily }}
+    >
+      <header className={`border-b border-slate-200 sticky top-0 z-40 ${runtimePack.headerStyle === "tech" ? "bg-slate-950 text-slate-100" : "bg-white"}`}>
+        {runtimePack.headerStyle !== "minimal" ? (
+          <div className={`${runtimePack.headerStyle === "tech" ? "bg-slate-900 text-slate-100" : "bg-slate-950 text-slate-100"} text-xs py-2 px-4 text-center`}>
+            Trusted Shipping • Easy Returns • Secure Shopping
+          </div>
+        ) : null}
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             {data?.theme?.logoUrl ? <img src={data.theme.logoUrl} alt={data?.store?.name} className="h-9 w-9 rounded-md object-cover border" /> : null}
@@ -757,7 +826,9 @@ export default function StorefrontPublic() {
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="What are you looking for?" className="w-full bg-transparent focus:outline-none text-sm" />
             </div>
           </div>
-          <nav className="hidden md:block">{renderMenu(navItems, subdomain, { customerType, isLoggedIn, device })}</nav>
+          <nav className={`hidden md:block ${runtimePack.headerStyle === "tech" ? "text-slate-200" : ""}`}>
+            {renderMenu(navItems, subdomain, { customerType, isLoggedIn, device, tone: runtimePack.headerStyle === "tech" ? "dark" : "light" })}
+          </nav>
           <div className="flex items-center gap-2">
             {authState.authenticated ? (
               <button type="button" onClick={customerLogout} className="text-sm px-3 py-2 border rounded-lg hover:bg-slate-50">Logout</button>
@@ -777,13 +848,34 @@ export default function StorefrontPublic() {
 
       {mode === "home" ? (
         <main className="max-w-7xl mx-auto px-4 py-8 space-y-10">
-          <section className="relative rounded-3xl overflow-hidden min-h-[420px] border border-slate-200">
-            <img src={data?.theme?.bannerJson ? (() => { try { const parsed = JSON.parse(data.theme.bannerJson); return parsed?.desktop || parsed?.image || fallbackHeroImage; } catch { return fallbackHeroImage; } })() : fallbackHeroImage} alt="Hero" className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/70 via-slate-900/20 to-transparent" />
+          <section className={`relative rounded-3xl overflow-hidden min-h-[420px] border border-slate-200 ${runtimePack.heroStyle === "minimal" ? "bg-white" : ""}`}>
+            <img
+              src={
+                data?.theme?.bannerJson
+                  ? (() => {
+                      try {
+                        const parsed = JSON.parse(data.theme.bannerJson);
+                        return parsed?.desktop || parsed?.image || heroImageFromTheme || fallbackHeroByTheme;
+                      } catch {
+                        return heroImageFromTheme || fallbackHeroByTheme;
+                      }
+                    })()
+                  : (heroImageFromTheme || fallbackHeroByTheme)
+              }
+              alt="Hero"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className={`absolute inset-0 ${runtimePack.heroStyle === "minimal" ? "bg-white/45" : runtimePack.heroStyle === "cinema" ? "bg-slate-950/55" : "bg-gradient-to-r from-slate-950/70 via-slate-900/20 to-transparent"}`} />
             <div className="relative z-10 p-8 lg:p-14 max-w-xl text-white">
-              <p className="uppercase text-xs tracking-[0.28em] text-white/80 mb-4">New Season Collection</p>
-              <h1 className="text-4xl lg:text-6xl font-semibold leading-tight">Simple is more.</h1>
-              <p className="mt-4 text-white/90 text-lg">Premium fashion storefront built for browsing, conversion, and fast checkout.</p>
+              <p className={`uppercase text-xs tracking-[0.28em] mb-4 ${runtimePack.heroStyle === "minimal" ? "text-slate-800" : "text-white/80"}`}>
+                {runtimePack.homeTemplate === "b2b" ? "Bulk Catalog Ready" : "New Season Collection"}
+              </p>
+              <h1 className={`text-4xl lg:text-6xl font-semibold leading-tight ${runtimePack.heroStyle === "minimal" ? "text-slate-900" : "text-white"}`}>
+                {runtimePack.homeTemplate === "showcase" ? "Shop smarter, faster." : runtimePack.homeTemplate === "market" ? "Daily essentials, delivered." : "Simple is more."}
+              </h1>
+              <p className={`mt-4 text-lg ${runtimePack.heroStyle === "minimal" ? "text-slate-700" : "text-white/90"}`}>
+                Premium storefront runtime adapted by theme pack, with category-specific layout behavior.
+              </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link to={`/s/${subdomain}/products`} className="px-6 py-3 rounded-xl font-semibold text-slate-900 bg-white">Shop Now</Link>
                 <Link to={`/s/${subdomain}/sale`} className="px-6 py-3 rounded-xl font-semibold border border-white/50 text-white">View Sale</Link>
@@ -827,8 +919,13 @@ export default function StorefrontPublic() {
             </div>
             <div className="flex gap-4 overflow-x-auto pb-2">
               {searchedProducts.slice(0, 10).map((p) => (
-                <div key={p.id} className="min-w-[240px] max-w-[240px] rounded-2xl border border-slate-200 bg-white overflow-hidden group">
-                  <Link to={`/s/${subdomain}/products/${p.id}`} className="block h-56 bg-slate-100 overflow-hidden">
+                <div
+                  key={p.id}
+                  className={`min-w-[240px] max-w-[240px] border bg-white overflow-hidden group ${
+                    runtimePack.cardStyle === "compact" ? "rounded-xl shadow-sm" : runtimePack.cardStyle === "clean" ? "rounded-none border-slate-300" : "rounded-2xl border-slate-200"
+                  }`}
+                >
+                  <Link to={`/s/${subdomain}/products/${p.id}`} className={`block ${runtimePack.cardStyle === "compact" ? "h-48" : "h-56"} bg-slate-100 overflow-hidden`}>
                     <img src={productImageUrl(p)} alt={p.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                   </Link>
                   <div className="p-4">
@@ -932,9 +1029,22 @@ export default function StorefrontPublic() {
                   </select>
                 </div>
               </div>
-              <div className={listLayout === "grid" ? "grid sm:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-3"}>
+              <div
+                className={
+                  listLayout === "grid"
+                    ? runtimePack.plpDensity === "compact"
+                      ? "grid sm:grid-cols-2 xl:grid-cols-4 gap-3"
+                      : "grid sm:grid-cols-2 xl:grid-cols-3 gap-4"
+                    : "space-y-3"
+                }
+              >
                 {searchedProducts.map((p) => (
-                  <article key={p.id} className={`rounded-2xl border border-slate-200 bg-white overflow-hidden ${listLayout === "list" ? "flex gap-4 p-4" : ""}`}>
+                  <article
+                    key={p.id}
+                    className={`border bg-white overflow-hidden ${
+                      runtimePack.cardStyle === "clean" ? "rounded-none border-slate-300" : "rounded-2xl border-slate-200"
+                    } ${runtimePack.cardStyle === "compact" ? "shadow-sm" : ""} ${listLayout === "list" ? "flex gap-4 p-4" : ""}`}
+                  >
                     <Link to={`/s/${subdomain}/products/${p.id}`} className={`${listLayout === "list" ? "w-44 h-44 shrink-0 rounded-xl overflow-hidden" : "h-64 block"}`}>
                       <img src={productImageUrl(p)} alt={p.title} className="h-full w-full object-cover" />
                     </Link>
@@ -962,7 +1072,7 @@ export default function StorefrontPublic() {
           </section>
         </main>
       ) : mode === "pdp" && pdp ? (
-        <main className={`max-w-7xl mx-auto px-4 py-8 grid gap-8 ${pdpVariant === "stacked" ? "lg:grid-cols-1" : "lg:grid-cols-2"}`}>
+        <main className={`max-w-7xl mx-auto px-4 py-8 grid gap-8 ${resolvedPdpLayout === "stacked" ? "lg:grid-cols-1" : "lg:grid-cols-2"}`}>
           <div className="space-y-3">
             <div className="rounded-2xl border bg-slate-100 overflow-hidden min-h-[520px]">
               {isVideoMediaUrl(pdpMedia[pdpImage]?.url) ? (

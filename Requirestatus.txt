@@ -1065,3 +1065,11 @@ Update 2026-02-22 (Preview mode read-only enforcement)
 - Developed: Enforced preview-mode read-only on backend public actions (`quote-inquiries`, `checkout`, `cart/reserve`, `cart/release`) when preview query context is present.
 - Developed: Frontend storefront now detects preview mode and blocks transactional actions (add to cart, reserve stock, quote submit, place order) with clear banner + message.
 - Developed: Preview URLs can now safely show all pages/layouts without creating real orders.
+
+Update 2026-02-22 (Theme import UX + UI settings + per-theme runtime rendering)
+- Developed: Platform Theme ZIP import now has explicit UX feedback (selected file, importing state, success/error banners) so import action is visible and traceable.
+- Developed: Backend theme import endpoint hardened with structured error handling (`manifest_*`, `zip_invalid`, `theme_import_failed`) to avoid silent failures.
+- Developed: Store Builder theme settings moved to UI-first controls for key fields (header/footer/banner/design tokens/catalog offer/payment config) while preserving JSON persistence in backend.
+- Developed: Public storefront now consumes runtime package + inferred theme presets to render distinct per-theme runtime behaviors (header style, hero style, card style, PLP density, PDP layout).
+- Developed: Public storefront now resolves theme asset base (`/theme-packages/{slug}/{version}/assets`) so imported theme packs can drive hero/preview assets.
+- Partial: Full code-isolated template runtime (separate React component packs per theme) still pending; current runtime is variant-driven with differentiated layout behaviors.

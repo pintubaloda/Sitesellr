@@ -200,6 +200,20 @@ const sidebarItems = [
     scope: "platform-owner-or-store",
     requiredAny: ["store.settings.manage", "store.settings.read", "platform.settings.manage"],
   },
+  {
+    title: "Theme Builder",
+    icon: Wrench,
+    path: "/store-builder-theme",
+    scope: "platform-owner-or-store",
+    requiredAny: ["store.settings.manage", "store.settings.read", "platform.settings.manage"],
+  },
+  {
+    title: "Store Settings Builder",
+    icon: Wrench,
+    path: "/store-builder-settings",
+    scope: "platform-owner-or-store",
+    requiredAny: ["store.settings.manage", "store.settings.read", "platform.settings.manage"],
+  },
 ];
 
 const SidebarContent = ({ collapsed, setCollapsed, onItemClick, visibleItems }) => {

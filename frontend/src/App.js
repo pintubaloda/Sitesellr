@@ -26,6 +26,8 @@ import StorefrontPublic from "./pages/storefront/StorefrontPublic";
 import DomainsSsl from "./pages/admin/DomainsSsl";
 import PlatformModule from "./pages/admin/PlatformModule";
 import StoreBuilderV1 from "./pages/admin/StoreBuilderV1";
+import StoreBuilderThemeBuilder from "./pages/admin/StoreBuilderThemeBuilder";
+import StoreBuilderSettingsPlatform from "./pages/admin/StoreBuilderSettingsPlatform";
 import { getStoredAccessToken } from "./lib/session";
 
 const ProtectedRoute = ({ children }) => {
@@ -55,6 +57,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <StoreBuilderV1 />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/store-builder-theme"
+            element={
+              <ProtectedRoute>
+                <StoreBuilderThemeBuilder />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/store-builder-settings"
+            element={
+              <ProtectedRoute>
+                <StoreBuilderSettingsPlatform />
               </ProtectedRoute>
             }
           />

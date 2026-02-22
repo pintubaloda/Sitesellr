@@ -1754,6 +1754,8 @@ export default function StoreBuilderV1() {
     { id: 'app-manager', label: 'App Marketplace', icon: 'apps', badge: '16' },
     { id: 'revenue', label: 'Revenue', icon: 'revenue' },
     { id: 'users', label: 'Tenants', icon: 'users' },
+    { id: 'theme-builder', label: 'Theme Builder', icon: 'theme', route: '/store-builder-theme' },
+    { id: 'settings-builder', label: 'Settings Builder', icon: 'settings', route: '/store-builder-settings' },
   ];
 
   const storeNav = [
@@ -1761,6 +1763,8 @@ export default function StoreBuilderV1() {
     { id: 'app-store', label: 'App Store', icon: 'apps', badge: 'NEW' },
     { id: 'app-settings', label: 'App Settings', icon: 'settings' },
     { id: 'theme', label: 'Theme & Design', icon: 'theme' },
+    { id: 'theme-builder', label: 'Theme Builder', icon: 'theme', route: '/store-builder-theme' },
+    { id: 'settings-builder', label: 'Settings Builder', icon: 'settings', route: '/store-builder-settings' },
   ];
 
   const nav = role === 'platform' ? platformNav : storeNav;
@@ -1802,7 +1806,17 @@ export default function StoreBuilderV1() {
           <div className="sb-section">
             <div className="sb-section-label">{role === 'platform' ? 'Platform' : 'My Store'}</div>
             {nav.map(item => (
-              <div key={item.id} className={`sb-item ${page === item.id ? 'active' : ''}`} onClick={() => setPage(item.id)}>
+              <div
+                key={item.id}
+                className={`sb-item ${page === item.id ? 'active' : ''}`}
+                onClick={() => {
+                  if (item.route) {
+                    window.location.assign(item.route);
+                    return;
+                  }
+                  setPage(item.id);
+                }}
+              >
                 <Icon name={item.icon} size={16}/>
                 {item.label}
                 {item.badge && <span className="sb-badge">{item.badge}</span>}

@@ -1172,3 +1172,15 @@ Files:
 Notes:
 - Added checkout template list/apply APIs and settings fields.
 - Kept checkout logic common; applied lightweight UI variant switch from selected template.
+
+[Pending push] 2026-02-22 - lightweight checkout-template contract cleanup
+Files:
+- backend-dotnet/Models/Storefront.cs
+- backend-dotnet/Controllers/StorefrontController.cs
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- frontend/src/pages/admin/StoreBuilder.js
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Removed unused checkout template config JSON path to reduce code weight and avoid unnecessary payload/model complexity.

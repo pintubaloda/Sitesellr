@@ -249,7 +249,6 @@ public class StorefrontController : ControllerBase
         config.CatalogVisibilityJson = req.CatalogVisibilityJson?.Trim();
         config.QuoteAlertEmail = req.QuoteAlertEmail?.Trim().ToLowerInvariant();
         config.CheckoutTemplateSlug = string.IsNullOrWhiteSpace(req.CheckoutTemplateSlug) ? "standard" : req.CheckoutTemplateSlug.Trim().ToLowerInvariant();
-        config.CheckoutTemplateConfigJson = req.CheckoutTemplateConfigJson?.Trim();
         config.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
@@ -1336,8 +1335,6 @@ public class StoreThemeSettingsRequest
     public string? QuoteAlertEmail { get; set; }
     [RegularExpression("^(standard|compact|modern-step)$", ErrorMessage = "Invalid checkout template.")]
     public string CheckoutTemplateSlug { get; set; } = "standard";
-    [StringLength(4000)]
-    public string? CheckoutTemplateConfigJson { get; set; }
 }
 
 public record CheckoutTemplateRow(

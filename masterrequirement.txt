@@ -694,3 +694,8 @@ Update 2026-02-22 (Checkout Template Selection - Compatible + Low Weight)
   - Store Builder selector for checkout template.
   - Storefront checkout reads active template slug and applies variant styling.
 - Kept implementation lightweight to avoid runtime duplication.
+
+Update 2026-02-22 (Code Weight Optimization)
+- Checkout template feature simplified to use only `CheckoutTemplateSlug`.
+- Removed unused configuration JSON plumbing from backend model/request and frontend store settings state.
+- Net effect: lighter payload, lower code complexity, same functionality for selecting checkout style.

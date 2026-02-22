@@ -1128,3 +1128,8 @@ Update 2026-02-22 (Checkout template compatibility layer - lightweight)
 - Developed: Store Builder now exposes "Checkout Flow Template" selector in Theme/Design settings.
 - Developed: Public storefront payload now includes active checkout template config and checkout UI consumes selected slug (shared flow with style variant).
 - Note: Architecture remains low-weight: one checkout engine, template-based presentation variants.
+
+Update 2026-02-22 (Lightweight cleanup for compile stability)
+- Refactor: Removed unused `CheckoutTemplateConfigJson` handling from API model/request/frontend state to keep checkout-template feature minimal and low-weight.
+- Kept only required field `CheckoutTemplateSlug` for template selection.
+- DB compatibility is preserved (existing optional column remains harmless), while runtime/app logic now uses the slimmer contract.

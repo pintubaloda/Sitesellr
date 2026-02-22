@@ -262,7 +262,6 @@ export const StoreBuilder = () => {
     catalogVisibilityJson: "[]",
     quoteAlertEmail: "",
     checkoutTemplateSlug: "standard",
-    checkoutTemplateConfigJson: "{}",
   });
   const [sections, setSections] = useState(normalizeNodes(FALLBACK_SECTIONS));
   const [pastSections, setPastSections] = useState([]);
@@ -406,7 +405,6 @@ export const StoreBuilder = () => {
         catalogVisibilityJson: settingsRes.data?.catalogVisibilityJson || "[]",
         quoteAlertEmail: settingsRes.data?.quoteAlertEmail || "",
         checkoutTemplateSlug: settingsRes.data?.checkoutTemplateSlug || "standard",
-        checkoutTemplateConfigJson: settingsRes.data?.checkoutTemplateConfigJson || "{}",
       });
       const normalized = normalizeNodes(parseJsonArray(layoutRes.data?.sectionsJson, FALLBACK_SECTIONS));
       setSections(normalized);

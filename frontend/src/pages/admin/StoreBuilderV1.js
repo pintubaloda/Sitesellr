@@ -1588,7 +1588,7 @@ const Dashboard = ({ role, toast }) => {
       </div>
 
       <div className="stats-grid">
-        {isPlatform ? [
+        {(isPlatform ? [
           { icon: '🏪', label: 'Active Stores', val: '2,341', delta: '+48 this month', trend: 'up', color: '#eff6ff' },
           { icon: '💰', label: 'App Revenue (MRR)', val: '₹18.4L', delta: '+22% vs last month', trend: 'up', color: '#f0fdf4' },
           { icon: '📦', label: 'App Installs', val: '14,892', delta: '+892 this month', trend: 'up', color: '#fdf4ff' },
@@ -1598,7 +1598,7 @@ const Dashboard = ({ role, toast }) => {
           { icon: '💰', label: 'Revenue (MTD)', val: '₹4.2L', delta: '+18% vs last month', trend: 'up', color: '#f0fdf4' },
           { icon: '📦', label: 'Apps Installed', val: '3', delta: '2 active, 1 test mode', trend: 'up', color: '#fdf4ff' },
           { icon: '🚀', label: 'Shipments Today', val: '47', delta: 'Shiprocket: 41 · Delhivery: 6', trend: 'up', color: '#fffbeb' },
-        ]}.map(s => (
+        ]).map((s) => (
           <div key={s.label} className="stat-card">
             <div className="stat-icon" style={{ background: s.color }}>{s.icon}</div>
             <div>

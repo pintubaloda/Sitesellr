@@ -430,6 +430,8 @@ CREATE TABLE IF NOT EXISTS store_theme_configs (
   ""FooterJson"" character varying(4000),
   ""BannerJson"" character varying(4000),
   ""DesignTokensJson"" character varying(4000),
+  ""CheckoutTemplateSlug"" character varying(80) NOT NULL DEFAULT 'standard',
+  ""CheckoutTemplateConfigJson"" character varying(4000) NULL,
   ""QuoteAlertEmail"" character varying(320) NULL,
   ""UpdatedAt"" timestamp with time zone NOT NULL
 );");
@@ -438,6 +440,8 @@ CREATE TABLE IF NOT EXISTS store_theme_configs (
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""CatalogMode"" character varying(20) NOT NULL DEFAULT 'retail';");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""CatalogVisibilityJson"" character varying(4000) NULL;");
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""QuoteAlertEmail"" character varying(320) NULL;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""CheckoutTemplateSlug"" character varying(80) NOT NULL DEFAULT 'standard';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""CheckoutTemplateConfigJson"" character varying(4000) NULL;");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_theme_configs_StoreId ON store_theme_configs (""StoreId"");");
     await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS store_homepage_layouts (

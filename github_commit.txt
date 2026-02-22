@@ -1157,3 +1157,18 @@ Notes:
 - Added new free `ss-simple` theme seed.
 - Added isolated runtime implementation for home/catalog/pdp based on provided layout style.
 - Added SS-Simple color preset controls in Store Builder.
+
+[Pending push] 2026-02-22 - add checkout template selection layer with shared checkout engine
+Files:
+- backend-dotnet/Models/Storefront.cs
+- backend-dotnet/Program.cs
+- backend-dotnet/Controllers/StorefrontController.cs
+- backend-dotnet/Controllers/PublicStorefrontController.cs
+- frontend/src/pages/admin/StoreBuilder.js
+- frontend/src/pages/storefront/StorefrontPublic.js
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Added checkout template list/apply APIs and settings fields.
+- Kept checkout logic common; applied lightweight UI variant switch from selected template.

@@ -680,3 +680,17 @@ Update 2026-02-22 (Theme Expansion: SS-Simple)
 - Branding/Customization:
   - Store owner can change color using design tokens.
   - Added SS-Simple quick color presets in Store Builder with one-click apply.
+
+Update 2026-02-22 (Checkout Template Selection - Compatible + Low Weight)
+- Added compatibility layer for separate checkout template selection independent from storefront theme.
+- Current model:
+  - Theme controls landing/catalog/pdp style.
+  - Checkout template controls checkout UI variant.
+  - Order/payment/business validations remain common backend engine.
+- Implemented backend support:
+  - Settings fields: `CheckoutTemplateSlug`, `CheckoutTemplateConfigJson`.
+  - Store owner endpoints to list/apply templates.
+- Implemented frontend support:
+  - Store Builder selector for checkout template.
+  - Storefront checkout reads active template slug and applies variant styling.
+- Kept implementation lightweight to avoid runtime duplication.

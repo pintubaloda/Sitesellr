@@ -17,6 +17,13 @@ namespace backend_dotnet.Controllers;
 [Route("api/stores/{storeId:guid}/storefront")]
 public class StorefrontController : ControllerBase
 {
+    private static readonly CheckoutTemplateRow[] CheckoutTemplates =
+    {
+        new("standard", "Standard Checkout", "Shared production-safe checkout flow", false, 0),
+        new("compact", "Compact Checkout", "Dense one-page checkout layout", false, 0),
+        new("modern-step", "Modern Step Checkout", "Stepper style checkout experience", true, 999),
+    };
+
     private readonly AppDbContext _db;
     private readonly IEmailService _emailService;
     private readonly ISubscriptionCapabilityService _caps;
@@ -146,6 +153,75 @@ public class StorefrontController : ControllerBase
         return Ok(settings ?? new StoreThemeConfig { StoreId = storeId });
     }
 
+    [HttpGet("checkout-templates")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> GetCheckoutTemplates(Guid storeId, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(s => s.Id == storeId, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+
+        var sub = await _db.MerchantSubscriptions.AsNoTracking()
+            .Include(x => x.Plan)
+            .Where(x => x.MerchantId == store.MerchantId && !x.IsCancelled)
+            .OrderByDescending(x => x.StartedAt)
+            .FirstOrDefaultAsync(ct);
+        var planCode = sub?.Plan?.Code?.Trim().ToLowerInvariant() ?? "free";
+
+        var settings = await _db.StoreThemeConfigs.AsNoTracking().FirstOrDefaultAsync(x => x.StoreId == storeId, ct);
+        var activeSlug = string.IsNullOrWhiteSpace(settings?.CheckoutTemplateSlug) ? "standard" : settings!.CheckoutTemplateSlug;
+        var rows = CheckoutTemplates.Select(x =>
+        {
+            var allowed = !x.IsPaid || planCode is "growth" or "pro" or "enterprise";
+            return new
+            {
+                x.Slug,
+                x.Name,
+                x.Description,
+                x.IsPaid,
+                x.Price,
+                PlanAllowed = allowed,
+                IsActive = string.Equals(activeSlug, x.Slug, StringComparison.OrdinalIgnoreCase)
+            };
+        });
+        return Ok(rows);
+    }
+
+    [HttpPost("checkout-templates/{slug}/apply")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> ApplyCheckoutTemplate(Guid storeId, string slug, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != storeId) return Forbid();
+        var store = await _db.Stores.AsNoTracking().FirstOrDefaultAsync(s => s.Id == storeId, ct);
+        if (store == null) return NotFound(new { error = "store_not_found" });
+
+        var normalizedSlug = slug.Trim().ToLowerInvariant();
+        var template = CheckoutTemplates.FirstOrDefault(x => x.Slug == normalizedSlug);
+        if (template == null) return NotFound(new { error = "checkout_template_not_found" });
+        if (template.IsPaid)
+        {
+            var sub = await _db.MerchantSubscriptions.AsNoTracking()
+                .Include(x => x.Plan)
+                .Where(x => x.MerchantId == store.MerchantId && !x.IsCancelled)
+                .OrderByDescending(x => x.StartedAt)
+                .FirstOrDefaultAsync(ct);
+            var planCode = sub?.Plan?.Code?.Trim().ToLowerInvariant() ?? string.Empty;
+            if (planCode is not ("growth" or "pro" or "enterprise"))
+                return BadRequest(new { error = "plan_not_eligible_for_checkout_template" });
+        }
+
+        var config = await _db.StoreThemeConfigs.FirstOrDefaultAsync(x => x.StoreId == storeId, ct);
+        if (config == null)
+        {
+            config = new StoreThemeConfig { StoreId = storeId };
+            _db.StoreThemeConfigs.Add(config);
+        }
+        config.CheckoutTemplateSlug = normalizedSlug;
+        config.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { applied = true, checkoutTemplateSlug = config.CheckoutTemplateSlug });
+    }
+
     [HttpPut("settings")]
     [Authorize(Policy = Policies.StoreSettingsWrite)]
     public async Task<IActionResult> UpsertSettings(Guid storeId, [FromBody] StoreThemeSettingsRequest req, CancellationToken ct)
@@ -172,6 +248,8 @@ public class StorefrontController : ControllerBase
         config.CatalogMode = string.IsNullOrWhiteSpace(req.CatalogMode) ? "retail" : req.CatalogMode.Trim().ToLowerInvariant();
         config.CatalogVisibilityJson = req.CatalogVisibilityJson?.Trim();
         config.QuoteAlertEmail = req.QuoteAlertEmail?.Trim().ToLowerInvariant();
+        config.CheckoutTemplateSlug = string.IsNullOrWhiteSpace(req.CheckoutTemplateSlug) ? "standard" : req.CheckoutTemplateSlug.Trim().ToLowerInvariant();
+        config.CheckoutTemplateConfigJson = req.CheckoutTemplateConfigJson?.Trim();
         config.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
@@ -1256,7 +1334,19 @@ public class StoreThemeSettingsRequest
     public string? CatalogVisibilityJson { get; set; }
     [StringLength(320)]
     public string? QuoteAlertEmail { get; set; }
+    [RegularExpression("^(standard|compact|modern-step)$", ErrorMessage = "Invalid checkout template.")]
+    public string CheckoutTemplateSlug { get; set; } = "standard";
+    [StringLength(4000)]
+    public string? CheckoutTemplateConfigJson { get; set; }
 }
+
+public record CheckoutTemplateRow(
+    string Slug,
+    string Name,
+    string Description,
+    bool IsPaid,
+    decimal Price
+);
 
 public class HomepageLayoutRequest
 {

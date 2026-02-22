@@ -822,6 +822,7 @@ export default function StorefrontPublic() {
     }
   })();
   const primary = tokens.primaryColor || "#2563eb";
+  const checkoutTemplateSlug = String(data?.theme?.checkoutTemplateSlug || "standard").toLowerCase();
   const pdpVariant = pdp ? resolveCategoryVariant(data?.theme?.activeTheme?.pdpVariantsJson, pdp.categoryId) : "default";
   const resolvedPdpLayout = String(pdpVariant === "default" ? runtimePack.pdpLayout : pdpVariant).toLowerCase();
   const pdpMedia = pdp
@@ -1347,7 +1348,7 @@ export default function StorefrontPublic() {
           )}
         </main>
       ) : mode === "checkout" ? (
-        <main className="max-w-5xl mx-auto px-4 py-8">
+        <main className={`max-w-5xl mx-auto px-4 py-8 ${checkoutTemplateSlug === "compact" ? "text-[15px]" : ""}`}>
           <div className="rounded-2xl border bg-white mb-6 px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
             <h2 className="text-2xl font-bold tracking-tight">Checkout</h2>
             <div className="flex items-center gap-2 text-sm">
@@ -1361,8 +1362,8 @@ export default function StorefrontPublic() {
               <span>Checkout</span>
             </div>
           </div>
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 rounded-2xl border bg-white p-6 space-y-4 shadow-sm">
+          <div className={`grid gap-6 ${checkoutTemplateSlug === "compact" ? "lg:grid-cols-[1fr,330px]" : "lg:grid-cols-3"}`}>
+            <div className={`${checkoutTemplateSlug === "compact" ? "" : "lg:col-span-2"} rounded-2xl border bg-white ${checkoutTemplateSlug === "compact" ? "p-5 space-y-3" : "p-6 space-y-4"} shadow-sm`}>
               <p className="text-xl font-semibold">Shipping Address</p>
               <div className="grid sm:grid-cols-2 gap-3">
                 <input className="w-full h-11 border rounded-lg px-3" placeholder="Full name" value={checkoutForm.name} onChange={(e) => setCheckoutForm((s) => ({ ...s, name: e.target.value }))} />
@@ -1443,7 +1444,7 @@ export default function StorefrontPublic() {
                 </div>
               ) : null}
             </div>
-            <div className="rounded-2xl border bg-white p-5 h-fit shadow-sm">
+            <div className={`rounded-2xl border bg-white ${checkoutTemplateSlug === "compact" ? "p-4" : "p-5"} h-fit shadow-sm`}>
               <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Order Summary</p>
               <div className="mt-4 space-y-3">
                 {cart.map((item) => (

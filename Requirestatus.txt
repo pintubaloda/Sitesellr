@@ -1118,3 +1118,13 @@ Update 2026-02-22 (New free theme: SS-Simple + color customization)
 - Developed: SS-Simple uses active store theme tokens (`primaryColor`) so buttons/highlights follow store branding.
 - Developed: Added Store Builder UI color presets specifically for SS-Simple (Midnight/Cobalt/Emerald/Rose/Amber) plus manual hex override support.
 - Developed: SS-Simple is marked as Free in catalog seeding and can be applied like other free themes.
+
+Update 2026-02-22 (Checkout template compatibility layer - lightweight)
+- Developed: Added checkout-template selection support in store theme settings (`CheckoutTemplateSlug`, `CheckoutTemplateConfigJson`) without changing core checkout business logic.
+- Developed: Added store-owner API to list/apply checkout templates:
+  - `GET /api/stores/{storeId}/storefront/checkout-templates`
+  - `POST /api/stores/{storeId}/storefront/checkout-templates/{slug}/apply`
+- Developed: Added lightweight template catalog with current options: `standard`, `compact`, `modern-step` (plan-gated sample).
+- Developed: Store Builder now exposes "Checkout Flow Template" selector in Theme/Design settings.
+- Developed: Public storefront payload now includes active checkout template config and checkout UI consumes selected slug (shared flow with style variant).
+- Note: Architecture remains low-weight: one checkout engine, template-based presentation variants.

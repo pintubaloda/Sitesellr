@@ -261,6 +261,8 @@ export const StoreBuilder = () => {
     catalogMode: "retail",
     catalogVisibilityJson: "[]",
     quoteAlertEmail: "",
+    checkoutTemplateSlug: "standard",
+    checkoutTemplateConfigJson: "{}",
   });
   const [sections, setSections] = useState(normalizeNodes(FALLBACK_SECTIONS));
   const [pastSections, setPastSections] = useState([]);
@@ -288,6 +290,7 @@ export const StoreBuilder = () => {
   const [visibilityRules, setVisibilityRules] = useState([]);
   const [sectionEntitlements, setSectionEntitlements] = useState({ planCode: "", allowedPremiumKeys: [] });
   const [quoteInquiries, setQuoteInquiries] = useState([]);
+  const [checkoutTemplates, setCheckoutTemplates] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [campaignTemplates, setCampaignTemplates] = useState(CAMPAIGN_TEMPLATES.map((x) => ({ ...x, id: x.key, isPaid: false, isActiveForStore: true })));
   const [newGroupName, setNewGroupName] = useState("");
@@ -371,7 +374,7 @@ export const StoreBuilder = () => {
     setLoading(true);
     setStatus("");
     try {
-      const [themesRes, settingsRes, layoutRes, navRes, pagesRes, versionsRes, groupsRes, rulesRes, entitlementsRes, quoteRes, teamRes, campaignRes] = await Promise.all([
+      const [themesRes, settingsRes, layoutRes, navRes, pagesRes, versionsRes, groupsRes, rulesRes, entitlementsRes, quoteRes, teamRes, campaignRes, checkoutRes] = await Promise.all([
         api.get(`/stores/${storeId}/storefront/themes`),
         api.get(`/stores/${storeId}/storefront/settings`),
         api.get(`/stores/${storeId}/storefront/homepage-layout`),
@@ -384,6 +387,7 @@ export const StoreBuilder = () => {
         api.get(`/stores/${storeId}/storefront/quote-inquiries`),
         api.get(`/stores/${storeId}/team`),
         api.get(`/stores/${storeId}/storefront/campaign-templates`),
+        api.get(`/stores/${storeId}/storefront/checkout-templates`),
       ]);
 
       const themeRows = Array.isArray(themesRes.data) ? themesRes.data : [];
@@ -401,6 +405,8 @@ export const StoreBuilder = () => {
         catalogMode: settingsRes.data?.catalogMode || "retail",
         catalogVisibilityJson: settingsRes.data?.catalogVisibilityJson || "[]",
         quoteAlertEmail: settingsRes.data?.quoteAlertEmail || "",
+        checkoutTemplateSlug: settingsRes.data?.checkoutTemplateSlug || "standard",
+        checkoutTemplateConfigJson: settingsRes.data?.checkoutTemplateConfigJson || "{}",
       });
       const normalized = normalizeNodes(parseJsonArray(layoutRes.data?.sectionsJson, FALLBACK_SECTIONS));
       setSections(normalized);
@@ -418,6 +424,7 @@ export const StoreBuilder = () => {
       setQuoteInquiries(Array.isArray(quoteRes.data) ? quoteRes.data : []);
       setTeamMembers(Array.isArray(teamRes.data) ? teamRes.data : []);
       setCampaignTemplates(Array.isArray(campaignRes.data) && campaignRes.data.length > 0 ? campaignRes.data : CAMPAIGN_TEMPLATES.map((x) => ({ ...x, id: x.key, isPaid: false, isActiveForStore: true })));
+      setCheckoutTemplates(Array.isArray(checkoutRes.data) ? checkoutRes.data : []);
     } catch (err) {
       setStatus(err?.response?.status === 403 ? "You are not authorized." : "Could not load storefront settings.");
     } finally {
@@ -1514,6 +1521,21 @@ export const StoreBuilder = () => {
                   <option value="wholesale">Wholesale</option>
                   <option value="hybrid">Hybrid</option>
                 </select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Checkout Flow Template</Label>
+                <select
+                  className="h-10 rounded-md border px-2 bg-transparent w-full"
+                  value={themeSettings.checkoutTemplateSlug || "standard"}
+                  onChange={(e) => setThemeSettings((s) => ({ ...s, checkoutTemplateSlug: e.target.value }))}
+                >
+                  {(checkoutTemplates.length > 0 ? checkoutTemplates : [{ slug: "standard", name: "Standard Checkout", planAllowed: true }]).map((tpl) => (
+                    <option key={tpl.slug} value={tpl.slug} disabled={tpl.planAllowed === false}>
+                      {tpl.name}{tpl.planAllowed === false ? " (Upgrade Required)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500">Checkout style is selectable independently from theme. Current runtime keeps one checkout core and applies selected style variant.</p>
               </div>
               <div className="space-y-2">
                 <Label>Offer Banner Text</Label>

@@ -156,7 +156,9 @@ public class PublicStorefrontController : ControllerBase
                 theme.LoginToViewPrice,
                 theme.CatalogMode,
                 theme.CatalogVisibilityJson,
-                theme.QuoteAlertEmail
+                theme.QuoteAlertEmail,
+                theme.CheckoutTemplateSlug,
+                theme.CheckoutTemplateConfigJson
             },
             homepage = new { SectionsJson = filteredSectionsJson },
             navigation = new { ItemsJson = nav?.ItemsJson ?? "[]" },

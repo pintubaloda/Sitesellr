@@ -209,6 +209,10 @@ public class StoreThemeConfig
     public string? CatalogVisibilityJson { get; set; }
     [MaxLength(320)]
     public string? QuoteAlertEmail { get; set; }
+    [MaxLength(80)]
+    public string CheckoutTemplateSlug { get; set; } = "standard";
+    [MaxLength(4000)]
+    public string? CheckoutTemplateConfigJson { get; set; }
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 

@@ -780,6 +780,18 @@ using (var scope = app.Services.CreateScope())
         true,
         9);
     await EnsureThemeAsync(
+        "SS-Simple",
+        "ss-simple",
+        "Fashion / Apparel",
+        "Clean fashion storefront with focused PLP and premium PDP flow.",
+        "https://placehold.co/800x500/111827/FFFFFF?text=SS-Simple",
+        false,
+        0,
+        "",
+        true,
+        5,
+        "{\"homeTemplate\":\"editorial\",\"heroStyle\":\"minimal\",\"headerStyle\":\"minimal\",\"cardStyle\":\"clean\",\"plpDensity\":\"comfortable\",\"pdpLayout\":\"split\"}");
+    await EnsureThemeAsync(
         "Electronics Mega Store",
         "electronics-mega-store",
         "Electronics",

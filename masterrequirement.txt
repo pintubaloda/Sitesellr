@@ -668,3 +668,15 @@ Update 2026-02-22 (Store Customer Module - Common Across All Stores)
 - Architecture:
   - This module is shared/common across themes (no per-theme duplication).
   - Existing isolated theme runtime remains for Home/Catalog/PDP only.
+
+Update 2026-02-22 (Theme Expansion: SS-Simple)
+- Developed new free theme: `SS-Simple` (Fashion/Apparel category).
+- Implemented dedicated runtime pack for:
+  - Landing/Catalog style page (hero + filter sidebar + product grid)
+  - Product detail page (gallery, size, color, pricing, add to cart/buy now)
+- Theme integration:
+  - Routed by slug through theme runtime resolver.
+  - Uses common platform cart/checkout/login/account flows.
+- Branding/Customization:
+  - Store owner can change color using design tokens.
+  - Added SS-Simple quick color presets in Store Builder with one-click apply.

@@ -1110,3 +1110,11 @@ Update 2026-02-22 (Common customer account module + theme-matched storefront acc
 - Developed: Added account actions in UI: order detail view, tracking timeline, refund request form, support ticket form, and saved addresses panel.
 - Developed: Added header `My Account` CTA for authenticated customer sessions.
 - Note: Account module is common across themes; theme-specific runtime remains on Home/Catalog/PDP while account uses shared commerce UI with theme tokens.
+
+Update 2026-02-22 (New free theme: SS-Simple + color customization)
+- Developed: Added new free storefront theme `SS-Simple` (slug: `ss-simple`) to platform theme seed catalog.
+- Developed: Added isolated runtime pack for SS-Simple with dedicated Home/Catalog + Product Detail (PDP) rendering using theme-runtime architecture.
+- Developed: Mapped `ss-simple` slug in runtime resolver so it no longer falls back to generic/default renderer.
+- Developed: SS-Simple uses active store theme tokens (`primaryColor`) so buttons/highlights follow store branding.
+- Developed: Added Store Builder UI color presets specifically for SS-Simple (Midnight/Cobalt/Emerald/Rose/Amber) plus manual hex override support.
+- Developed: SS-Simple is marked as Free in catalog seeding and can be applied like other free themes.

@@ -60,6 +60,14 @@ const BRANDING_PRESETS = [
   { key: "luxury-night", name: "Luxury Night", tokens: { primary: "#111827", accent: "#c2410c", radius: "14px" }, typographyPack: "luxury-display" },
 ];
 
+const SS_SIMPLE_COLOR_PRESETS = [
+  { name: "Midnight", primaryColor: "#111827", accentColor: "#475569", surfaceColor: "#f8fafc" },
+  { name: "Cobalt", primaryColor: "#1d4ed8", accentColor: "#0f172a", surfaceColor: "#eff6ff" },
+  { name: "Emerald", primaryColor: "#059669", accentColor: "#14532d", surfaceColor: "#ecfdf5" },
+  { name: "Rose", primaryColor: "#e11d48", accentColor: "#881337", surfaceColor: "#fff1f2" },
+  { name: "Amber", primaryColor: "#d97706", accentColor: "#7c2d12", surfaceColor: "#fffbeb" },
+];
+
 const CAMPAIGN_TEMPLATES = [
   { key: "flash-sale", name: "Flash Sale", sections: ["announcement-bar-pro", "hero-banner-basic", "featured-products"] },
   { key: "festival-launch", name: "Festival Launch", sections: ["hero-banner-basic", "video-story-pro", "featured-products", "testimonial-carousel-pro"] },
@@ -1436,6 +1444,29 @@ export const StoreBuilder = () => {
                   placeholder="#2563eb"
                 />
               </div>
+              {activeTheme?.slug === "ss-simple" ? (
+                <div className="space-y-2 md:col-span-2">
+                  <Label>SS-Simple Color Presets</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {SS_SIMPLE_COLOR_PRESETS.map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        className="px-3 py-2 rounded-md border text-xs flex items-center gap-2"
+                        onClick={() => updateThemeJsonSetting("designTokensJson", {
+                          primaryColor: preset.primaryColor,
+                          accentColor: preset.accentColor,
+                          surfaceColor: preset.surfaceColor,
+                        })}
+                      >
+                        <span className="inline-block h-3 w-3 rounded-full border" style={{ backgroundColor: preset.primaryColor }} />
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500">Store owners can switch SS-Simple colors anytime from these presets or custom hex values below.</p>
+                </div>
+              ) : null}
               <div className="space-y-2">
                 <Label>Accent Color</Label>
                 <Input

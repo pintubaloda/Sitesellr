@@ -1143,3 +1143,17 @@ Files:
 Notes:
 - Added customer account summary/refund/ticket endpoints using customer session cookie auth.
 - Added `/s/{subdomain}/account` common account UI for all stores with theme color/font/header/footer matching.
+
+[Pending push] 2026-02-22 - add free SS-Simple theme runtime with store color presets
+Files:
+- backend-dotnet/Program.cs
+- frontend/src/pages/storefront/theme-runtime/index.js
+- frontend/src/pages/storefront/theme-runtime/SsSimpleRuntime.js
+- frontend/src/pages/admin/StoreBuilder.js
+- Requirestatus.txt
+- github_commit.txt
+- masterrequirement.txt
+Notes:
+- Added new free `ss-simple` theme seed.
+- Added isolated runtime implementation for home/catalog/pdp based on provided layout style.
+- Added SS-Simple color preset controls in Store Builder.

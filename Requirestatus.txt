@@ -1083,3 +1083,10 @@ Update 2026-02-22 (True isolated per-theme runtime packs - initial)
 - Developed: Kuzma isolated runtime now covers cart, checkout, login/auth, and static page rendering (in addition to home/catalog/pdp).
 - Developed: Storefront runtime dispatcher now supports isolated runtime execution for modes `home|catalog|pdp|cart|checkout|login|page`.
 - Partial: Other themes still use shared renderer path with runtime variants; full one-by-one isolated runtime packs for every catalog theme remains pending.
+
+Update 2026-02-22 (Additional isolated runtime packs)
+- Developed: Added isolated runtime pack for Electronics themes (`electronics-mega-store` + `electrogrid/electro-grid`) with dedicated Home/Catalog/PDP/Cart/Checkout/Login/Page renderers.
+- Developed: Added isolated runtime pack for Grocery FastCart (`grocery-fastcart`) with dedicated Home/Catalog/PDP/Cart/Checkout/Login/Page renderers.
+- Developed: Added isolated runtime pack for Luxury Signature (`luxury-signature`) with dedicated Home/Catalog/PDP/Cart/Checkout/Login/Page renderers.
+- Developed: Theme runtime resolver now dispatches these slugs to their own component runtime files instead of shared UI path.
+- Pending: Remaining catalog themes still on shared renderer; continue adding runtime packs per slug for full marketplace-wide uniqueness.

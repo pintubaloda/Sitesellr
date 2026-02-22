@@ -641,3 +641,5 @@ Theme Runtime Isolation
 - Pending: isolate cart/checkout/login/page into per-theme runtime packs for full end-to-end isolation.
 - Developed: Kuzma isolated runtime now includes Home/Catalog/PDP/Cart/Checkout/Login/Page.
 - Pending: Build isolated runtime packs for each remaining theme slug to guarantee fully unique UI per theme.
+- Developed: Isolated runtime packs added for electronics-mega-store, grocery-fastcart, and luxury-signature (full key storefront pages).
+- Pending: Continue per-theme isolated runtime implementation for remaining theme slugs.

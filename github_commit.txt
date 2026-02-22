@@ -1107,3 +1107,14 @@ Files:
 - github_commit.txt
 Notes:
 - Kuzma now has dedicated runtime templates for all key storefront pages.
+
+[Pending push] 2026-02-22 - add isolated runtime packs for electronics, grocery, luxury themes
+Files:
+- frontend/src/pages/storefront/theme-runtime/index.js
+- frontend/src/pages/storefront/theme-runtime/ElectronicsRuntime.js
+- frontend/src/pages/storefront/theme-runtime/GroceryFastCartRuntime.js
+- frontend/src/pages/storefront/theme-runtime/LuxurySignatureRuntime.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- These theme slugs now render dedicated page layouts across home/catalog/pdp/cart/checkout/login/page.

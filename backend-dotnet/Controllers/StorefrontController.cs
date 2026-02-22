@@ -1049,7 +1049,13 @@ public class PlatformThemesController : ControllerBase
             ThemeCatalogCreateRequest? manifest;
             await using (var manifestStream = manifestEntry.Open())
             {
-                manifest = await JsonSerializer.DeserializeAsync<ThemeCatalogCreateRequest>(manifestStream, cancellationToken: ct);
+                manifest = await JsonSerializer.DeserializeAsync<ThemeCatalogCreateRequest>(
+                    manifestStream,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    },
+                    ct);
             }
             if (manifest == null) return BadRequest(new { error = "manifest_invalid" });
             if (string.IsNullOrWhiteSpace(manifest.Name)) return BadRequest(new { error = "manifest_name_required" });

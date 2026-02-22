@@ -1073,3 +1073,4 @@ Update 2026-02-22 (Theme import UX + UI settings + per-theme runtime rendering)
 - Developed: Public storefront now consumes runtime package + inferred theme presets to render distinct per-theme runtime behaviors (header style, hero style, card style, PLP density, PDP layout).
 - Developed: Public storefront now resolves theme asset base (`/theme-packages/{slug}/{version}/assets`) so imported theme packs can drive hero/preview assets.
 - Partial: Full code-isolated template runtime (separate React component packs per theme) still pending; current runtime is variant-driven with differentiated layout behaviors.
+- Fix 2026-02-22: Theme ZIP manifest parser now uses case-insensitive JSON property binding, so `name`/`slug` lowercase keys import correctly.

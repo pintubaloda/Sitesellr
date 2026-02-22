@@ -1082,3 +1082,10 @@ Notes:
 - Platform theme import now provides immediate action feedback and detailed error messages.
 - Store builder replaced key JSON textareas with form controls while persisting same backend model.
 - Storefront now renders differently by theme runtime pack/preset instead of identical layout behavior.
+[Pending push] 2026-02-22 - fix theme import manifest lowercase key handling
+Files:
+- backend-dotnet/Controllers/StorefrontController.cs
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- `theme.manifest.json` keys are now read case-insensitively.

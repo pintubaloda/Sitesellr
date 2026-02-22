@@ -25,6 +25,7 @@ import MerchantOps from "./pages/admin/MerchantOps";
 import StorefrontPublic from "./pages/storefront/StorefrontPublic";
 import DomainsSsl from "./pages/admin/DomainsSsl";
 import PlatformModule from "./pages/admin/PlatformModule";
+import StoreBuilderV1 from "./pages/admin/StoreBuilderV1";
 import { getStoredAccessToken } from "./lib/session";
 
 const ProtectedRoute = ({ children }) => {
@@ -49,6 +50,14 @@ function App() {
           <Route path="/auth/accept-invite" element={<AcceptInvite />} />
           <Route path="/onboarding" element={<Navigate to="/auth/register" replace />} />
           <Route path="/s/:subdomain/*" element={<StorefrontPublic />} />
+          <Route
+            path="/store-builder-v1"
+            element={
+              <ProtectedRoute>
+                <StoreBuilderV1 />
+              </ProtectedRoute>
+            }
+          />
           
           {/* Admin Dashboard Routes */}
           <Route

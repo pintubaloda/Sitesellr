@@ -33,6 +33,7 @@ import {
   Users,
   Percent,
   BarChart3,
+  Wrench,
   Settings,
   Building2,
   ShieldCheck,
@@ -191,6 +192,13 @@ const sidebarItems = [
     path: "/admin/domains-ssl",
     scope: "store",
     requiredAny: ["store.domains.manage", "store.settings.manage", "store.settings.write"],
+  },
+  {
+    title: "Store Builder V1",
+    icon: Wrench,
+    path: "/store-builder-v1",
+    scope: "platform-owner-or-store",
+    requiredAny: ["store.settings.manage", "store.settings.read", "platform.settings.manage"],
   },
 ];
 

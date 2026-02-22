@@ -1099,3 +1099,11 @@ Files:
 - github_commit.txt
 Notes:
 - Kuzma theme now renders through its own component runtime for home/catalog/pdp.
+[Pending push] 2026-02-22 - extend Kuzma isolated runtime to cart/checkout/login/page
+Files:
+- frontend/src/pages/storefront/theme-runtime/KuzmaFashionRuntime.js
+- frontend/src/pages/storefront/StorefrontPublic.js
+- Requirestatus.txt
+- github_commit.txt
+Notes:
+- Kuzma now has dedicated runtime templates for all key storefront pages.

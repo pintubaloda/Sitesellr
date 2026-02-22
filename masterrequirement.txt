@@ -639,3 +639,5 @@ Storefront Theme Runtime (Latest)
 Theme Runtime Isolation
 - Developed: runtime resolver + isolated Kuzma renderer component for home/catalog/pdp.
 - Pending: isolate cart/checkout/login/page into per-theme runtime packs for full end-to-end isolation.
+- Developed: Kuzma isolated runtime now includes Home/Catalog/PDP/Cart/Checkout/Login/Page.
+- Pending: Build isolated runtime packs for each remaining theme slug to guarantee fully unique UI per theme.

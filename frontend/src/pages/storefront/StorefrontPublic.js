@@ -803,7 +803,7 @@ export default function StorefrontPublic() {
   if (!data) return <div className="min-h-screen p-10">Loading storefront...</div>;
   const runtime = resolveThemeRuntime(data?.theme?.activeTheme);
   const RuntimeComponent = runtime.Component;
-  const useIsolatedRuntime = Boolean(RuntimeComponent) && ["home", "catalog", "pdp"].includes(mode);
+  const useIsolatedRuntime = Boolean(RuntimeComponent) && ["home", "catalog", "pdp", "cart", "checkout", "login", "page"].includes(mode);
 
   return (
     <div
@@ -887,6 +887,40 @@ export default function StorefrontPublic() {
           pdpColor={pdpColor}
           setPdpColor={setPdpColor}
           themeAssetBase={themeAssetBase}
+          page={page}
+          cart={cart}
+          cartCount={cartCount}
+          cartTotal={cartTotal}
+          updateCartQty={updateCartQty}
+          removeFromCart={removeFromCart}
+          coupon={coupon}
+          setCoupon={setCoupon}
+          configuredOfferCode={configuredOfferCode}
+          shippingAmount={shippingAmount}
+          discountAmount={discountAmount}
+          payableTotal={payableTotal}
+          checkoutForm={checkoutForm}
+          setCheckoutForm={setCheckoutForm}
+          indiaStates={indiaStates}
+          checkout={checkout}
+          checkoutStatus={checkoutStatus}
+          checkoutMessage={checkoutMessage}
+          checkoutAccount={checkoutAccount}
+          reservation={reservation}
+          authState={authState}
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          authForm={authForm}
+          setAuthForm={setAuthForm}
+          customerAuthSubmit={customerAuthSubmit}
+          securityForm={securityForm}
+          setSecurityForm={setSecurityForm}
+          verifyEmailOtp={verifyEmailOtp}
+          forgotPassword={forgotPassword}
+          resetPassword={resetPassword}
+          sessions={sessions}
+          loadSessions={loadSessions}
+          revokeSession={revokeSession}
         />
       ) : mode === "home" ? (
         <main className="max-w-7xl mx-auto px-4 py-8 space-y-10">

@@ -42,6 +42,40 @@ export default function KuzmaFashionRuntime({
   pdpColor,
   setPdpColor,
   themeAssetBase,
+  page,
+  cart,
+  cartCount,
+  cartTotal,
+  updateCartQty,
+  removeFromCart,
+  coupon,
+  setCoupon,
+  configuredOfferCode,
+  shippingAmount,
+  discountAmount,
+  payableTotal,
+  checkoutForm,
+  setCheckoutForm,
+  indiaStates,
+  checkout,
+  checkoutStatus,
+  checkoutMessage,
+  checkoutAccount,
+  reservation,
+  authState,
+  authMode,
+  setAuthMode,
+  authForm,
+  setAuthForm,
+  customerAuthSubmit,
+  securityForm,
+  setSecurityForm,
+  verifyEmailOtp,
+  forgotPassword,
+  resetPassword,
+  sessions,
+  loadSessions,
+  revokeSession,
 }) {
   const heroImage = themeAssetBase ? `${themeAssetBase}/banner.jpg` : fallbackHero;
 
@@ -256,6 +290,190 @@ export default function KuzmaFashionRuntime({
             Delivery estimate: 2-5 business days • Easy returns • Secure payment
           </div>
         </section>
+      </main>
+    );
+  }
+
+  if (mode === "cart") {
+    return (
+      <main className="max-w-7xl mx-auto px-4 py-8 grid lg:grid-cols-[1.4fr,0.9fr] gap-6">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">Your Cart</h2>
+            <RuntimeBadge text="Kuzma Cart Runtime" />
+          </div>
+          {cart.length === 0 ? (
+            <p className="text-slate-500">Your cart is empty.</p>
+          ) : cart.map((item) => (
+            <article key={item.id} className="rounded-xl border border-slate-200 p-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="font-medium">{item.title}</p>
+                <p className="text-sm text-slate-500">{currencyText(item.price)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button className="h-8 w-8 rounded border" onClick={() => updateCartQty(item.id, item.quantity - 1)}>-</button>
+                <span className="min-w-7 text-center">{item.quantity}</span>
+                <button className="h-8 w-8 rounded border" onClick={() => updateCartQty(item.id, item.quantity + 1)}>+</button>
+                <button className="h-8 px-3 rounded border text-red-600" onClick={() => removeFromCart(item.id)}>Remove</button>
+              </div>
+            </article>
+          ))}
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 h-fit space-y-4">
+          <h3 className="text-xl font-semibold">Order Summary</h3>
+          <div className="flex gap-2">
+            <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder={`Coupon (${configuredOfferCode || "WELCOME10"})`} className="h-10 rounded-lg border px-3 flex-1" />
+          </div>
+          <div className="space-y-1 text-sm">
+            <p className="flex justify-between"><span>Items ({cartCount})</span><span>{currencyText(cartTotal)}</span></p>
+            <p className="flex justify-between"><span>Discount</span><span>- {currencyText(discountAmount)}</span></p>
+            <p className="flex justify-between"><span>Shipping</span><span>{currencyText(shippingAmount)}</span></p>
+            <p className="flex justify-between text-base font-semibold border-t pt-2 mt-2"><span>Total</span><span>{currencyText(payableTotal)}</span></p>
+          </div>
+          <Link to={`/s/${subdomain}/checkout`} className="block text-center w-full px-4 py-3 rounded-xl text-white font-medium" style={{ backgroundColor: primary }}>
+            Proceed to Checkout
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
+  if (mode === "checkout") {
+    return (
+      <main className="max-w-7xl mx-auto px-4 py-8 grid lg:grid-cols-[1.4fr,0.9fr] gap-6">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">Checkout</h2>
+            <RuntimeBadge text="Kuzma Checkout Runtime" />
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            <input value={checkoutForm.name} onChange={(e) => setCheckoutForm((s) => ({ ...s, name: e.target.value }))} placeholder="Full name" className="h-11 rounded-lg border px-3" />
+            <input value={checkoutForm.email} onChange={(e) => setCheckoutForm((s) => ({ ...s, email: e.target.value }))} placeholder="Email" className="h-11 rounded-lg border px-3" />
+            <input value={checkoutForm.phone} onChange={(e) => setCheckoutForm((s) => ({ ...s, phone: e.target.value }))} placeholder="Phone" className="h-11 rounded-lg border px-3" />
+            <select value={checkoutForm.state} onChange={(e) => setCheckoutForm((s) => ({ ...s, state: e.target.value }))} className="h-11 rounded-lg border px-3">
+              <option value="">Select state</option>
+              {indiaStates.map((state) => <option key={state} value={state}>{state}</option>)}
+            </select>
+            <input value={checkoutForm.city} onChange={(e) => setCheckoutForm((s) => ({ ...s, city: e.target.value }))} placeholder="City" className="h-11 rounded-lg border px-3" />
+            <input value={checkoutForm.postalCode} onChange={(e) => setCheckoutForm((s) => ({ ...s, postalCode: e.target.value }))} placeholder="Postal code" className="h-11 rounded-lg border px-3" />
+            <input value={checkoutForm.addressLine1} onChange={(e) => setCheckoutForm((s) => ({ ...s, addressLine1: e.target.value }))} placeholder="Address line 1" className="h-11 rounded-lg border px-3 md:col-span-2" />
+            <input value={checkoutForm.addressLine2} onChange={(e) => setCheckoutForm((s) => ({ ...s, addressLine2: e.target.value }))} placeholder="Address line 2" className="h-11 rounded-lg border px-3 md:col-span-2" />
+          </div>
+          <div className="grid md:grid-cols-3 gap-2">
+            {["cod", "upi", "card"].map((modeKey) => (
+              <button
+                type="button"
+                key={modeKey}
+                className={`h-10 rounded-lg border text-sm ${checkoutForm.paymentMethod === modeKey ? "text-white border-transparent" : ""}`}
+                style={checkoutForm.paymentMethod === modeKey ? { backgroundColor: primary } : {}}
+                onClick={() => setCheckoutForm((s) => ({ ...s, paymentMethod: modeKey }))}
+              >
+                {modeKey.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              className="px-4 py-3 rounded-xl text-white font-medium disabled:opacity-50"
+              style={{ backgroundColor: primary }}
+              disabled={reservation.loading}
+              onClick={checkout}
+            >
+              {reservation.loading ? "Processing..." : `Pay ${currencyText(payableTotal)}`}
+            </button>
+            <Link to={`/s/${subdomain}/cart`} className="px-4 py-3 rounded-xl border text-center font-medium">Back to Cart</Link>
+          </div>
+          {checkoutMessage ? (
+            <div className={`rounded-lg border px-3 py-2 text-sm ${
+              checkoutStatus === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-700" :
+              checkoutStatus === "error" ? "bg-red-50 border-red-200 text-red-700" :
+              "bg-amber-50 border-amber-200 text-amber-700"
+            }`}>{checkoutMessage}</div>
+          ) : null}
+          {checkoutAccount?.email ? (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+              Account created: <strong>{checkoutAccount.email}</strong><br />
+              Password: <strong>{checkoutAccount.password}</strong>
+            </div>
+          ) : null}
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 h-fit space-y-3">
+          <h3 className="text-xl font-semibold">Summary</h3>
+          <p className="flex justify-between text-sm"><span>Subtotal</span><span>{currencyText(cartTotal)}</span></p>
+          <p className="flex justify-between text-sm"><span>Shipping</span><span>{currencyText(shippingAmount)}</span></p>
+          <p className="flex justify-between text-sm"><span>Discount</span><span>- {currencyText(discountAmount)}</span></p>
+          <p className="flex justify-between text-base font-semibold border-t pt-2"><span>Total</span><span>{currencyText(payableTotal)}</span></p>
+        </section>
+      </main>
+    );
+  }
+
+  if (mode === "login") {
+    return (
+      <main className="max-w-3xl mx-auto px-4 py-10">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">{authMode === "register" ? "Create account" : "Login to your account"}</h2>
+            <RuntimeBadge text="Kuzma Auth Runtime" />
+          </div>
+          <div className="flex gap-2">
+            <button className={`px-4 py-2 rounded-lg border ${authMode === "login" ? "bg-slate-900 text-white" : ""}`} onClick={() => setAuthMode("login")}>Login</button>
+            <button className={`px-4 py-2 rounded-lg border ${authMode === "register" ? "bg-slate-900 text-white" : ""}`} onClick={() => setAuthMode("register")}>Register</button>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            {authMode === "register" ? <input value={authForm.name} onChange={(e) => setAuthForm((s) => ({ ...s, name: e.target.value }))} placeholder="Name" className="h-11 rounded-lg border px-3" /> : null}
+            <input value={authForm.email} onChange={(e) => setAuthForm((s) => ({ ...s, email: e.target.value }))} placeholder="Email" className="h-11 rounded-lg border px-3" />
+            {authMode === "register" ? <input value={authForm.phone} onChange={(e) => setAuthForm((s) => ({ ...s, phone: e.target.value }))} placeholder="Phone" className="h-11 rounded-lg border px-3" /> : null}
+            <input value={authForm.password} type="password" onChange={(e) => setAuthForm((s) => ({ ...s, password: e.target.value }))} placeholder="Password" className="h-11 rounded-lg border px-3" />
+          </div>
+          <button className="px-4 py-3 rounded-xl text-white font-medium" style={{ backgroundColor: primary }} onClick={customerAuthSubmit}>
+            {authMode === "register" ? "Register" : "Login"}
+          </button>
+          {authState?.message ? <p className="text-sm text-slate-600">{authState.message}</p> : null}
+
+          <div className="pt-2 border-t space-y-2">
+            <p className="text-sm font-medium">Security Actions</p>
+            <div className="grid md:grid-cols-2 gap-2">
+              <input value={securityForm.email} onChange={(e) => setSecurityForm((s) => ({ ...s, email: e.target.value }))} placeholder="Email for OTP / reset" className="h-10 rounded-lg border px-3" />
+              <input value={securityForm.otp} onChange={(e) => setSecurityForm((s) => ({ ...s, otp: e.target.value }))} placeholder="Email OTP" className="h-10 rounded-lg border px-3" />
+              <input value={securityForm.token} onChange={(e) => setSecurityForm((s) => ({ ...s, token: e.target.value }))} placeholder="Reset token" className="h-10 rounded-lg border px-3" />
+              <input value={securityForm.newPassword} type="password" onChange={(e) => setSecurityForm((s) => ({ ...s, newPassword: e.target.value }))} placeholder="New password" className="h-10 rounded-lg border px-3" />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button className="px-3 py-2 rounded border text-sm" onClick={verifyEmailOtp}>Verify Email OTP</button>
+              <button className="px-3 py-2 rounded border text-sm" onClick={forgotPassword}>Forgot Password</button>
+              <button className="px-3 py-2 rounded border text-sm" onClick={resetPassword}>Reset Password</button>
+              <button className="px-3 py-2 rounded border text-sm" onClick={loadSessions}>Load Sessions</button>
+            </div>
+            {Array.isArray(sessions) && sessions.length > 0 ? (
+              <div className="space-y-2">
+                {sessions.map((session) => (
+                  <div key={session.id} className="rounded border p-2 text-sm flex items-center justify-between">
+                    <span>{session.userAgent || "Session"} • {session.clientIp || "ip"}</span>
+                    <button className="px-2 py-1 rounded border text-xs" onClick={() => revokeSession(session.id)}>Revoke</button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (mode === "page") {
+    return (
+      <main className="max-w-5xl mx-auto px-4 py-10">
+        <article className="rounded-2xl border border-slate-200 bg-white p-8">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-semibold">{page?.title || "Page"}</h1>
+            <RuntimeBadge text="Kuzma Static Page Runtime" />
+          </div>
+          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: page?.content || "" }} />
+        </article>
       </main>
     );
   }

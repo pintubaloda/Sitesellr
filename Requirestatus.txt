@@ -1080,3 +1080,6 @@ Update 2026-02-22 (True isolated per-theme runtime packs - initial)
 - Developed: Added dedicated `KuzmaFashionRuntime` renderer component for Home/Catalog/PDP so Kuzma no longer uses the same UI tree as default themes.
 - Developed: Storefront now delegates rendering to package-specific component when a runtime pack exists (currently `kuzma-fashion-pro`), with fallback to default renderer for all other themes.
 - Note: Cart/Checkout/Login/Page routes still use shared default renderer in this phase; next phase can isolate those per runtime pack too.
+- Developed: Kuzma isolated runtime now covers cart, checkout, login/auth, and static page rendering (in addition to home/catalog/pdp).
+- Developed: Storefront runtime dispatcher now supports isolated runtime execution for modes `home|catalog|pdp|cart|checkout|login|page`.
+- Partial: Other themes still use shared renderer path with runtime variants; full one-by-one isolated runtime packs for every catalog theme remains pending.

@@ -2155,6 +2155,7 @@ export default function StoreBuilderV1() {
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'app-store', label: 'App Store', icon: 'apps', badge: 'NEW' },
     { id: 'app-settings', label: 'App Settings', icon: 'settings' },
+    { id: 'theme-builder', label: 'Theme Builder', icon: 'theme', route: '/store-builder-theme' },
     { id: 'settings-builder', label: 'Settings Builder', icon: 'settings', route: '/store-builder-settings' },
   ];
 
@@ -2201,19 +2202,15 @@ export default function StoreBuilderV1() {
 
   const renderPage = () => {
     if (accessState.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading access...</h3></div>;
-    if (page === 'dashboard') {
-      return role === "platform"
-        ? <PlatformDashboardApi />
-        : <StoreDashboardApi storeId={accessState.storeId} />;
-    }
+    if (page === 'dashboard') return <Dashboard role={role} toast={showToast}/>;
     if (role === 'platform') {
-      if (page === 'app-manager') return <PlatformMarketplaceApi />;
-      if (page === 'revenue') return <PlatformRevenueApi />;
-      if (page === 'users') return <PlatformTenantsApi />;
+      if (page === 'app-manager') return <PlatformAppManager toast={showToast}/>;
+      if (page === 'revenue') return <PlatformRevenue toast={showToast}/>;
+      if (page === 'users') return <div className="empty-state"><div className="empty-icon">🏪</div><h3>Tenant Management</h3><p>Full tenant CRUD module — included in main spec</p></div>;
     }
     if (role === 'store') {
-      if (page === 'app-store') return <StoreAppStoreApi storeId={accessState.storeId} />;
-      if (page === 'app-settings') return <StoreAppSettingsApi storeId={accessState.storeId} />;
+      if (page === 'app-store') return <StoreAppStore toast={showToast}/>;
+      if (page === 'app-settings') return <AppSettings toast={showToast}/>;
     }
     return null;
   };
@@ -2229,9 +2226,8 @@ export default function StoreBuilderV1() {
             <div className="sb-logo-sub">Admin Panel</div>
           </div>
 
-          <div className="role-switcher">
-            <button className={`role-btn ${role === 'platform' ? 'active' : ''}`}>Platform</button>
-            <button className={`role-btn ${role === 'store' ? 'active' : ''}`}>Store Owner</button>
+          <div style={{ margin: "10px 12px 4px", color: "#94a3b8", fontSize: 11, fontWeight: 600 }}>
+            {role === "platform" ? "Platform Owner Mode" : "Store Owner Mode"}
           </div>
 
           <div className="sb-section">

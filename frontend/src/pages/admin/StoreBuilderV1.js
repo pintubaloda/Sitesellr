@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import api from "../../lib/api";
 
 // ─── DESIGN SYSTEM ───────────────────────────────────────────────────────────
 const CSS = `
@@ -1738,10 +1739,403 @@ const PlatformRevenue = ({ toast }) => {
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
+function StoreApiNotice({ error }) {
+  if (!error) return null;
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <div className="card-body">
+        <div className="info-box warning">
+          <Icon name="info" size={16} />
+          <span>{error}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StoreDashboardApi({ storeId }) {
+  const [state, setState] = useState({ loading: true, error: "", data: null });
+
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      if (!storeId) {
+        setState({ loading: false, error: "No store selected for this user.", data: null });
+        return;
+      }
+      setState({ loading: true, error: "", data: null });
+      try {
+        const res = await api.get(`/stores/${storeId}/insights/dashboard`);
+        if (!mounted) return;
+        setState({ loading: false, error: "", data: res.data });
+      } catch (err) {
+        if (!mounted) return;
+        setState({ loading: false, error: err?.response?.data?.error || "Could not load store dashboard.", data: null });
+      }
+    };
+    run();
+    return () => { mounted = false; };
+  }, [storeId]);
+
+  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading dashboard...</h3></div>;
+  const m = state.data?.metrics || {};
+  return (
+    <>
+      <div className="page-header">
+        <div>
+          <div className="section-title">Store Dashboard</div>
+          <div className="section-sub">Live metrics from backend insights API</div>
+        </div>
+      </div>
+      <div className="stats-grid">
+        {[
+          { icon: "💰", label: "Revenue", val: `₹${Number(m.totalRevenue || 0).toFixed(2)}`, delta: `${m.revenueChange || 0}%`, trend: Number(m.revenueChange || 0) >= 0 ? "up" : "down", color: "#f0fdf4" },
+          { icon: "🧾", label: "Orders", val: `${m.totalOrders || 0}`, delta: `${m.ordersChange || 0}%`, trend: Number(m.ordersChange || 0) >= 0 ? "up" : "down", color: "#eff6ff" },
+          { icon: "👥", label: "Customers", val: `${m.totalCustomers || 0}`, delta: `${m.customersChange || 0}%`, trend: Number(m.customersChange || 0) >= 0 ? "up" : "down", color: "#fdf4ff" },
+          { icon: "📈", label: "Conversion", val: `${m.conversionRate || 0}%`, delta: "live", trend: "up", color: "#fffbeb" },
+        ].map((s) => (
+          <div key={s.label} className="stat-card">
+            <div className="stat-icon" style={{ background: s.color }}>{s.icon}</div>
+            <div>
+              <div className="stat-val">{s.val}</div>
+              <div className="stat-label">{s.label}</div>
+              <div className={`stat-delta ${s.trend}`}>{s.delta}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <StoreApiNotice error={state.error} />
+    </>
+  );
+}
+
+function StoreAppSettingsApi({ storeId }) {
+  const [state, setState] = useState({ loading: true, error: "", data: null });
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      if (!storeId) {
+        setState({ loading: false, error: "No store selected for this user.", data: null });
+        return;
+      }
+      setState({ loading: true, error: "", data: null });
+      try {
+        const [marketing, capabilities, usage] = await Promise.all([
+          api.get(`/stores/${storeId}/insights/marketing`),
+          api.get(`/stores/${storeId}/subscription/capabilities`),
+          api.get(`/stores/${storeId}/subscription/usage`),
+        ]);
+        if (!mounted) return;
+        setState({
+          loading: false,
+          error: "",
+          data: {
+            marketing: marketing.data || {},
+            capabilities: capabilities.data || {},
+            usage: usage.data || {},
+          },
+        });
+      } catch (err) {
+        if (!mounted) return;
+        setState({ loading: false, error: err?.response?.data?.error || "Could not load app settings.", data: null });
+      }
+    };
+    run();
+    return () => { mounted = false; };
+  }, [storeId]);
+
+  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading app settings...</h3></div>;
+  const marketingMetrics = state.data?.marketing?.metrics || {};
+  const capabilities = state.data?.capabilities || {};
+  const usage = state.data?.usage || {};
+  return (
+    <>
+      <div className="page-header">
+        <div>
+          <div className="section-title">App Settings</div>
+          <div className="section-sub">Subscription capabilities + marketing usage from backend APIs</div>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Subscription Capabilities</div></div>
+        <div className="card-body">
+          <div className="grid-3">
+            <div><div className="form-label">Allowed Theme Tier</div><div>{capabilities.allowedThemeTier || "-"}</div></div>
+            <div><div className="form-label">Max Products</div><div>{capabilities.maxProducts ?? "-"}</div></div>
+            <div><div className="form-label">Max Plugins</div><div>{capabilities.maxPluginsInstalled ?? "-"}</div></div>
+          </div>
+          <div style={{ height: 12 }} />
+          <div className="grid-3">
+            <div><div className="form-label">Products Used</div><div>{usage.currentProducts ?? "-"}</div></div>
+            <div><div className="form-label">Categories Used</div><div>{usage.currentCategories ?? "-"}</div></div>
+            <div><div className="form-label">Gateways Used</div><div>{usage.currentPaymentGateways ?? "-"}</div></div>
+          </div>
+        </div>
+      </div>
+      <div style={{ height: 14 }} />
+      <div className="card">
+        <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Marketing Summary</div></div>
+        <div className="card-body">
+          <div className="grid-3">
+            <div><div className="form-label">Active Campaigns</div><div>{marketingMetrics.activeCampaigns ?? 0}</div></div>
+            <div><div className="form-label">Paid Campaigns</div><div>{marketingMetrics.paidCampaigns ?? 0}</div></div>
+            <div><div className="form-label">Marketing Spend</div><div>₹{Number(marketingMetrics.marketingSpend || 0).toFixed(2)}</div></div>
+          </div>
+        </div>
+      </div>
+      <StoreApiNotice error={state.error} />
+    </>
+  );
+}
+
+function StoreAppStoreApi({ storeId }) {
+  const [state, setState] = useState({ loading: true, error: "", data: null });
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      if (!storeId) {
+        setState({ loading: false, error: "No store selected for this user.", data: null });
+        return;
+      }
+      setState({ loading: true, error: "", data: null });
+      try {
+        const res = await api.get(`/stores/${storeId}/insights/marketing`);
+        if (!mounted) return;
+        setState({ loading: false, error: "", data: res.data || {} });
+      } catch (err) {
+        if (!mounted) return;
+        setState({ loading: false, error: err?.response?.data?.error || "Could not load app store data.", data: null });
+      }
+    };
+    run();
+    return () => { mounted = false; };
+  }, [storeId]);
+
+  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading app store...</h3></div>;
+  const templates = Array.isArray(state.data?.templates) ? state.data.templates : [];
+  const subscriptions = Array.isArray(state.data?.subscriptions) ? state.data.subscriptions : [];
+  return (
+    <>
+      <div className="page-header">
+        <div>
+          <div className="section-title">App Store</div>
+          <div className="section-sub">Live campaign templates and installed subscriptions</div>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Available Templates ({templates.length})</div></div>
+        <div className="card-body">
+          {templates.length === 0 && <div style={{ color: "var(--muted)" }}>No templates available.</div>}
+          {templates.slice(0, 12).map((t) => (
+            <div key={t.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{t.name}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>{t.category}</div>
+              </div>
+              <div style={{ fontWeight: 700 }}>{t.isPaid ? `₹${t.price}` : "Free"}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ height: 14 }} />
+      <div className="card">
+        <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Installed ({subscriptions.length})</div></div>
+        <div className="card-body">
+          {subscriptions.length === 0 && <div style={{ color: "var(--muted)" }}>No installed apps.</div>}
+          {subscriptions.slice(0, 12).map((s) => (
+            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{s.templateName}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.status} • {s.billingStatus}</div>
+              </div>
+              <div style={{ fontWeight: 700 }}>₹{Number(s.chargedAmount || 0).toFixed(2)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <StoreApiNotice error={state.error} />
+    </>
+  );
+}
+
+function PlatformDashboardApi() {
+  const [state, setState] = useState({ loading: true, error: "", data: {} });
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      setState({ loading: true, error: "", data: {} });
+      try {
+        const [payments, billing, plugins] = await Promise.all([
+          api.get("/platform/owner/payments"),
+          api.get("/platform/owner/billing"),
+          api.get("/platform/owner/plugins"),
+        ]);
+        if (!mounted) return;
+        setState({ loading: false, error: "", data: { payments: payments.data, billing: billing.data, plugins: plugins.data } });
+      } catch (err) {
+        if (!mounted) return;
+        setState({ loading: false, error: err?.response?.data?.error || "Could not load platform dashboard.", data: {} });
+      }
+    };
+    run();
+    return () => { mounted = false; };
+  }, []);
+
+  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading dashboard...</h3></div>;
+  const p = state.data.payments || {};
+  const b = state.data.billing || {};
+  const pl = state.data.plugins || {};
+  return (
+    <>
+      <div className="page-header">
+        <div><div className="section-title">Platform Dashboard</div><div className="section-sub">Live platform metrics from backend</div></div>
+      </div>
+      <div className="stats-grid">
+        {[
+          { icon: "💳", label: "Transactions", val: `${p.totalTransactions || 0}`, delta: `${p.paymentSuccessRate || 0}% success`, trend: "up", color: "#eff6ff" },
+          { icon: "💰", label: "Gross Volume", val: `₹${Number(p.grossVolume || 0).toFixed(2)}`, delta: `${p.paidTransactions || 0} paid`, trend: "up", color: "#f0fdf4" },
+          { icon: "🧾", label: "Active Subs", val: `${b.activeSubscriptions || 0}`, delta: `${b.trialSubscriptions || 0} trials`, trend: "up", color: "#fdf4ff" },
+          { icon: "🧩", label: "Themes", val: `${pl.themesTotal || 0}`, delta: `${pl.themesActive || 0} active`, trend: "up", color: "#fffbeb" },
+        ].map((s) => (
+          <div key={s.label} className="stat-card">
+            <div className="stat-icon" style={{ background: s.color }}>{s.icon}</div>
+            <div><div className="stat-val">{s.val}</div><div className="stat-label">{s.label}</div><div className={`stat-delta ${s.trend}`}>{s.delta}</div></div>
+          </div>
+        ))}
+      </div>
+      <StoreApiNotice error={state.error} />
+    </>
+  );
+}
+
+function PlatformMarketplaceApi() {
+  const [state, setState] = useState({ loading: true, error: "", data: null });
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      setState({ loading: true, error: "", data: null });
+      try {
+        const res = await api.get("/platform/owner/plugins");
+        if (!mounted) return;
+        setState({ loading: false, error: "", data: res.data });
+      } catch (err) {
+        if (!mounted) return;
+        setState({ loading: false, error: err?.response?.data?.error || "Could not load marketplace.", data: null });
+      }
+    };
+    run();
+    return () => { mounted = false; };
+  }, []);
+  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading marketplace...</h3></div>;
+  const d = state.data || {};
+  return (
+    <div className="card">
+      <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>App Marketplace (Backend)</div></div>
+      <div className="card-body">
+        <div className="grid-3">
+          <div><div className="form-label">Themes Total</div><div>{d.themesTotal || 0}</div></div>
+          <div><div className="form-label">Campaign Templates</div><div>{d.campaignTemplatesTotal || 0}</div></div>
+          <div><div className="form-label">Kill Switch</div><div>{d.killSwitch ? "Enabled" : "Disabled"}</div></div>
+        </div>
+      </div>
+      <StoreApiNotice error={state.error} />
+    </div>
+  );
+}
+
+function PlatformRevenueApi() {
+  const [state, setState] = useState({ loading: true, error: "", data: null });
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      setState({ loading: true, error: "", data: null });
+      try {
+        const res = await api.get("/platform/owner/reports");
+        if (!mounted) return;
+        setState({ loading: false, error: "", data: res.data });
+      } catch (err) {
+        if (!mounted) return;
+        setState({ loading: false, error: err?.response?.data?.error || "Could not load revenue data.", data: null });
+      }
+    };
+    run();
+    return () => { mounted = false; };
+  }, []);
+  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading revenue...</h3></div>;
+  const list = Array.isArray(state.data?.paidByMonth) ? state.data.paidByMonth : [];
+  return (
+    <div className="card">
+      <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Revenue by Month</div></div>
+      <div className="card-body">
+        {list.length === 0 && <div style={{ color: "var(--muted)" }}>No data</div>}
+        {list.map((x) => (
+          <div key={x.key} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+            <div>{x.key}</div>
+            <div style={{ fontWeight: 700 }}>₹{Number(x.revenue || 0).toFixed(2)} ({x.transactions || 0})</div>
+          </div>
+        ))}
+      </div>
+      <StoreApiNotice error={state.error} />
+    </div>
+  );
+}
+
+function PlatformTenantsApi() {
+  const [state, setState] = useState({ loading: true, error: "", stores: [], merchants: [] });
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      setState({ loading: true, error: "", stores: [], merchants: [] });
+      try {
+        const [storesRes, merchantsRes] = await Promise.all([api.get("/stores"), api.get("/merchants")]);
+        if (!mounted) return;
+        setState({
+          loading: false,
+          error: "",
+          stores: Array.isArray(storesRes.data) ? storesRes.data : [],
+          merchants: Array.isArray(merchantsRes.data) ? merchantsRes.data : [],
+        });
+      } catch (err) {
+        if (!mounted) return;
+        setState({ loading: false, error: err?.response?.data?.error || "Could not load tenants.", stores: [], merchants: [] });
+      }
+    };
+    run();
+    return () => { mounted = false; };
+  }, []);
+  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading tenants...</h3></div>;
+  return (
+    <div className="card">
+      <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Tenants</div></div>
+      <div className="card-body">
+        <div className="grid-3" style={{ marginBottom: 12 }}>
+          <div><div className="form-label">Merchants</div><div>{state.merchants.length}</div></div>
+          <div><div className="form-label">Stores</div><div>{state.stores.length}</div></div>
+          <div><div className="form-label">Active Stores</div><div>{state.stores.filter((s) => Number(s.status) === 1).length}</div></div>
+        </div>
+        {state.stores.slice(0, 12).map((s) => (
+          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+            <div>{s.name} {s.subdomain ? `(${s.subdomain})` : ""}</div>
+            <div style={{ color: "var(--muted)" }}>{s.currency || "INR"}</div>
+          </div>
+        ))}
+      </div>
+      <StoreApiNotice error={state.error} />
+    </div>
+  );
+}
+
 export default function StoreBuilderV1() {
   const [role, setRole] = useState('store'); // 'platform' | 'store'
   const [page, setPage] = useState('dashboard');
   const [toasts, setToasts] = useState([]);
+  const [accessState, setAccessState] = useState({
+    loading: true,
+    error: "",
+    isPlatformOwner: false,
+    storeId: "",
+    userEmail: "",
+  });
 
   const showToast = (msg, type = '') => {
     const id = Date.now();
@@ -1755,37 +2149,74 @@ export default function StoreBuilderV1() {
     { id: 'revenue', label: 'Revenue', icon: 'revenue' },
     { id: 'users', label: 'Tenants', icon: 'users' },
     { id: 'theme-builder', label: 'Theme Builder', icon: 'theme', route: '/store-builder-theme' },
-    { id: 'settings-builder', label: 'Settings Builder', icon: 'settings', route: '/store-builder-settings' },
   ];
 
   const storeNav = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'app-store', label: 'App Store', icon: 'apps', badge: 'NEW' },
     { id: 'app-settings', label: 'App Settings', icon: 'settings' },
-    { id: 'theme', label: 'Theme & Design', icon: 'theme' },
-    { id: 'theme-builder', label: 'Theme Builder', icon: 'theme', route: '/store-builder-theme' },
     { id: 'settings-builder', label: 'Settings Builder', icon: 'settings', route: '/store-builder-settings' },
   ];
 
-  const nav = role === 'platform' ? platformNav : storeNav;
+  const nav = useMemo(() => (role === 'platform' ? platformNav : storeNav), [role]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadAccess = async () => {
+      try {
+        const [accessRes, storesRes] = await Promise.all([
+          api.get("/auth/access"),
+          api.get("/stores"),
+        ]);
+        if (!mounted) return;
+        const access = accessRes?.data || {};
+        const stores = Array.isArray(storesRes?.data) ? storesRes.data : [];
+        const resolvedStoreId = access.currentStoreId || stores[0]?.id || "";
+        if (resolvedStoreId) {
+          api.defaults.headers.common["X-Store-Id"] = resolvedStoreId;
+        }
+        setRole(access.isPlatformOwner ? "platform" : "store");
+        setAccessState({
+          loading: false,
+          error: "",
+          isPlatformOwner: !!access.isPlatformOwner,
+          storeId: resolvedStoreId,
+          userEmail: access.userEmail || "",
+        });
+      } catch (err) {
+        if (!mounted) return;
+        setRole("store");
+        setAccessState({
+          loading: false,
+          error: err?.response?.data?.error || "Could not load access context.",
+          isPlatformOwner: false,
+          storeId: "",
+          userEmail: "",
+        });
+      }
+    };
+    loadAccess();
+    return () => { mounted = false; };
+  }, []);
 
   const renderPage = () => {
-    if (page === 'dashboard') return <Dashboard role={role} toast={showToast}/>;
+    if (accessState.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading access...</h3></div>;
+    if (page === 'dashboard') {
+      return role === "platform"
+        ? <PlatformDashboardApi />
+        : <StoreDashboardApi storeId={accessState.storeId} />;
+    }
     if (role === 'platform') {
-      if (page === 'app-manager') return <PlatformAppManager toast={showToast}/>;
-      if (page === 'revenue') return <PlatformRevenue toast={showToast}/>;
-      if (page === 'users') return <div className="empty-state"><div className="empty-icon">🏪</div><h3>Tenant Management</h3><p>Full tenant CRUD module — included in main spec</p></div>;
+      if (page === 'app-manager') return <PlatformMarketplaceApi />;
+      if (page === 'revenue') return <PlatformRevenueApi />;
+      if (page === 'users') return <PlatformTenantsApi />;
     }
     if (role === 'store') {
-      if (page === 'app-store') return <StoreAppStore toast={showToast}/>;
-      if (page === 'app-settings') return <AppSettings toast={showToast}/>;
-      if (page === 'theme') return <div className="empty-state"><div className="empty-icon">🎨</div><h3>Theme & Design</h3><p>Layout builder — covered in the main spec document</p></div>;
+      if (page === 'app-store') return <StoreAppStoreApi storeId={accessState.storeId} />;
+      if (page === 'app-settings') return <StoreAppSettingsApi storeId={accessState.storeId} />;
     }
     return null;
   };
-
-  // Reset to appropriate page when role switches
-  const switchRole = (r) => { setRole(r); setPage('dashboard'); };
 
   return (
     <>
@@ -1799,8 +2230,8 @@ export default function StoreBuilderV1() {
           </div>
 
           <div className="role-switcher">
-            <button className={`role-btn ${role === 'platform' ? 'active' : ''}`} onClick={() => switchRole('platform')}>Platform</button>
-            <button className={`role-btn ${role === 'store' ? 'active' : ''}`} onClick={() => switchRole('store')}>Store Owner</button>
+            <button className={`role-btn ${role === 'platform' ? 'active' : ''}`}>Platform</button>
+            <button className={`role-btn ${role === 'store' ? 'active' : ''}`}>Store Owner</button>
           </div>
 
           <div className="sb-section">
@@ -1811,7 +2242,7 @@ export default function StoreBuilderV1() {
                 className={`sb-item ${page === item.id ? 'active' : ''}`}
                 onClick={() => {
                   if (item.route) {
-                    window.location.assign(item.route);
+                    window.location.href = item.route;
                     return;
                   }
                   setPage(item.id);
@@ -1845,7 +2276,7 @@ export default function StoreBuilderV1() {
                     {role === 'platform' ? 'Platform Owner' : 'Store Owner'}
                   </div>
                   <div style={{ fontSize: 11, color: '#64748b' }}>
-                    {role === 'platform' ? 'admin@sitesellr.com' : 'store@example.com'}
+                    {accessState.userEmail || (role === 'platform' ? 'admin@sitesellr.com' : 'store@example.com')}
                   </div>
                 </div>
               </div>
@@ -1868,6 +2299,7 @@ export default function StoreBuilderV1() {
 
           <div className="content">
             {renderPage()}
+            <StoreApiNotice error={accessState.error} />
           </div>
         </main>
 

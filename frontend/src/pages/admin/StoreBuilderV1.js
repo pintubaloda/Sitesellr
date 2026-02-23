@@ -778,6 +778,9 @@ function ThemeBuilder({ toast, storeId }) {
   const [versions, setVersions] = useState([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [themeCatalog, setThemeCatalog] = useState([]);
+  const [activeThemeId, setActiveThemeId] = useState("");
+  const [activeThemeName, setActiveThemeName] = useState("Default Theme");
 
   const loadTheme = useCallback(async () => {
     if (!storeId) return;
@@ -797,9 +800,28 @@ function ThemeBuilder({ toast, storeId }) {
       if (payload.settings && typeof payload.settings === "object") {
         setThemeSettings((prev) => ({ ...prev, ...payload.settings }));
       }
+      if (payload.activeThemeId) setActiveThemeId(String(payload.activeThemeId));
+      if (payload.activeTheme?.name) setActiveThemeName(String(payload.activeTheme.name));
       setError("");
     } catch (err) {
       setError(toErrorText(err, "Could not load theme data."));
+    }
+  }, [storeId]);
+
+  const loadThemeCatalog = useCallback(async () => {
+    if (!storeId) return;
+    try {
+      const res = await api.get(`/stores/${storeId}/themes`);
+      const payload = res.data || {};
+      const themes = Array.isArray(payload.themes) ? payload.themes : [];
+      setThemeCatalog(themes);
+      if (payload.activeThemeId) {
+        setActiveThemeId(String(payload.activeThemeId));
+        const matched = themes.find((t) => String(t.id) === String(payload.activeThemeId));
+        if (matched?.name) setActiveThemeName(matched.name);
+      }
+    } catch (err) {
+      setError(toErrorText(err, "Could not load theme catalog."));
     }
   }, [storeId]);
 
@@ -886,9 +908,34 @@ function ThemeBuilder({ toast, storeId }) {
   }, [loadTheme]);
 
   useEffect(() => {
+    loadThemeCatalog();
+  }, [loadThemeCatalog]);
+
+  useEffect(() => {
     if (!showVersions) return;
     loadVersions();
   }, [showVersions, loadVersions]);
+
+  const setActiveTheme = useCallback(async (themeId) => {
+    if (!storeId || !themeId) return;
+    try {
+      setSaveBusy(true);
+      await saveDraft(false);
+      await api.put(`/stores/${storeId}/theme/active`, { themeId });
+      const selected = themeCatalog.find((t) => String(t.id) === String(themeId));
+      setActiveThemeId(String(themeId));
+      if (selected?.name) setActiveThemeName(selected.name);
+      await loadTheme();
+      await loadVersions();
+      toast(`Active theme changed to ${selected?.name || "selected theme"}.`, "success");
+    } catch (err) {
+      const message = toErrorText(err, "Could not switch active theme.");
+      setError(message);
+      toast(message, "error");
+    } finally {
+      setSaveBusy(false);
+    }
+  }, [storeId, themeCatalog, loadTheme, loadVersions, saveDraft, toast]);
 
   const addSection = (type) => {
     const def = SECTION_TYPES.find(s=>s.type===type);
@@ -933,10 +980,21 @@ function ThemeBuilder({ toast, storeId }) {
       <div style={{background:'var(--accent)',display:'flex',alignItems:'center',padding:'0 14px',gap:8,height:48,flexShrink:0}}>
         <div style={{fontWeight:800,color:'#fff',fontSize:14,marginRight:4}}>Sitesellr</div>
         <div style={{width:1,height:18,background:'rgba(255,255,255,.15)'}}/>
-        <div style={{fontSize:11.5,color:'#94a3b8',fontWeight:500}}>Krishna Textiles</div>
+        <div style={{fontSize:11.5,color:'#94a3b8',fontWeight:500}}>Krishna Textiles · {activeThemeName}</div>
         <div style={{width:1,height:18,background:'rgba(255,255,255,.15)'}}/>
         {MODES.map(m=><button key={m.id} onClick={()=>setMode(m.id)} style={{padding:'5px 10px',borderRadius:6,border:'none',background:mode===m.id?'rgba(255,255,255,.18)':'transparent',cursor:'pointer',color:mode===m.id?'#fff':'#94a3b8',fontSize:12,fontFamily:'inherit',fontWeight:600}}>{m.icon} {m.label}</button>)}
         <div style={{flex:1}}/>
+        {mode==='builder' && (
+          <select
+            value={activeThemeId}
+            onChange={(e)=>setActiveTheme(e.target.value)}
+            style={{height:30,padding:'4px 10px',borderRadius:7,border:'1px solid rgba(255,255,255,.2)',background:'rgba(15,23,42,.5)',color:'#e2e8f0',fontSize:12,fontFamily:'inherit',minWidth:220}}
+            disabled={!storeId || saveBusy}
+          >
+            <option value="" style={{color:'#0f172a'}}>Select Active Theme</option>
+            {themeCatalog.map((t)=><option key={t.id} value={t.id} style={{color:'#0f172a'}}>{t.name} · {t.category}</option>)}
+          </select>
+        )}
         {mode==='builder'&&<>
           <div style={{display:'flex',gap:3,background:'rgba(255,255,255,.08)',borderRadius:7,padding:'3px'}}>
             {[{id:'desktop',icon:'🖥'},{id:'tablet',icon:'📱'},{id:'mobile',icon:'📲'}].map(d=><button key={d.id} onClick={()=>setDevice(d.id)} style={{padding:'4px 9px',borderRadius:5,border:'none',background:device===d.id?'rgba(255,255,255,.18)':'transparent',cursor:'pointer',color:device===d.id?'#fff':'#94a3b8',fontSize:11,fontFamily:'inherit'}}>{d.icon}</button>)}

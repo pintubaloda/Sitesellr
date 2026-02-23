@@ -211,7 +211,113 @@ public class StoreBuilderController : BaseApiController
         {
             sections = ParseJsonArray(layout?.SectionsJson),
             settings = ParseJsonObject(theme?.DesignTokensJson),
-            version = latestVersion ?? 0
+            version = latestVersion ?? 0,
+            activeThemeId = theme?.ActiveThemeId,
+            activeTheme = theme?.ActiveThemeId == null ? null : await _db.ThemeCatalogItems.AsNoTracking()
+                .Where(x => x.Id == theme.ActiveThemeId.Value)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name,
+                    x.Slug,
+                    x.Category,
+                    x.PreviewUrl,
+                    x.ThemeVersion
+                })
+                .FirstOrDefaultAsync(ct)
+        });
+    }
+
+    [HttpGet("/api/stores/{storeId:guid}/themes")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> StoreThemes(Guid storeId, CancellationToken ct)
+    {
+        var access = await EnsureStoreAccessAsync(storeId, ct);
+        if (access is not null) return access;
+
+        var cfg = await _db.StoreThemeConfigs.AsNoTracking().FirstOrDefaultAsync(x => x.StoreId == storeId, ct);
+        var rows = await _db.ThemeCatalogItems.AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderByDescending(x => x.IsFeatured)
+            .ThenBy(x => x.FeaturedRank)
+            .ThenBy(x => x.Name)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.Slug,
+                x.Category,
+                x.Description,
+                x.PreviewUrl,
+                x.IsPaid,
+                x.Price,
+                x.ThemeVersion
+            })
+            .ToListAsync(ct);
+
+        return Ok(new { activeThemeId = cfg?.ActiveThemeId, themes = rows });
+    }
+
+    [HttpPut("/api/stores/{storeId:guid}/theme/active")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> SetActiveTheme(Guid storeId, [FromBody] SetActiveThemeRequest req, CancellationToken ct)
+    {
+        var access = await EnsureStoreAccessAsync(storeId, ct);
+        if (access is not null) return access;
+
+        var themeItem = await _db.ThemeCatalogItems.AsNoTracking().FirstOrDefaultAsync(x => x.Id == req.ThemeId && x.IsActive, ct);
+        if (themeItem == null) return BadRequest(new { error = "theme_not_found" });
+
+        var theme = await _db.StoreThemeConfigs.FirstOrDefaultAsync(x => x.StoreId == storeId, ct);
+        if (theme == null)
+        {
+            theme = new StoreThemeConfig
+            {
+                StoreId = storeId,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            _db.StoreThemeConfigs.Add(theme);
+        }
+
+        theme.ActiveThemeId = req.ThemeId;
+        theme.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var layout = await _db.StoreHomepageLayouts.FirstOrDefaultAsync(x => x.StoreId == storeId, ct);
+        if (layout == null)
+        {
+            layout = new StoreHomepageLayout
+            {
+                StoreId = storeId,
+                SectionsJson = "[]",
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            _db.StoreHomepageLayouts.Add(layout);
+        }
+
+        var scopedSectionsKey = ThemeScopedSectionsKey(storeId, req.ThemeId);
+        var scopedSettingsKey = ThemeScopedSettingsKey(storeId, req.ThemeId);
+        var scopedRows = await _db.PlatformBrandingSettings
+            .Where(x => x.Key == scopedSectionsKey || x.Key == scopedSettingsKey)
+            .ToListAsync(ct);
+        var scopedSections = scopedRows.FirstOrDefault(x => x.Key == scopedSectionsKey)?.Value;
+        var scopedSettings = scopedRows.FirstOrDefault(x => x.Key == scopedSettingsKey)?.Value;
+
+        layout.SectionsJson = SafeJson(scopedSections, layout.SectionsJson);
+        layout.UpdatedAt = DateTimeOffset.UtcNow;
+        theme.DesignTokensJson = SafeJson(scopedSettings, theme.DesignTokensJson ?? "{}");
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new
+        {
+            activeThemeId = theme.ActiveThemeId,
+            activeTheme = new
+            {
+                themeItem.Id,
+                themeItem.Name,
+                themeItem.Slug,
+                themeItem.Category,
+                themeItem.PreviewUrl
+            }
         });
     }
 
@@ -249,6 +355,11 @@ public class StoreBuilderController : BaseApiController
         layout.UpdatedAt = DateTimeOffset.UtcNow;
         theme.DesignTokensJson = SafeJson(req.SettingsJson, "{}");
         theme.UpdatedAt = DateTimeOffset.UtcNow;
+        if (theme.ActiveThemeId.HasValue)
+        {
+            await UpsertSettingAsync(ThemeScopedSectionsKey(storeId, theme.ActiveThemeId.Value), layout.SectionsJson, ct);
+            await UpsertSettingAsync(ThemeScopedSettingsKey(storeId, theme.ActiveThemeId.Value), theme.DesignTokensJson, ct);
+        }
 
         var nextVersion = await _db.StorefrontLayoutVersions
             .Where(x => x.StoreId == storeId)
@@ -626,6 +737,8 @@ public class StoreBuilderController : BaseApiController
 
     private static string GatewayConfigPrefix(Guid storeId) => $"store.payment.gateway.{storeId:N}.";
     private static string GatewayConfigKey(Guid storeId, string gatewayId) => $"{GatewayConfigPrefix(storeId)}{gatewayId.ToLowerInvariant()}";
+    private static string ThemeScopedSectionsKey(Guid storeId, Guid themeId) => $"store.theme.builder.{storeId:N}.{themeId:N}.sections";
+    private static string ThemeScopedSettingsKey(Guid storeId, Guid themeId) => $"store.theme.builder.{storeId:N}.{themeId:N}.settings";
 
     private IActionResult? EnsureStoreAccess(Guid storeId)
     {
@@ -709,6 +822,11 @@ public class ThemeSaveRequest
 {
     public string SectionsJson { get; set; } = "[]";
     public string SettingsJson { get; set; } = "{}";
+}
+
+public class SetActiveThemeRequest
+{
+    public Guid ThemeId { get; set; }
 }
 
 public class NavigationSaveRequest

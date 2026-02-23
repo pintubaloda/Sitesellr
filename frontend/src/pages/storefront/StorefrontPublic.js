@@ -1414,6 +1414,11 @@ export default function StorefrontPublic() {
               <span>Checkout</span>
             </div>
           </div>
+          {isPreviewMode ? (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-800 px-4 py-3 mb-5 text-sm font-medium">
+              Preview Mode: order placement is disabled. This preview is for UI review only; orders are not accepted.
+            </div>
+          ) : null}
           <div className={`grid gap-6 ${checkoutTemplateSlug === "compact" ? "lg:grid-cols-[1fr,330px]" : "lg:grid-cols-3"}`}>
             <div className={`${checkoutTemplateSlug === "compact" ? "" : "lg:col-span-2"} rounded-2xl border bg-white ${checkoutTemplateSlug === "compact" ? "p-5 space-y-3" : "p-6 space-y-4"} shadow-sm`}>
               <p className="text-xl font-semibold">Shipping Address</p>

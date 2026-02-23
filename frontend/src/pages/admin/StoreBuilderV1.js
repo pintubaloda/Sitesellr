@@ -1285,6 +1285,8 @@ function StoreAppStore({ toast, storeId }) {
   const [cat, setCat] = useState('All');
   const [selApp, setSelApp] = useState(null);
   const [error, setError] = useState("");
+  const [storeSubdomain, setStoreSubdomain] = useState("demo");
+  const [themeSlugToId, setThemeSlugToId] = useState({});
 
   useEffect(() => {
     let mounted = true;
@@ -1321,6 +1323,56 @@ function StoreAppStore({ toast, storeId }) {
     };
   }, [storeId]);
 
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      if (!storeId) return;
+      try {
+        const [storeRes, themesRes] = await Promise.all([
+          api.get(`/stores/${storeId}`),
+          api.get(`/stores/${storeId}/themes`),
+        ]);
+        if (!mounted) return;
+        const sub = String(storeRes?.data?.subdomain || "").trim().toLowerCase();
+        setStoreSubdomain(sub || "demo");
+        const rows = Array.isArray(themesRes?.data?.themes) ? themesRes.data.themes : [];
+        const next = {};
+        rows.forEach((row) => {
+          const slug = String(row?.slug || "").trim().toLowerCase();
+          const id = String(row?.id || "").trim();
+          if (slug && id) next[slug] = id;
+        });
+        setThemeSlugToId(next);
+      } catch {
+        if (!mounted) return;
+        setStoreSubdomain("demo");
+        setThemeSlugToId({});
+      }
+    };
+    run();
+    return () => {
+      mounted = false;
+    };
+  }, [storeId]);
+
+  const previewTheme = (app, e) => {
+    e?.stopPropagation?.();
+    if (!storeId) {
+      toast("Select a store first.", "warning");
+      return;
+    }
+    if (String(app?.cat || "").toLowerCase() !== "theme") return;
+    const inferredSlug = String(app?.id || "").replace(/^th-/, "").trim().toLowerCase();
+    const themeId = themeSlugToId[inferredSlug];
+    if (!themeId) {
+      toast("Theme is not imported in backend yet, preview unavailable.", "warning");
+      return;
+    }
+    const sub = (storeSubdomain || "demo").trim().toLowerCase();
+    const href = `/s/${encodeURIComponent(sub)}?storeId=${encodeURIComponent(storeId)}&previewThemeId=${encodeURIComponent(themeId)}`;
+    window.open(href, "_blank", "noopener,noreferrer");
+  };
+
   const handleInstall = (app,plan,creds,testMode) => {
     setInstalled(prev=>[...prev.filter(a=>a.id!==app.id),{...app,plan,creds,testMode,status:'active',installedAt:new Date().toISOString().split('T')[0]}]);
     toast(`${app.name} installed!`,'success');
@@ -1353,7 +1405,12 @@ function StoreAppStore({ toast, storeId }) {
                 </div>
                 <div style={{padding:'10px 18px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                   <div><Stars r={app.rating}/><span style={{fontSize:11.5,color:'var(--muted)',marginLeft:5}}>{app.reviews.toLocaleString()} reviews</span></div>
-                  <div style={{fontWeight:700,color:app.pricing[0].price===0?'var(--success)':'var(--primary)'}}>{app.pricing[0].price===0?'Free':`₹${app.pricing[0].price.toLocaleString()}/mo`}</div>
+                  <div className="flex items-center gap-6">
+                    {app.cat === 'Theme' ? (
+                      <button className="btn btn-outline btn-sm" onClick={(e)=>previewTheme(app,e)}>Preview</button>
+                    ) : null}
+                    <div style={{fontWeight:700,color:app.pricing[0].price===0?'var(--success)':'var(--primary)'}}>{app.pricing[0].price===0?'Free':`₹${app.pricing[0].price.toLocaleString()}/mo`}</div>
+                  </div>
                 </div>
               </div>
             );})}
@@ -1390,7 +1447,12 @@ function StoreAppStore({ toast, storeId }) {
                   {app.tags&&<div className="mkt-tags">{app.tags.slice(0,3).map(t=><span key={t} className="mkt-tag">{t}</span>)}</div>}
                   <div className="mkt-footer">
                     <div className="mkt-price">{lowestPrice===0?<span style={{color:'var(--success)',fontWeight:700}}>Free</span>:<span>From ₹{lowestPrice.toLocaleString('en-IN')}<span style={{fontSize:11,fontWeight:500,color:'var(--muted)'}}>/mo</span></span>}</div>
-                    {inst?<span className="badge badge-success">✓ Active</span>:<span className="badge badge-new">Install</span>}
+                    <div className="flex items-center gap-6">
+                      {app.cat === 'Theme' ? (
+                        <button className="btn btn-outline btn-sm" onClick={(e)=>previewTheme(app,e)}>Preview</button>
+                      ) : null}
+                      {inst?<span className="badge badge-success">✓ Active</span>:<span className="badge badge-new">Install</span>}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1425,7 +1487,7 @@ function StoreAppStore({ toast, storeId }) {
             <div style={{marginTop:6}}>
               <div style={{fontWeight:700,fontSize:14,marginBottom:12}}>💡 Recommended for you</div>
               <div className="mkt-grid">
-                {APPS.filter(a=>!installed.find(i=>i.id===a.id)).slice(0,3).map(app=><div key={app.id} className="mkt-card" onClick={()=>setSelApp(app)}><div className="mkt-preview" style={{background:app.color+'18',height:100}}><span style={{fontSize:38}}>{app.emoji}</span></div><div className="mkt-body" style={{padding:'11px 14px'}}><div className="mkt-name" style={{fontSize:13.5}}>{app.name}</div><div className="mkt-desc" style={{fontSize:11.5,marginBottom:7}}>{app.tagline}</div><div className="mkt-footer"><div style={{fontSize:12.5,fontWeight:700,color:'var(--primary)'}}>{app.pricing[0].price===0?'Free':`From ₹${app.pricing[0].price.toLocaleString()}/mo`}</div><span className="badge badge-new">Install</span></div></div></div>)}
+                {APPS.filter(a=>!installed.find(i=>i.id===a.id)).slice(0,3).map(app=><div key={app.id} className="mkt-card" onClick={()=>setSelApp(app)}><div className="mkt-preview" style={{background:app.color+'18',height:100}}><span style={{fontSize:38}}>{app.emoji}</span></div><div className="mkt-body" style={{padding:'11px 14px'}}><div className="mkt-name" style={{fontSize:13.5}}>{app.name}</div><div className="mkt-desc" style={{fontSize:11.5,marginBottom:7}}>{app.tagline}</div><div className="mkt-footer"><div style={{fontSize:12.5,fontWeight:700,color:'var(--primary)'}}>{app.pricing[0].price===0?'Free':`From ₹${app.pricing[0].price.toLocaleString()}/mo`}</div><div className="flex items-center gap-6">{app.cat==='Theme' ? <button className="btn btn-outline btn-sm" onClick={(e)=>previewTheme(app,e)}>Preview</button> : null}<span className="badge badge-new">Install</span></div></div></div></div>)}
               </div>
             </div>
           </>

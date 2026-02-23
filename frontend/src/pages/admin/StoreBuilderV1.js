@@ -1,2306 +1,2007 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import api from "../../lib/api";
 
-// ─── DESIGN SYSTEM ───────────────────────────────────────────────────────────
+// ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#2563EB;--primary-dark:#1d4ed8;--primary-light:#eff6ff;--primary-mid:#bfdbfe;
+  --accent:#0f172a;
+  --surface:#f8fafc;--surface2:#f1f5f9;--surface3:#e2e8f0;
+  --border:#e2e8f0;--border-strong:#cbd5e1;
+  --text:#1e293b;--muted:#64748b;--light:#94a3b8;
+  --success:#16a34a;--success-bg:#f0fdf4;--success-light:#bbf7d0;
+  --warning:#d97706;--warning-bg:#fffbeb;
+  --danger:#dc2626;--danger-bg:#fef2f2;
+  --gold:#f59e0b;--purple:#7c3aed;
+  --r:10px;--r-sm:7px;--r-lg:14px;--r-xl:18px;
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 16px rgba(0,0,0,.09),0 2px 8px rgba(0,0,0,.06);
+  --shadow-lg:0 20px 60px rgba(0,0,0,.12),0 8px 24px rgba(0,0,0,.08);
+  --shadow-primary:0 8px 32px rgba(37,99,235,.22);
+}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── APP LAYOUT ── */
+.app{display:flex;min-height:100vh}
+.sidebar{width:232px;background:#fff;flex-shrink:0;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;border-right:1px solid var(--border)}
+.main{margin-left:232px;flex:1;min-height:100vh;display:flex;flex-direction:column}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:12px;position:sticky;top:0;z-index:50}
+.content{flex:1;padding:28px}
 
-  :root {
-    --primary: #2563EB;
-    --primary-dark: #1d4ed8;
-    --primary-light: #eff6ff;
-    --accent: #0f172a;
-    --surface: #f8fafc;
-    --surface2: #f1f5f9;
-    --border: #e2e8f0;
-    --border-strong: #cbd5e1;
-    --text: #1e293b;
-    --text-muted: #64748b;
-    --text-light: #94a3b8;
-    --success: #16a34a;
-    --success-bg: #f0fdf4;
-    --warning: #d97706;
-    --warning-bg: #fffbeb;
-    --danger: #dc2626;
-    --danger-bg: #fef2f2;
-    --gold: #f59e0b;
-    --purple: #7c3aed;
-    --radius: 12px;
-    --radius-sm: 8px;
-    --radius-lg: 16px;
-    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
-    --shadow-md: 0 4px 16px rgba(0,0,0,.1), 0 2px 8px rgba(0,0,0,.06);
-    --shadow-lg: 0 20px 60px rgba(0,0,0,.12), 0 8px 24px rgba(0,0,0,.08);
-    --shadow-primary: 0 8px 32px rgba(37,99,235,.25);
-  }
+/* ── SIDEBAR (white, no background) ── */
+.sb-logo{padding:18px 18px 10px;display:flex;align-items:center;gap:10px}
+.sb-logo-icon{width:32px;height:32px;background:var(--primary);border-radius:9px;display:grid;place-items:center;flex-shrink:0}
+.sb-logo-icon svg{color:#fff}
+.sb-wordmark{font-size:17px;font-weight:800;color:var(--accent);letter-spacing:-.5px}
+.sb-sub{font-size:10px;color:var(--light);font-weight:600;letter-spacing:1.5px;text-transform:uppercase}
+.sb-section{padding:14px 10px 4px}
+.sb-section-label{font-size:10px;font-weight:700;color:var(--light);letter-spacing:1.5px;text-transform:uppercase;padding:0 8px;margin-bottom:4px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:all .15s;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:1px;text-decoration:none}
+.sb-item:hover{background:var(--primary-light);color:var(--primary)}
+.sb-item.active{background:var(--primary-light);color:var(--primary);font-weight:600}
+.sb-item svg{flex-shrink:0;opacity:.8}
+.sb-item.active svg{opacity:1}
+.sb-badge{margin-left:auto;background:var(--gold);color:#000;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px}
+.sb-badge.new{background:var(--primary);color:#fff}
+.sb-divider{height:1px;background:var(--border);margin:8px 16px}
+.sb-user{padding:10px 12px;margin-top:auto;border-top:1px solid var(--border)}
+.sb-user-card{padding:10px 11px;border-radius:9px;display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border)}
+.sb-avatar{width:30px;height:30px;border-radius:8px;background:var(--primary);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;flex-shrink:0}
 
-  body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surface); color: var(--text); }
+/* ── ROLE TOGGLE ── */
+.role-toggle{display:flex;gap:2px;margin:8px 10px 4px;background:var(--surface2);border-radius:9px;padding:3px}
+.role-btn{flex:1;padding:6px 4px;font-size:11px;font-weight:600;color:var(--muted);border:none;background:none;cursor:pointer;border-radius:7px;transition:.15s;font-family:inherit;text-align:center}
+.role-btn.active{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.3)}
 
-  /* ─ Scrollbar ─ */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+/* ── TOPBAR ── */
+.tb-breadcrumb{flex:1;font-size:13px;font-weight:600;color:var(--muted)}
+.tb-breadcrumb span{color:var(--text)}
+.search-bar{position:relative;max-width:260px}
+.search-bar input{width:100%;padding:8px 13px 8px 36px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--text);outline:none;transition:.15s}
+.search-bar input:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--light)}
 
-  /* ─ Layout ─ */
-  .app { display: flex; min-height: 100vh; }
-  .sidebar { width: 240px; flex-shrink: 0; background: var(--accent); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; overflow-y: auto; }
-  .main { margin-left: 240px; flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
-  .topbar { height: 60px; background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 28px; gap: 16px; position: sticky; top: 0; z-index: 50; }
-  .content { flex: 1; padding: 28px; }
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:inherit;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:var(--shadow-primary)}
+.btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px)}
+.btn-outline{background:#fff;border:1.5px solid var(--border-strong);color:var(--text)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.btn-ghost{background:none;color:var(--muted)}
+.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-gold{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;box-shadow:0 4px 14px rgba(245,158,11,.3)}
+.btn-sm{padding:5px 11px;font-size:12px;border-radius:6px}
+.btn-lg{padding:11px 24px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
 
-  /* ─ Sidebar ─ */
-  .sb-logo { padding: 20px 20px 8px; }
-  .sb-logo-text { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
-  .sb-logo-sub { font-size: 10px; color: #64748b; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
-  .sb-section { padding: 20px 12px 8px; }
-  .sb-section-label { font-size: 10px; font-weight: 700; color: #475569; letter-spacing: 1.5px; text-transform: uppercase; padding: 0 8px; margin-bottom: 4px; }
-  .sb-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; transition: all .15s; font-size: 13.5px; font-weight: 500; color: #94a3b8; margin-bottom: 2px; }
-  .sb-item:hover { background: rgba(255,255,255,.06); color: #e2e8f0; }
-  .sb-item.active { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(37,99,235,.4); }
-  .sb-item svg { opacity: .85; flex-shrink: 0; }
-  .sb-badge { margin-left: auto; background: var(--gold); color: #000; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px; }
-  .sb-divider { height: 1px; background: rgba(255,255,255,.06); margin: 8px 20px; }
+/* ── CARDS ── */
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.card-title{font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+.card-body{padding:20px}
+.card-footer{padding:13px 20px;border-top:1px solid var(--border);background:var(--surface);border-radius:0 0 var(--r-lg) var(--r-lg);display:flex;justify-content:flex-end;gap:8px}
 
-  /* ─ Role switcher ─ */
-  .role-switcher { margin: 12px; border-radius: 10px; overflow: hidden; background: rgba(255,255,255,.06); display: flex; }
-  .role-btn { flex: 1; padding: 8px 4px; font-size: 11px; font-weight: 600; color: #94a3b8; border: none; background: none; cursor: pointer; transition: all .15s; text-align: center; }
-  .role-btn.active { background: var(--primary); color: #fff; border-radius: 8px; }
+/* ── STAT CARDS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px}
+.stat-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:18px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow)}
+.stat-icon{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;flex-shrink:0;font-size:18px}
+.stat-val{font-size:22px;font-weight:800;letter-spacing:-.8px;color:var(--text)}
+.stat-label{font-size:12px;color:var(--muted);font-weight:500;margin-top:1px}
+.stat-delta{font-size:11px;font-weight:600;margin-top:3px}
+.stat-delta.up{color:var(--success)}
+.stat-delta.down{color:var(--danger)}
 
-  /* ─ Cards ─ */
-  .card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
-  .card-header { padding: 20px 24px 0; }
-  .card-body { padding: 20px 24px; }
-  .card-footer { padding: 16px 24px; border-top: 1px solid var(--border); background: var(--surface); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+/* ── PAGE HEADER ── */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.page-title{font-size:21px;font-weight:800;color:var(--text);letter-spacing:-.5px}
+.page-sub{font-size:13px;color:var(--muted);margin-top:3px}
 
-  /* ─ Stat cards ─ */
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .stat-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow); }
-  .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; font-size: 20px; }
-  .stat-val { font-size: 26px; font-weight: 800; letter-spacing: -1px; color: var(--text); }
-  .stat-label { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
-  .stat-delta { font-size: 11px; font-weight: 600; margin-top: 4px; }
-  .stat-delta.up { color: var(--success); }
-  .stat-delta.down { color: var(--danger); }
+/* ── TABS ── */
+.tabs{display:flex;gap:2px;background:var(--surface2);border-radius:9px;padding:3px;margin-bottom:20px;width:fit-content}
+.tab{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--muted);transition:.15s;font-family:inherit}
+.tab.active{background:#fff;color:var(--primary);box-shadow:var(--shadow)}
+.tab:hover:not(.active){color:var(--text)}
 
-  /* ─ Marketplace grid ─ */
-  .mkt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-  .mkt-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: all .2s; cursor: pointer; box-shadow: var(--shadow); }
-  .mkt-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--primary); }
-  .mkt-card.installed { border-color: var(--success); }
-  .mkt-card-preview { height: 160px; display: flex; align-items: center; justify-content: center; font-size: 48px; position: relative; overflow: hidden; }
-  .mkt-card-body { padding: 16px; }
-  .mkt-card-name { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-  .mkt-card-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .mkt-card-footer { display: flex; align-items: center; justify-content: space-between; }
-  .mkt-card-price { font-size: 14px; font-weight: 700; color: var(--text); }
-  .mkt-card-price .mo { font-size: 11px; font-weight: 500; color: var(--text-muted); }
-  .mkt-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 99px; letter-spacing: .3px; }
-  .badge-free { background: #dcfce7; color: #15803d; }
-  .badge-paid { background: #eff6ff; color: var(--primary); }
-  .badge-installed { background: #dcfce7; color: #15803d; }
-  .badge-pending { background: #fffbeb; color: var(--warning); }
-  .badge-inactive { background: #f1f5f9; color: var(--text-muted); }
-  .badge-active { background: #dcfce7; color: #15803d; }
-  .badge-featured { background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; }
-  .badge-new { background: var(--primary); color: #fff; }
-  .badge-category { background: var(--surface2); color: var(--text-muted); }
+/* ── FORMS ── */
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px}
+.form-label .req{color:var(--danger)}
+.form-input{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:13.5px;font-family:inherit;color:var(--text);background:#fff;outline:none;transition:.15s}
+.form-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.form-input.err{border-color:var(--danger)}
+.form-hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+.form-err{font-size:11.5px;color:var(--danger);margin-top:4px;font-weight:500}
+.form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);margin-bottom:10px;gap:10px}
+.toggle-info{flex:1}
+.toggle-info-label{font-size:13px;font-weight:600;color:var(--text)}
+.toggle-info-sub{font-size:11.5px;color:var(--muted);margin-top:1px}
+.toggle-switch{width:38px;height:22px;border-radius:99px;border:none;cursor:pointer;position:relative;transition:.2s;flex-shrink:0}
+.toggle-switch.on{background:var(--primary)}
+.toggle-switch.off{background:var(--border-strong)}
+.toggle-switch::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle-switch.on::after{left:19px}
 
-  /* ─ Tabs ─ */
-  .tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 10px; padding: 4px; margin-bottom: 24px; }
-  .tab { padding: 8px 18px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--text-muted); transition: all .15s; }
-  .tab.active { background: #fff; color: var(--primary); box-shadow: var(--shadow); }
-  .tab:hover:not(.active) { color: var(--text); }
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--surface2);padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surface)}
+.td-bold{font-weight:600}
+.td-mono{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted)}
 
-  /* ─ Buttons ─ */
-  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; white-space: nowrap; font-family: inherit; }
-  .btn-primary { background: var(--primary); color: #fff; box-shadow: var(--shadow-primary); }
-  .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
-  .btn-outline { background: #fff; color: var(--text); border: 1px solid var(--border-strong); }
-  .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
-  .btn-success { background: var(--success); color: #fff; }
-  .btn-danger { background: var(--danger); color: #fff; }
-  .btn-ghost { background: none; color: var(--text-muted); }
-  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
-  .btn-sm { padding: 6px 12px; font-size: 12.5px; border-radius: 7px; }
-  .btn-lg { padding: 13px 28px; font-size: 15px; border-radius: var(--radius); }
-  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
-  .btn-gold { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; box-shadow: 0 4px 16px rgba(245,158,11,.35); }
-  .btn-gold:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(245,158,11,.4); }
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:700;letter-spacing:.3px}
+.badge-primary{background:var(--primary-light);color:var(--primary)}
+.badge-success{background:var(--success-bg);color:var(--success)}
+.badge-warning{background:var(--warning-bg);color:var(--warning)}
+.badge-danger{background:var(--danger-bg);color:var(--danger)}
+.badge-muted{background:var(--surface2);color:var(--muted)}
+.badge-gold{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff}
+.badge-new{background:var(--primary);color:#fff}
+.badge-live{background:var(--success-bg);color:var(--success);border:1px solid var(--success-light)}
 
-  /* ─ Forms ─ */
-  .form-group { margin-bottom: 18px; }
-  .form-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-  .form-label span { color: var(--danger); }
-  .form-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13.5px; font-family: inherit; color: var(--text); background: #fff; transition: all .15s; outline: none; }
-  .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
-  .form-input.error { border-color: var(--danger); }
-  .form-hint { font-size: 11.5px; color: var(--text-muted); margin-top: 5px; }
-  .form-error { font-size: 11.5px; color: var(--danger); margin-top: 5px; font-weight: 500; }
-  .form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
-  .form-toggle { display: flex; align-items: center; gap: 10px; }
-  .toggle { width: 42px; height: 24px; background: var(--border-strong); border-radius: 99px; position: relative; cursor: pointer; transition: all .2s; border: none; flex-shrink: 0; }
-  .toggle.on { background: var(--primary); }
-  .toggle::after { content:''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: #fff; border-radius: 99px; transition: all .2s; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
-  .toggle.on::after { left: 21px; }
-  .toggle-label { font-size: 13.5px; font-weight: 500; color: var(--text); }
-  .toggle-hint { font-size: 12px; color: var(--text-muted); }
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:var(--r-xl);max-width:680px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:slideUp .2s ease}
+.modal-lg{max-width:860px}
+.modal-header{padding:22px 26px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.modal-title{font-size:18px;font-weight:800;color:var(--text)}
+.modal-sub{font-size:12.5px;color:var(--muted);margin-top:3px}
+.modal-body{padding:20px 26px}
+.modal-footer{padding:16px 26px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;background:var(--surface);border-radius:0 0 var(--r-xl) var(--r-xl)}
+.modal-close{width:30px;height:30px;border-radius:7px;border:none;background:var(--surface2);cursor:pointer;display:grid;place-items:center;color:var(--muted);transition:.15s;flex-shrink:0}
+.modal-close:hover{background:var(--border);color:var(--text)}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 
-  /* ─ Tables ─ */
-  .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
-  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  thead th { background: var(--surface2); padding: 12px 16px; text-align: left; font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .7px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  tbody td { padding: 14px 16px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover td { background: var(--surface); }
-  .td-name { font-weight: 600; }
-  .td-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); }
+/* ── MARKETPLACE CARDS ── */
+.mkt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:18px}
+.mkt-card{background:#fff;border:1.5px solid var(--border);border-radius:var(--r-lg);overflow:hidden;transition:all .2s;cursor:pointer;box-shadow:var(--shadow)}
+.mkt-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:var(--primary-mid)}
+.mkt-card.installed{border-color:var(--success);box-shadow:0 0 0 1px var(--success-light)}
+.mkt-preview{height:140px;display:flex;align-items:center;justify-content:center;font-size:52px;position:relative}
+.mkt-body{padding:14px 16px}
+.mkt-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px}
+.mkt-desc{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mkt-footer{display:flex;align-items:center;justify-content:space-between}
+.mkt-price{font-size:13px;font-weight:700;color:var(--text)}
+.mkt-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.mkt-tag{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--surface2);color:var(--muted)}
 
-  /* ─ Modal ─ */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-  .modal { background: #fff; border-radius: var(--radius-lg); max-width: 680px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: slideUp .2s ease; }
-  .modal-lg { max-width: 860px; }
-  .modal-header { padding: 24px 28px 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-  .modal-body { padding: 24px 28px; }
-  .modal-footer { padding: 18px 28px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; background: var(--surface); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
-  .modal-close { width: 32px; height: 32px; border-radius: 8px; border: none; background: var(--surface2); cursor: pointer; display: grid; place-items: center; color: var(--text-muted); flex-shrink: 0; transition: all .15s; }
-  .modal-close:hover { background: var(--border); color: var(--text); }
-  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+/* ── INSTALLED APP ROW ── */
+.installed-row{display:flex;align-items:center;gap:13px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.installed-row:last-child{border-bottom:none}
+.installed-icon{width:44px;height:44px;border-radius:11px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.installed-info{flex:1;min-width:0}
+.installed-name{font-size:13.5px;font-weight:700;color:var(--text)}
+.installed-meta{font-size:12px;color:var(--muted);margin-top:1px}
+.installed-actions{display:flex;align-items:center;gap:7px}
 
-  /* ─ Page detail modal ─ */
-  .app-detail-grid { display: grid; grid-template-columns: 1fr 280px; gap: 24px; }
-  .app-hero { height: 200px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 80px; margin-bottom: 20px; }
-  .app-meta-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
-  .app-meta-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .app-meta-row:last-child { border-bottom: none; }
-  .app-meta-label { color: var(--text-muted); font-weight: 500; }
-  .app-meta-val { font-weight: 600; color: var(--text); }
-  .feature-list { list-style: none; }
-  .feature-list li { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13.5px; color: var(--text); }
-  .feature-list li::before { content: '✓'; color: var(--success); font-weight: 700; flex-shrink: 0; }
+/* ── CATEGORY FILTER ── */
+.cat-filter{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
+.cat-btn{padding:6px 13px;border-radius:99px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:.15s;color:var(--muted)}
+.cat-btn:hover{border-color:var(--primary);color:var(--primary)}
+.cat-btn.active{border-color:var(--primary);background:var(--primary);color:#fff}
 
-  /* ─ Purchase flow ─ */
-  .purchase-steps { display: flex; align-items: center; gap: 0; margin-bottom: 28px; }
-  .purchase-step { display: flex; align-items: center; gap: 8px; }
-  .step-num { width: 28px; height: 28px; border-radius: 99px; display: grid; place-items: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
-  .step-num.done { background: var(--success); color: #fff; }
-  .step-num.active { background: var(--primary); color: #fff; }
-  .step-num.pending { background: var(--border); color: var(--text-muted); }
-  .step-label { font-size: 12.5px; font-weight: 600; }
-  .step-label.active { color: var(--primary); }
-  .step-label.pending { color: var(--text-muted); }
-  .step-connector { flex: 1; height: 2px; background: var(--border); margin: 0 8px; min-width: 20px; }
-  .step-connector.done { background: var(--success); }
+/* ── PLAN CARDS ── */
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.plan-card{border:2px solid var(--border);border-radius:var(--r);padding:14px;cursor:pointer;transition:.15s;text-align:center;position:relative}
+.plan-card:hover{border-color:var(--primary)}
+.plan-card.selected{border-color:var(--primary);background:var(--primary-light)}
+.plan-card.popular::before{content:'POPULAR';position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--gold);color:#000;font-size:9px;font-weight:800;padding:2px 10px;border-radius:99px;letter-spacing:1px}
+.plan-name{font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:5px}
+.plan-price{font-size:20px;font-weight:800;color:var(--primary);letter-spacing:-.8px}
+.plan-features{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.6}
 
-  /* ─ Plan selector ─ */
-  .plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .plan-card { border: 2px solid var(--border); border-radius: var(--radius); padding: 16px; cursor: pointer; transition: all .15s; text-align: center; position: relative; }
-  .plan-card:hover { border-color: var(--primary); }
-  .plan-card.selected { border-color: var(--primary); background: var(--primary-light); }
-  .plan-card.popular::before { content: 'POPULAR'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #000; font-size: 9px; font-weight: 800; padding: 3px 10px; border-radius: 99px; letter-spacing: 1px; }
-  .plan-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-  .plan-price { font-size: 22px; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
-  .plan-price span { font-size: 13px; font-weight: 500; color: var(--text-muted); }
-  .plan-features { font-size: 11.5px; color: var(--text-muted); margin-top: 8px; line-height: 1.6; }
+/* ── CHECKOUT ── */
+.checkout-summary{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px}
+.checkout-line{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:13px}
+.checkout-line.total{border-top:1px solid var(--border);margin-top:7px;padding-top:12px;font-weight:700;font-size:14px}
 
-  /* ─ Checkout ─ */
-  .checkout-summary { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
-  .checkout-line { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 13.5px; }
-  .checkout-line.total { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 14px; font-weight: 700; font-size: 15px; }
-  .checkout-line.discount { color: var(--success); }
-  .payment-methods { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
-  .pm-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: 2px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 600; transition: all .15s; background: #fff; }
-  .pm-btn.selected { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
-  .pm-btn:hover { border-color: var(--primary); }
+/* ── PAYMENT METHODS ── */
+.pm-grid{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.pm-btn{display:flex;align-items:center;gap:7px;padding:9px 14px;border:2px solid var(--border);border-radius:var(--r-sm);cursor:pointer;font-size:12.5px;font-weight:600;transition:.15s;background:#fff;font-family:inherit}
+.pm-btn.selected{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+.pm-btn:hover{border-color:var(--primary)}
 
-  /* ─ Category filter ─ */
-  .cat-filter { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
-  .cat-btn { padding: 6px 14px; border-radius: 99px; font-size: 12.5px; font-weight: 600; border: 1.5px solid var(--border); background: #fff; cursor: pointer; transition: all .15s; color: var(--text-muted); }
-  .cat-btn:hover { border-color: var(--primary); color: var(--primary); }
-  .cat-btn.active { border-color: var(--primary); background: var(--primary); color: #fff; }
+/* ── STEP FLOW ── */
+.steps{display:flex;align-items:center;margin-bottom:24px}
+.step-item{display:flex;align-items:center;gap:7px}
+.step-num{width:26px;height:26px;border-radius:99px;display:grid;place-items:center;font-size:11.5px;font-weight:700;flex-shrink:0}
+.step-num.done{background:var(--success);color:#fff}
+.step-num.active{background:var(--primary);color:#fff}
+.step-num.pending{background:var(--border);color:var(--muted)}
+.step-label{font-size:12px;font-weight:600}
+.step-label.active{color:var(--primary)}
+.step-label.pending{color:var(--muted)}
+.step-connector{flex:1;height:2px;background:var(--border);margin:0 7px;min-width:16px}
+.step-connector.done{background:var(--success)}
 
-  /* ─ Search ─ */
-  .search-bar { position: relative; flex: 1; max-width: 380px; }
-  .search-bar input { width: 100%; padding: 9px 14px 9px 38px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13.5px; font-family: inherit; background: var(--surface); color: var(--text); outline: none; transition: all .15s; }
-  .search-bar input:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
-  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+/* ── INFO BOXES ── */
+.info-box{padding:12px 14px;border-radius:var(--r-sm);font-size:12.5px;display:flex;align-items:flex-start;gap:9px;margin-bottom:14px}
+.info-box.info{background:var(--primary-light);border:1px solid var(--primary-mid);color:#1d4ed8}
+.info-box.warning{background:var(--warning-bg);border:1px solid #fcd34d;color:#92400e}
+.info-box.success{background:var(--success-bg);border:1px solid var(--success-light);color:#166534}
+.info-box.danger{background:var(--danger-bg);border:1px solid #fca5a5;color:#991b1b}
 
-  /* ─ Section header ─ */
-  .section-title { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
-  .section-sub { font-size: 13.5px; color: var(--text-muted); margin-top: 4px; }
-  .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+/* ── TOAST ── */
+.toast-container{position:fixed;bottom:22px;right:22px;display:flex;flex-direction:column;gap:8px;z-index:2000}
+.toast{background:var(--accent);color:#fff;padding:12px 16px;border-radius:var(--r);display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);animation:toastIn .2s ease;min-width:260px}
+.toast.success{background:var(--success)}
+.toast.error{background:var(--danger)}
+.toast.warning{background:var(--warning)}
+@keyframes toastIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
 
-  /* ─ Toast ─ */
-  .toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 10px; z-index: 2000; }
-  .toast { background: var(--accent); color: #fff; padding: 14px 18px; border-radius: var(--radius); display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 500; box-shadow: var(--shadow-lg); animation: toastIn .2s ease; min-width: 280px; }
-  .toast.success { background: var(--success); }
-  .toast.error { background: var(--danger); }
-  @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+/* ── STAR RATING ── */
+.star-rating{display:flex;gap:1px;font-size:12px}
 
-  /* ─ Platform config form ─ */
-  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .config-section { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 20px; }
-  .config-section-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-  .tier-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-  .tier-table th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 11.5px; font-weight: 700; color: var(--text-muted); border-bottom: 1px solid var(--border); }
-  .tier-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .tier-table tr:last-child td { border-bottom: none; }
+/* ── MISC ── */
+.divider{height:1px;background:var(--border);margin:18px 0}
+.empty-state{text-align:center;padding:50px 20px;color:var(--muted)}
+.empty-icon{font-size:44px;margin-bottom:10px}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.flex{display:flex}.flex-col{display:flex;flex-direction:column}
+.items-center{align-items:center}.justify-between{justify-content:space-between}
+.gap-6{gap:6px}.gap-8{gap:8px}.gap-10{gap:10px}.gap-12{gap:12px}.gap-16{gap:16px}
+.mb-8{margin-bottom:8px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}.mb-20{margin-bottom:20px}
+.w-full{width:100%}
+.text-sm{font-size:12.5px}.text-xs{font-size:11px}
+.font-bold{font-weight:700}.font-semibold{font-weight:600}
+.text-muted{color:var(--muted)}.text-success{color:var(--success)}.text-danger{color:var(--danger)}.text-primary{color:var(--primary)}
+.credential-field{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rev-bars{display:flex;align-items:flex-end;gap:6px;height:90px;padding-top:6px}
+.rev-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.rev-bar{width:100%;background:var(--primary-light);border-radius:5px 5px 0 0;transition:all .3s}
+.rev-bar:hover{background:var(--primary)}
+.rev-label{font-size:10px;color:var(--muted)}
 
-  /* ─ Installed apps grid ─ */
-  .installed-app { display: flex; align-items: center; gap: 14px; padding: 16px; border-bottom: 1px solid var(--border); }
-  .installed-app:last-child { border-bottom: none; }
-  .installed-app-icon { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; flex-shrink: 0; }
-  .installed-app-info { flex: 1; }
-  .installed-app-name { font-size: 14px; font-weight: 700; color: var(--text); }
-  .installed-app-desc { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
-  .installed-app-actions { display: flex; align-items: center; gap: 8px; }
+/* ── THEME BUILDER SPECIFIC ── */
+.builder-layout{display:grid;grid-template-columns:240px 1fr 280px;height:calc(100vh - 56px);overflow:hidden}
+.builder-panel{background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.builder-panel-r{border-right:none;border-left:1px solid var(--border)}
+.builder-panel-header{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.builder-panel-title{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.builder-panel-scroll{flex:1;overflow-y:auto;padding:10px}
+.canvas-wrap{flex:1;display:flex;flex-direction:column;background:var(--surface);overflow:hidden}
+.canvas-outer{flex:1;overflow-y:auto;display:flex;justify-content:center;padding:18px;background:var(--surface2)}
+.canvas-frame{background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow-lg);overflow:hidden;transition:width .3s;width:100%}
+.canvas-frame.tablet{max-width:768px}
+.canvas-frame.mobile{max-width:375px}
+.canvas-bar{display:flex;align-items:center;justify-content:center;gap:8px;padding:7px;background:var(--accent);font-size:11px;color:#64748b;flex-shrink:0}
+.section-card{position:relative;border:2px solid transparent;transition:.15s;cursor:pointer}
+.section-card:hover{border-color:var(--primary)}
+.section-card.selected{border-color:var(--primary);box-shadow:0 0 0 2px rgba(37,99,235,.1)}
+.section-actions{position:absolute;top:7px;right:7px;display:none;gap:3px;z-index:10}
+.section-card:hover .section-actions,.section-card.selected .section-actions{display:flex}
+.sec-action-btn{width:26px;height:26px;border-radius:5px;border:none;cursor:pointer;display:grid;place-items:center;font-size:12px;transition:.15s}
+.sa-del{background:var(--danger);color:#fff}
+.sa-dup{background:var(--primary);color:#fff}
+.sec-label-badge{position:absolute;top:7px;left:7px;background:var(--accent);color:#fff;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:99px;display:none;z-index:10}
+.section-card:hover .sec-label-badge,.section-card.selected .sec-label-badge{display:block}
+.palette-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1.5px dashed var(--border-strong);border-radius:var(--r-sm);cursor:grab;transition:.15s;user-select:none;background:#fff;margin-bottom:5px}
+.palette-item:hover{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+.palette-emoji{font-size:16px;flex-shrink:0}
+.palette-label{font-size:12px;font-weight:600}
+.order-item{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:6px;cursor:pointer;background:transparent;border:1px solid transparent;margin-bottom:1px;transition:.15s}
+.order-item:hover{background:var(--surface2)}
+.order-item.active{background:var(--primary-light);border-color:var(--primary-mid)}
+.field-group{margin-bottom:12px}
+.field-label{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;display:block}
+.field-input{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit;color:var(--text);outline:none;transition:.15s;background:#fff}
+.field-input:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(37,99,235,.08)}
+.field-textarea{resize:vertical;min-height:65px}
+.field-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+.toggle-pill{width:36px;height:20px;border-radius:99px;border:none;cursor:pointer;position:relative;transition:.2s;flex-shrink:0}
+.toggle-pill.on{background:var(--primary)}
+.toggle-pill.off{background:var(--border-strong)}
+.toggle-pill::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle-pill.on::after{left:18px}
+.color-swatch{display:flex;align-items:center;gap:7px;padding:5px 0}
+.color-preview{width:26px;height:26px;border-radius:5px;border:1px solid var(--border);flex-shrink:0}
+.nav-tree{display:flex;flex-direction:column;gap:4px}
+.nav-node{border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden}
+.nav-node-row{display:flex;align-items:center;gap:7px;padding:9px 11px;background:#fff;cursor:pointer;transition:.15s}
+.nav-node-row:hover{background:var(--surface)}
+.nav-drag{cursor:grab;color:var(--light);font-size:15px}
+.nav-node-label{flex:1;font-size:13px;font-weight:600}
+.nav-type-chip{font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px;background:var(--surface2);color:var(--muted)}
+.nav-children{padding:3px 3px 3px 24px;background:var(--surface);display:flex;flex-direction:column;gap:3px}
+.nav-child{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--border);border-radius:var(--r-sm);background:#fff;font-size:12px}
+.nav-add{display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border:1.5px dashed var(--border-strong);border-radius:var(--r-sm);cursor:pointer;color:var(--muted);font-size:12px;font-weight:600;transition:.15s;margin-top:4px}
+.nav-add:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-light)}
+.page-list-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:5px;cursor:pointer;transition:.15s}
+.page-list-item:hover,.page-list-item.active{border-color:var(--primary);background:var(--primary-light)}
+.page-status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.wysiwyg{border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden}
+.wysiwyg-toolbar{display:flex;gap:2px;padding:6px 8px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.wysiwyg-btn{padding:4px 7px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:12px;color:var(--text);font-family:inherit;transition:.1s;font-weight:600}
+.wysiwyg-btn:hover{background:var(--border)}
+.wysiwyg-content{padding:14px;min-height:180px;font-size:14px;line-height:1.7;outline:none}
+.version-item{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:5px;cursor:pointer;transition:.15s}
+.version-item:hover{border-color:var(--primary);background:var(--primary-light)}
+.version-item.live{border-color:var(--success);background:var(--success-bg)}
+.v-num{width:30px;height:30px;border-radius:7px;background:var(--surface2);display:grid;place-items:center;font-size:11.5px;font-weight:800;color:var(--muted);flex-shrink:0}
+.version-item.live .v-num{background:var(--success);color:#fff}
+.theme-token-section{margin-bottom:18px}
+.token-section-title{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.font-preview-box{padding:7px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:14px;margin-bottom:5px}
 
-  /* ─ Revenue chart ─ */
-  .rev-bar-wrap { display: flex; align-items: flex-end; gap: 8px; height: 100px; padding-top: 8px; }
-  .rev-bar { flex: 1; background: var(--primary-light); border-radius: 6px 6px 0 0; position: relative; transition: all .3s; min-width: 0; }
-  .rev-bar:hover { background: var(--primary); }
-  .rev-bar-label { font-size: 10px; color: var(--text-muted); text-align: center; margin-top: 4px; }
+/* ── SECTION RENDERERS ── */
+.s-hero{background:linear-gradient(135deg,#1e293b,#374151);padding:72px 36px;color:#fff;text-align:center;position:relative}
+.s-hero h1{font-size:clamp(22px,4vw,44px);font-weight:800;margin-bottom:10px;line-height:1.1}
+.s-hero p{font-size:clamp(13px,2vw,17px);opacity:.8;margin-bottom:22px;max-width:460px;margin-left:auto;margin-right:auto}
+.s-hero-cta{display:inline-flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.s-hero-btn{display:inline-block;background:var(--primary);color:#fff;padding:11px 24px;border-radius:8px;font-weight:700;font-size:13.5px}
+.s-hero-sub{display:inline-block;background:rgba(255,255,255,.1);color:#fff;padding:11px 24px;border-radius:8px;font-weight:600;font-size:13.5px}
+.s-ann{background:#0f172a;color:#fff;text-align:center;padding:9px;font-size:13px;font-weight:500}
+.s-products{padding:36px;background:#fff}
+.s-products h2{font-size:clamp(17px,3vw,26px);font-weight:800;margin-bottom:22px;text-align:center;color:var(--accent)}
+.s-prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.s-prod-card{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:.15s}
+.s-prod-card:hover{box-shadow:var(--shadow-md)}
+.s-prod-img{height:110px;display:flex;align-items:center;justify-content:center;font-size:34px;background:var(--surface)}
+.s-prod-info{padding:9px 11px}
+.s-prod-name{font-size:12.5px;font-weight:600;color:var(--accent);margin-bottom:3px}
+.s-prod-price{font-size:13px;font-weight:700;color:var(--primary)}
+.s-trust{background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:18px 36px;display:flex;justify-content:center;gap:36px;flex-wrap:wrap}
+.s-trust-item{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.s-trust-icon{font-size:18px}
+.s-testi{padding:36px;background:var(--surface)}
+.s-testi h2{font-size:20px;font-weight:800;text-align:center;margin-bottom:20px}
+.s-testi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.s-testi-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.s-testi-stars{color:#f59e0b;font-size:11px;margin-bottom:5px}
+.s-testi-text{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px}
+.s-testi-author{font-size:11.5px;font-weight:700;color:var(--accent)}
+.s-cats{padding:36px;background:#fff}
+.s-cats h2{font-size:20px;font-weight:800;text-align:center;margin-bottom:20px}
+.s-cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px}
+.s-cat-item{text-align:center;padding:14px 6px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:.15s}
+.s-cat-item:hover{border-color:var(--primary);background:var(--primary-light)}
+.s-cat-icon{font-size:26px;margin-bottom:5px}
+.s-cat-label{font-size:11px;font-weight:600;color:var(--accent)}
+.s-banner{padding:36px;text-align:center;color:#fff}
+.s-banner h2{font-size:clamp(18px,4vw,34px);font-weight:800;margin-bottom:7px}
+.s-banner p{font-size:13.5px;opacity:.9;margin-bottom:18px}
+.s-banner-btn{background:#fff;color:#ef4444;padding:11px 24px;border-radius:8px;font-weight:700;font-size:13.5px;display:inline-block}
+.s-newsletter{padding:36px;background:var(--accent);text-align:center;color:#fff}
+.s-newsletter h2{font-size:20px;font-weight:800;margin-bottom:7px}
+.s-newsletter p{color:#94a3b8;margin-bottom:18px;font-size:13.5px}
+.s-nl-form{display:flex;gap:7px;max-width:380px;margin:0 auto}
+.s-nl-input{flex:1;padding:9px 13px;border-radius:7px;border:none;font-size:13px}
+.s-nl-btn{background:var(--primary);color:#fff;padding:9px 16px;border-radius:7px;border:none;font-weight:700;font-size:13px;cursor:pointer}
+.s-video{padding:36px;background:var(--surface);text-align:center}
+.s-video-ph{width:100%;max-width:500px;height:180px;background:var(--accent);border-radius:var(--r);margin:12px auto 0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:36px}
 
-  /* ─ Tag input ─ */
-  .tag-input { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); min-height: 44px; align-items: center; cursor: text; }
-  .tag { background: var(--primary-light); color: var(--primary); font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px; display: flex; align-items: center; gap: 6px; }
-  .tag-x { cursor: pointer; font-size: 14px; line-height: 1; color: var(--primary); }
+/* ── SETTINGS PLATFORM ── */
+.config-section{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:18px}
+.config-section-title{font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.tier-table{width:100%;border-collapse:collapse}
+.tier-table th{background:var(--surface2);padding:9px 13px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px}
+.tier-table td{padding:11px 13px;border-bottom:1px solid var(--border);font-size:13px}
+.tier-table tr:last-child td{border-bottom:none}
 
-  /* ─ Misc ─ */
-  .divider { height: 1px; background: var(--border); margin: 20px 0; }
-  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
-  .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
-  .empty-state h3 { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-  .spinner { width: 20px; height: 20px; border: 2.5px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .avatar { width: 32px; height: 32px; border-radius: 8px; background: var(--primary); color: #fff; font-size: 13px; font-weight: 700; display: grid; place-items: center; }
-  .flex { display: flex; }
-  .flex-col { display: flex; flex-direction: column; }
-  .items-center { align-items: center; }
-  .justify-between { justify-content: space-between; }
-  .gap-8 { gap: 8px; }
-  .gap-12 { gap: 12px; }
-  .gap-16 { gap: 16px; }
-  .gap-24 { gap: 24px; }
-  .mb-4 { margin-bottom: 4px; }
-  .mb-8 { margin-bottom: 8px; }
-  .mb-12 { margin-bottom: 12px; }
-  .mb-16 { margin-bottom: 16px; }
-  .mb-20 { margin-bottom: 20px; }
-  .mb-24 { margin-bottom: 24px; }
-  .text-sm { font-size: 12.5px; }
-  .text-xs { font-size: 11.5px; }
-  .font-bold { font-weight: 700; }
-  .font-semibold { font-weight: 600; }
-  .text-muted { color: var(--text-muted); }
-  .text-success { color: var(--success); }
-  .text-danger { color: var(--danger); }
-  .text-primary { color: var(--primary); }
-  .text-right { text-align: right; }
-  .w-full { width: 100%; }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  .info-box { padding: 14px 16px; border-radius: var(--radius-sm); font-size: 13px; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
-  .info-box.info { background: var(--primary-light); border: 1px solid #bfdbfe; color: var(--primary-dark); }
-  .info-box.warning { background: var(--warning-bg); border: 1px solid #fcd34d; color: #92400e; }
-  .info-box.success { background: var(--success-bg); border: 1px solid #bbf7d0; color: #166534; }
-  .credential-field { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between; }
-  .star-rating { display: flex; gap: 2px; color: var(--gold); font-size: 13px; }
-  .review-count { font-size: 12px; color: var(--text-muted); margin-left: 6px; }
+/* ── API NOTICE ── */
+.api-details-page{max-width:900px;margin:0 auto;padding:24px 0}
 `;
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
-const MARKETPLACE_APPS = [
-  // PAYMENT GATEWAYS
-  { id: 'pg-razorpay', category: 'Payment Gateway', name: 'Razorpay', emoji: '💳', color: '#0ea5e9',
-    tagline: 'India\'s most popular payment gateway', desc: 'Accept UPI, cards, net banking, wallets & EMI. Instant settlement with the lowest failure rates.',
-    rating: 4.8, reviews: 2341, featured: true,
-    pricing: [
-      { id: 'starter', name: 'Starter', price: 0, label: 'Free', txnFee: '2.5% per txn', features: ['UPI & Wallets', 'Cards', 'Net Banking', 'Basic Dashboard'] },
-      { id: 'growth', name: 'Growth', price: 999, label: '₹999/mo', txnFee: '1.8% per txn', features: ['Everything in Starter', 'EMI options', 'Instant Refunds', 'Advanced Analytics', 'Priority Support'], popular: true },
-      { id: 'enterprise', name: 'Enterprise', price: 2999, label: '₹2,999/mo', txnFee: '1.2% per txn', features: ['Custom fee negotiation', 'Dedicated manager', 'White-label checkout', 'API webhooks', 'SLA guarantee'] },
-    ],
-    credentials: ['Key ID', 'Key Secret', 'Webhook Secret'],
-    features: ['UPI & QR Code payments', 'All Indian bank net banking', 'EMI on 6-24 months', 'International cards', 'Instant refunds', 'Real-time webhooks', 'Payment analytics dashboard', 'PCI-DSS Level 1 certified'],
-    webhook: true, testMode: true, tags: ['UPI', 'EMI', 'Cards', 'Wallets'] },
-
-  { id: 'pg-payu', category: 'Payment Gateway', name: 'PayU', emoji: '🏦', color: '#f59e0b',
-    tagline: 'Trusted by 500,000+ merchants', desc: 'Complete payment suite with UPI Autopay, BNPL, and smart routing for maximum conversion.',
-    rating: 4.5, reviews: 1876,
-    pricing: [
-      { id: 'basic', name: 'Basic', price: 0, label: 'Free', txnFee: '2.8% per txn', features: ['UPI', 'Cards', 'Net Banking'] },
-      { id: 'pro', name: 'Pro', price: 1499, label: '₹1,499/mo', txnFee: '1.9% per txn', features: ['Everything in Basic', 'BNPL', 'UPI Autopay', 'Smart routing'], popular: true },
-      { id: 'custom', name: 'Custom', price: null, label: 'Contact Sales', txnFee: 'Negotiated', features: ['Volume discounts', 'Custom integration', 'Dedicated support'] },
-    ],
-    credentials: ['Merchant Key', 'Salt', 'Webhook Hash Key'],
-    features: ['UPI Autopay (subscriptions)', 'Buy Now Pay Later', 'Smart routing', 'Anti-fraud engine', 'Multi-bank EMI', 'International payments'],
-    tags: ['UPI Autopay', 'BNPL', 'Cards'] },
-
-  { id: 'pg-cashfree', category: 'Payment Gateway', name: 'Cashfree', emoji: '⚡', color: '#10b981',
-    tagline: 'Fastest growing payment platform', desc: 'Sub-2 second UPI payments, instant payouts, and split payments for marketplaces.',
-    rating: 4.7, reviews: 1203,
-    pricing: [
-      { id: 'free', name: 'Starter', price: 0, label: 'Free', txnFee: '2.5% per txn', features: ['UPI', 'Cards', 'Wallets'] },
-      { id: 'pro', name: 'Pro', price: 799, label: '₹799/mo', txnFee: '1.75% per txn', features: ['Instant payouts', 'Split payments', 'Subscription billing', 'Priority routing'], popular: true },
-    ],
-    credentials: ['App ID', 'Secret Key'],
-    features: ['Sub-2 second UPI', 'Instant payouts', 'Split payment (marketplace)', 'Subscription billing', 'QR code payments', 'Pay later options'],
-    tags: ['Fast UPI', 'Payouts', 'Subscriptions'] },
-
-  { id: 'pg-paytm', category: 'Payment Gateway', name: 'PayTM', emoji: '🔵', color: '#00baf2',
-    tagline: 'PayTM ecosystem integration', desc: 'Leverage 300M PayTM users with wallet, UPI, and bank transfer. Best for consumer apps.',
-    rating: 4.3, reviews: 987,
-    pricing: [
-      { id: 'std', name: 'Standard', price: 0, label: 'Free', txnFee: '1.99% per txn', features: ['PayTM Wallet', 'UPI', 'Cards', 'Net Banking'] },
-      { id: 'biz', name: 'Business', price: 1299, label: '₹1,299/mo', txnFee: '1.5% per txn', features: ['All in Standard', 'PayTM Postpaid', 'EMI', 'Smart checkout'], popular: true },
-    ],
-    credentials: ['Merchant ID (MID)', 'Merchant Key', 'Website', 'Industry Type'],
-    features: ['300M PayTM user base', 'PayTM Postpaid BNPL', 'UPI intent flow', 'EMI options', 'Cashback campaigns'],
-    tags: ['Wallet', 'UPI', 'BNPL'] },
-
-  { id: 'pg-ccavenue', category: 'Payment Gateway', name: 'CCAvenue', emoji: '🌐', color: '#ef4444',
-    tagline: 'Pioneer Indian payment gateway', desc: '200+ payment options, multi-currency, fraud detection. Ideal for high-volume international merchants.',
-    rating: 4.1, reviews: 654,
-    pricing: [
-      { id: 'std', name: 'Standard', price: 1200, label: '₹1,200/mo', txnFee: '2% per txn', features: ['All domestic methods', 'Multi-currency', 'Fraud protection'] },
-      { id: 'pro', name: 'Pro', price: 3500, label: '₹3,500/mo', txnFee: '1.5% per txn', features: ['200+ payment options', 'Priority support', 'Custom routing', 'Advanced fraud shield'] },
-    ],
-    credentials: ['Merchant ID', 'Access Code', 'Working Key'],
-    features: ['200+ payment options', 'Multi-currency support', 'Advanced fraud detection', 'Recurring billing', 'International cards'],
-    tags: ['International', 'Multi-currency', 'Cards'] },
-
-  // SHIPPING
-  { id: 'sh-shiprocket', category: 'Shipping', name: 'Shiprocket', emoji: '🚀', color: '#f97316',
-    tagline: '#1 Shipping aggregator in India', desc: 'Automate shipping across 17+ courier partners. Best rate picker, NDR management & branded tracking.',
-    rating: 4.6, reviews: 3102, featured: true,
-    pricing: [
-      { id: 'lite', name: 'Lite', price: 0, label: 'Free', features: ['5 shipments/month', 'Manual booking', 'Basic tracking'] },
-      { id: 'essential', name: 'Essential', price: 999, label: '₹999/mo', features: ['Unlimited shipments', 'Auto-assign carrier', 'Branded tracking', 'NDR management', 'Weight reconciliation'], popular: true },
-      { id: 'growth', name: 'Growth', price: 2999, label: '₹2,999/mo', features: ['All Essential', 'Return portal', 'COD remittance', 'Multi-warehouse', 'Priority support'] },
-    ],
-    credentials: ['Email', 'Password', 'Source Channel ID'],
-    features: ['17+ courier partners', 'Auto-assign best carrier', 'Branded tracking page', 'NDR management', 'COD remittance', 'Return portal', 'Weight reconciliation', 'Multi-warehouse'],
-    tags: ['Pan-India', 'COD', 'Returns', 'Multi-carrier'] },
-
-  { id: 'sh-delhivery', category: 'Shipping', name: 'Delhivery', emoji: '📦', color: '#d946ef',
-    tagline: 'India\'s largest logistics network', desc: 'Direct carrier integration with 18,000+ pincodes, B2B & B2C, with real-time tracking.',
-    rating: 4.4, reviews: 1567,
-    pricing: [
-      { id: 'std', name: 'Standard', price: 500, label: '₹500/mo', features: ['B2C shipments', 'Real-time tracking', 'COD support'] },
-      { id: 'pro', name: 'Pro', price: 1999, label: '₹1,999/mo', features: ['B2B + B2C', 'Pickup scheduling', 'Return management', 'API access', 'Weight reconciliation'], popular: true },
-    ],
-    credentials: ['Client ID', 'Client Secret'],
-    features: ['18,500+ pincodes', 'B2B + B2C logistics', 'Real-time tracking', 'Pickup scheduling', 'COD remittance', 'Returns management'],
-    tags: ['Pan-India', 'B2B', 'COD'] },
-
-  { id: 'sh-bluedart', category: 'Shipping', name: 'BlueDart', emoji: '🔵', color: '#1d4ed8',
-    tagline: 'Premium express delivery', desc: 'Premium courier for high-value, time-sensitive shipments with guaranteed delivery windows.',
-    rating: 4.7, reviews: 892,
-    pricing: [
-      { id: 'std', name: 'Standard', price: 800, label: '₹800/mo', features: ['Express delivery', 'Airway bill generation', 'Basic tracking'] },
-      { id: 'pro', name: 'Pro', price: 2200, label: '₹2,200/mo', features: ['Guaranteed windows', 'Bulk booking', 'Real-time tracking', 'Sunday delivery', 'Priority API'], popular: true },
-    ],
-    credentials: ['License Key', 'Login ID', 'Password'],
-    features: ['Guaranteed delivery', 'Sunday delivery', 'High-value shipments', 'Airway bill API', 'Real-time POD'],
-    tags: ['Premium', 'Express', 'High-value'] },
-
-  { id: 'sh-ecomexpress', category: 'Shipping', name: 'Ecom Express', emoji: '🟢', color: '#16a34a',
-    tagline: 'COD specialist for e-commerce', desc: 'Built for D2C brands. Best COD collection rates, fast remittance, and tier-2/3 city coverage.',
-    rating: 4.3, reviews: 743,
-    pricing: [
-      { id: 'basic', name: 'Basic', price: 0, label: 'Free trial 30d', features: ['COD shipping', 'Basic tracking', 'Return pickup'] },
-      { id: 'standard', name: 'Standard', price: 699, label: '₹699/mo', features: ['All Basic', 'Faster COD remittance', 'NDR automation', 'Last-mile coverage'], popular: true },
-    ],
-    credentials: ['AWB Username', 'AWB Password', 'Pickup Location ID'],
-    features: ['COD specialist', 'Fast COD remittance (T+3)', 'Tier-2/3 coverage', 'NDR automation', 'Return pickup'],
-    tags: ['COD', 'Tier-2/3', 'D2C'] },
-
-  // EMAIL & MARKETING
-  { id: 'em-mailchimp', category: 'Email & Marketing', name: 'Mailchimp', emoji: '🐵', color: '#ffe01b',
-    tagline: 'Marketing automation platform', desc: 'Email campaigns, automations, and audience management for growing stores.',
-    rating: 4.5, reviews: 2103,
-    pricing: [
-      { id: 'free', name: 'Free', price: 0, label: 'Free', features: ['500 contacts', '1,000 emails/mo', 'Basic templates'] },
-      { id: 'essentials', name: 'Essentials', price: 499, label: '₹499/mo', features: ['5,000 contacts', '50,000 emails', 'A/B testing', 'Remove branding'], popular: true },
-      { id: 'standard', name: 'Standard', price: 1299, label: '₹1,299/mo', features: ['100k contacts', 'Automations', 'Retargeting', 'Custom templates'] },
-    ],
-    credentials: ['API Key', 'Audience ID'],
-    features: ['Drag-drop email builder', 'Automated flows', 'A/B testing', 'Audience segmentation', 'Purchase trigger emails'],
-    tags: ['Email', 'Automation', 'Campaigns'] },
-
-  { id: 'em-whatsapp', category: 'Email & Marketing', name: 'WhatsApp Business API', emoji: '💬', color: '#25d366',
-    tagline: 'Reach customers on WhatsApp', desc: 'Order confirmations, shipping updates, and promotional messages via WhatsApp API.',
-    rating: 4.8, reviews: 1876, featured: true,
-    pricing: [
-      { id: 'starter', name: 'Starter', price: 799, label: '₹799/mo', features: ['1,000 conversations/mo', 'Order notifications', 'Shipping alerts'] },
-      { id: 'growth', name: 'Growth', price: 2499, label: '₹2,499/mo', features: ['10,000 conversations', 'Broadcasts', 'Chatbot flows', 'Cart recovery'], popular: true },
-    ],
-    credentials: ['Phone Number ID', 'Access Token', 'Verify Token'],
-    features: ['Order confirmation', 'Shipping updates', 'Cart abandonment', 'Broadcast campaigns', 'Chatbot builder', 'Two-way messaging'],
-    tags: ['WhatsApp', 'Notifications', 'Marketing'] },
-
-  { id: 'em-sendinblue', category: 'Email & Marketing', name: 'Brevo (Sendinblue)', emoji: '📧', color: '#0092ff',
-    tagline: 'Email + SMS + WhatsApp', desc: 'All-in-one marketing platform with email, SMS, and push notifications in one dashboard.',
-    rating: 4.4, reviews: 834,
-    pricing: [
-      { id: 'free', name: 'Free', price: 0, label: 'Free', features: ['300 emails/day', 'Unlimited contacts', 'SMS credits separate'] },
-      { id: 'starter', name: 'Starter', price: 999, label: '₹999/mo', features: ['20,000 emails/mo', 'SMS marketing', 'No daily limit', 'A/B testing'], popular: true },
-    ],
-    credentials: ['API Key'],
-    features: ['Email + SMS + Push', 'Transaction emails', 'Marketing automation', 'CRM integration', 'Landing pages'],
-    tags: ['Email', 'SMS', 'Multi-channel'] },
-
-  // ANALYTICS
-  { id: 'an-ga4', category: 'Analytics', name: 'Google Analytics 4', emoji: '📊', color: '#ff6b35',
-    tagline: 'Industry-standard analytics', desc: 'Track every customer journey, conversion funnel, and revenue attribution with GA4.',
-    rating: 4.6, reviews: 4521,
-    pricing: [
-      { id: 'free', name: 'Free', price: 0, label: 'Free', features: ['Unlimited tracking', 'All reports', 'BigQuery export', 'Funnel analysis'] },
-    ],
-    credentials: ['Measurement ID (G-XXXXXXXX)'],
-    features: ['Event-based tracking', 'Conversion funnels', 'Revenue attribution', 'Audience building', 'BigQuery export', 'Real-time reports'],
-    tags: ['Free', 'Ecommerce', 'Funnels'] },
-
-  { id: 'an-fb-pixel', category: 'Analytics', name: 'Meta Pixel', emoji: '🎯', color: '#1877f2',
-    tagline: 'Facebook & Instagram retargeting', desc: 'Track conversions and build custom audiences for Meta ads. Essential for Indian D2C brands.',
-    rating: 4.7, reviews: 3201,
-    pricing: [
-      { id: 'free', name: 'Free', price: 0, label: 'Free', features: ['Conversion tracking', 'Custom audiences', 'Catalog sync', 'Dynamic ads'] },
-    ],
-    credentials: ['Pixel ID', 'Conversions API Access Token'],
-    features: ['Purchase tracking', 'Add to cart events', 'Custom audiences', 'Dynamic product ads', 'Conversions API'],
-    tags: ['Free', 'Facebook', 'Instagram', 'Ads'] },
-
-  // CUSTOMER SUPPORT
-  { id: 'cs-freshdesk', category: 'Customer Support', name: 'Freshdesk', emoji: '🎧', color: '#00b388',
-    tagline: 'Customer support helpdesk', desc: 'Manage customer queries from email, WhatsApp, chat in one unified inbox.',
-    rating: 4.5, reviews: 1102,
-    pricing: [
-      { id: 'free', name: 'Free', price: 0, label: 'Free', features: ['10 agents', 'Email tickets', 'Basic reports'] },
-      { id: 'growth', name: 'Growth', price: 1499, label: '₹1,499/mo', features: ['Unlimited agents', 'WhatsApp + Chat', 'Automations', 'SLA management'], popular: true },
-    ],
-    credentials: ['API Key', 'Domain (subdomain.freshdesk.com)'],
-    features: ['Unified inbox', 'WhatsApp integration', 'Ticket automation', 'CSAT surveys', 'Knowledge base'],
-    tags: ['Helpdesk', 'WhatsApp', 'Chat'] },
-
-  { id: 'cs-intercom', category: 'Customer Support', name: 'Intercom', emoji: '💭', color: '#6366f1',
-    tagline: 'Conversational customer platform', desc: 'Live chat, chatbots, and proactive messaging to convert and support customers.',
-    rating: 4.6, reviews: 876,
-    pricing: [
-      { id: 'starter', name: 'Starter', price: 2499, label: '₹2,499/mo', features: ['Live chat', 'Basic chatbot', 'Inbox'] },
-      { id: 'pro', name: 'Pro', price: 6999, label: '₹6,999/mo', features: ['Advanced chatbots', 'Product tours', 'Custom bots', 'A/B testing'], popular: true },
-    ],
-    credentials: ['App ID', 'Access Token'],
-    features: ['Live chat widget', 'Custom chatbots', 'Proactive messages', 'User segmentation', 'Product tours'],
-    tags: ['Live Chat', 'Chatbot', 'Proactive'] },
+const APPS = [
+  { id:'pg-razorpay', cat:'Payment Gateway', name:'Razorpay', emoji:'💳', color:'#0ea5e9', tagline:"India's most popular payment gateway", desc:'Accept UPI, cards, net banking, wallets & EMI. Instant settlement with lowest failure rates.', rating:4.8, reviews:2341, featured:true,
+    pricing:[{id:'starter',name:'Starter',price:0,txnFee:'2.5% per txn',features:['UPI & Wallets','Cards','Net Banking','Basic Dashboard']},{id:'growth',name:'Growth',price:999,txnFee:'1.8% per txn',features:['Everything in Starter','EMI options','Instant Refunds','Advanced Analytics','Priority Support'],popular:true},{id:'ent',name:'Enterprise',price:2999,txnFee:'1.2% per txn',features:['Custom fee negotiation','Dedicated manager','White-label checkout','API webhooks']}],
+    creds:['Key ID','Key Secret','Webhook Secret'], features:['UPI & QR Code','All Indian bank net banking','EMI 6-24 months','International cards','Instant refunds','Real-time webhooks','PCI-DSS Level 1'], webhook:true, testMode:true, tags:['UPI','EMI','Cards','Wallets'] },
+  { id:'pg-payu', cat:'Payment Gateway', name:'PayU', emoji:'🏦', color:'#f59e0b', tagline:'Trusted by 500,000+ merchants', desc:'Complete payment suite with UPI Autopay, BNPL, and smart routing for maximum conversion.', rating:4.5, reviews:1876,
+    pricing:[{id:'basic',name:'Basic',price:0,txnFee:'2.8% per txn',features:['UPI','Cards','Net Banking']},{id:'pro',name:'Pro',price:1499,txnFee:'1.9% per txn',features:['Everything in Basic','BNPL','UPI Autopay','Smart routing'],popular:true},{id:'custom',name:'Custom',price:null,txnFee:'Negotiated',features:['Volume discounts','Custom integration']}],
+    creds:['Merchant Key','Salt','Webhook Hash Key'], features:['UPI Autopay subscriptions','Buy Now Pay Later','Smart routing','Anti-fraud engine','Multi-bank EMI'], tags:['UPI Autopay','BNPL','Cards'] },
+  { id:'pg-cashfree', cat:'Payment Gateway', name:'Cashfree', emoji:'⚡', color:'#10b981', tagline:'Fastest growing payment platform', desc:'Sub-2 second UPI payments, instant payouts, and split payments for marketplaces.', rating:4.7, reviews:1203,
+    pricing:[{id:'free',name:'Starter',price:0,txnFee:'2.5% per txn',features:['UPI','Cards','Wallets']},{id:'pro',name:'Pro',price:799,txnFee:'1.75% per txn',features:['Instant payouts','Split payments','Subscription billing'],popular:true}],
+    creds:['App ID','Secret Key'], features:['Sub-2 second UPI','Instant payouts','Split payment marketplace','Subscription billing'], tags:['Fast UPI','Payouts','Subscriptions'] },
+  { id:'sh-shiprocket', cat:'Shipping', name:'Shiprocket', emoji:'🚀', color:'#f97316', tagline:'#1 Shipping aggregator in India', desc:'Automate shipping across 17+ courier partners. Best rate picker, NDR management & branded tracking.', rating:4.6, reviews:3102, featured:true,
+    pricing:[{id:'lite',name:'Lite',price:0,features:['5 shipments/month','Manual booking','Basic tracking']},{id:'essential',name:'Essential',price:999,features:['Unlimited shipments','Auto-assign carrier','Branded tracking','NDR management'],popular:true},{id:'growth',name:'Growth',price:2999,features:['All Essential','Return portal','COD remittance','Multi-warehouse']}],
+    creds:['Email','Password','Source Channel ID'], features:['17+ courier partners','Auto-assign best carrier','Branded tracking page','NDR management','COD remittance','Return portal','Weight reconciliation'], tags:['Pan-India','COD','Returns','Multi-carrier'] },
+  { id:'sh-delhivery', cat:'Shipping', name:'Delhivery', emoji:'📦', color:'#d946ef', tagline:"India's largest logistics network", desc:'Direct carrier integration with 18,000+ pincodes, B2B & B2C, with real-time tracking.', rating:4.4, reviews:1567,
+    pricing:[{id:'std',name:'Standard',price:500,features:['B2C shipments','Real-time tracking','COD support']},{id:'pro',name:'Pro',price:1999,features:['B2B + B2C','Pickup scheduling','Return management','API access'],popular:true}],
+    creds:['Client ID','Client Secret'], features:['18,500+ pincodes','B2B + B2C logistics','Real-time tracking','Pickup scheduling','Returns management'], tags:['Pan-India','B2B','COD'] },
+  { id:'em-mailchimp', cat:'Email & Marketing', name:'Mailchimp', emoji:'🐵', color:'#ffe01b', tagline:'Marketing automation platform', desc:'Email campaigns, automations, and audience management for growing stores.', rating:4.5, reviews:2103,
+    pricing:[{id:'free',name:'Free',price:0,features:['500 contacts','1,000 emails/mo','Basic templates']},{id:'ess',name:'Essentials',price:499,features:['5,000 contacts','50,000 emails','A/B testing'],popular:true},{id:'std',name:'Standard',price:1299,features:['100k contacts','Automations','Retargeting']}],
+    creds:['API Key','Audience ID'], features:['Drag-drop email builder','Automated flows','A/B testing','Audience segmentation','Purchase trigger emails'], tags:['Email','Automation','Campaigns'] },
+  { id:'em-whatsapp', cat:'Email & Marketing', name:'WhatsApp Business API', emoji:'💬', color:'#25d366', tagline:'Reach customers on WhatsApp', desc:'Order confirmations, shipping updates, and promotional messages via WhatsApp API.', rating:4.8, reviews:1876, featured:true,
+    pricing:[{id:'starter',name:'Starter',price:799,features:['1,000 conversations/mo','Order notifications','Shipping alerts']},{id:'growth',name:'Growth',price:2499,features:['10,000 conversations','Broadcasts','Chatbot flows','Cart recovery'],popular:true}],
+    creds:['Phone Number ID','Access Token','Verify Token'], features:['Order confirmation','Shipping updates','Cart abandonment','Broadcast campaigns','Chatbot builder','Two-way messaging'], tags:['WhatsApp','Notifications','Marketing'] },
+  { id:'an-ga4', cat:'Analytics', name:'Google Analytics 4', emoji:'📊', color:'#ff6b35', tagline:'Industry-standard analytics', desc:'Track every customer journey, conversion funnel, and revenue attribution with GA4.', rating:4.6, reviews:4521,
+    pricing:[{id:'free',name:'Free',price:0,features:['Unlimited tracking','All reports','BigQuery export','Funnel analysis']}],
+    creds:['Measurement ID (G-XXXXXXXX)'], features:['Event-based tracking','Conversion funnels','Revenue attribution','Audience building','BigQuery export','Real-time reports'], tags:['Free','Ecommerce','Funnels'] },
+  { id:'an-fbpx', cat:'Analytics', name:'Meta Pixel', emoji:'🎯', color:'#1877f2', tagline:'Facebook & Instagram retargeting', desc:'Track conversions and build custom audiences for Meta ads. Essential for Indian D2C brands.', rating:4.7, reviews:3201,
+    pricing:[{id:'free',name:'Free',price:0,features:['Conversion tracking','Custom audiences','Catalog sync','Dynamic ads']}],
+    creds:['Pixel ID','Conversions API Access Token'], features:['Purchase tracking','Add to cart events','Custom audiences','Dynamic product ads','Conversions API'], tags:['Free','Facebook','Instagram','Ads'] },
+  { id:'cs-freshdesk', cat:'Customer Support', name:'Freshdesk', emoji:'🎧', color:'#00b388', tagline:'Customer support helpdesk', desc:'Manage customer queries from email, WhatsApp, chat in one unified inbox.', rating:4.5, reviews:1102,
+    pricing:[{id:'free',name:'Free',price:0,features:['10 agents','Email tickets','Basic reports']},{id:'growth',name:'Growth',price:1499,features:['Unlimited agents','WhatsApp + Chat','Automations','SLA management'],popular:true}],
+    creds:['API Key','Domain (subdomain.freshdesk.com)'], features:['Unified inbox','WhatsApp integration','Ticket automation','CSAT surveys','Knowledge base'], tags:['Helpdesk','WhatsApp','Chat'] },
 ];
 
-const CATEGORIES = ['All', 'Payment Gateway', 'Shipping', 'Email & Marketing', 'Analytics', 'Customer Support'];
+const CATEGORIES = ['All','Payment Gateway','Shipping','Email & Marketing','Analytics','Customer Support'];
+const CAT_ICONS = { 'Payment Gateway':'💳','Shipping':'📦','Email & Marketing':'📣','Analytics':'📊','Customer Support':'🎧' };
 
-const CAT_ICONS = {
-  'Payment Gateway': '💳',
-  'Shipping': '📦',
-  'Email & Marketing': '📣',
-  'Analytics': '📊',
-  'Customer Support': '🎧',
+const SECTION_TYPES = [
+  { type:'announcement', label:'Announcement Bar', emoji:'📢', default:{ text:'🔥 Sale Live! Use code SAVE20 for 20% off · Free shipping above ₹999', bg:'#0f172a', color:'#fff' }},
+  { type:'hero', label:'Hero Banner', emoji:'🖼️', default:{ headline:'Discover Indian Craftsmanship', subtext:'Handpicked sarees, kurtas & jewellery from the finest artisans across India.', btnText:'Shop Collection', btnUrl:'#', showSecond:true, secondText:'View Lookbook', bg:'#1e293b' }},
+  { type:'cats', label:'Category Grid', emoji:'🗂️', default:{ title:'Shop by Category', items:[{icon:'👗',label:'Sarees'},{icon:'👕',label:'Kurtas'},{icon:'💍',label:'Jewellery'},{icon:'🏠',label:'Home Decor'},{icon:'💄',label:'Beauty'},{icon:'👟',label:'Footwear'}] }},
+  { type:'products', label:'Featured Products', emoji:'🛍️', default:{ title:'Featured Products', cols:4, items:[{name:'Kanjivaram Silk Saree',price:'₹4,999',emoji:'👗'},{name:'Brass Diya Set',price:'₹899',emoji:'🪔'},{name:'Cotton Kurta',price:'₹1,299',emoji:'👕'},{name:'Jute Bag',price:'₹599',emoji:'👜'}] }},
+  { type:'banner', label:'Promo Banner', emoji:'🎯', default:{ headline:'Diwali Sale — Up to 70% Off!', subtext:'Shop our biggest festival sale. Limited time.', btnText:'Grab Deals', grad:'#f59e0b,#ef4444' }},
+  { type:'trust', label:'Trust Badges', emoji:'🛡️', default:{ items:[{icon:'🚚',label:'Free Delivery above ₹999'},{icon:'🔄',label:'Easy 30-Day Returns'},{icon:'🔒',label:'100% Secure Payments'},{icon:'💳',label:'COD Available'},{icon:'⭐',label:'4.8/5 Customer Rating'}] }},
+  { type:'testimonials', label:'Testimonials', emoji:'💬', default:{ title:'Loved by 50,000+ Customers', items:[{text:'"Absolutely love the quality! Will order again."',author:'Priya Sharma',city:'Mumbai',stars:5},{text:'"Fast delivery and beautiful packaging!"',author:'Rahul Verma',city:'Delhi',stars:5},{text:'"Perfect gift for my mom!"',author:'Anjali Nair',city:'Bangalore',stars:4}] }},
+  { type:'newsletter', label:'Newsletter Signup', emoji:'📧', default:{ headline:'Get Exclusive Offers', subtext:'Join 50,000+ subscribers for deals & offers.', placeholder:'Enter your email', btnText:'Subscribe' }},
+  { type:'video', label:'Video Section', emoji:'🎬', default:{ title:'Our Story', ph:'▶' }},
+];
+
+const SECTION_SCHEMA = {
+  announcement:[{key:'text',label:'Text',type:'text'},{key:'bg',label:'Background',type:'color'},{key:'color',label:'Text Color',type:'color'}],
+  hero:[{key:'headline',label:'Headline',type:'text'},{key:'subtext',label:'Subtext',type:'textarea'},{key:'btnText',label:'Button Text',type:'text'},{key:'btnUrl',label:'Button URL',type:'text'},{key:'showSecond',label:'Show 2nd Button',type:'toggle'},{key:'secondText',label:'2nd Button Text',type:'text'},{key:'bg',label:'Background Color',type:'color'}],
+  cats:[{key:'title',label:'Section Title',type:'text'}],
+  products:[{key:'title',label:'Section Title',type:'text'},{key:'cols',label:'Columns',type:'select',options:['2','3','4']}],
+  banner:[{key:'headline',label:'Headline',type:'text'},{key:'subtext',label:'Subtext',type:'text'},{key:'btnText',label:'Button Text',type:'text'}],
+  trust:[],
+  testimonials:[{key:'title',label:'Section Title',type:'text'}],
+  newsletter:[{key:'headline',label:'Headline',type:'text'},{key:'subtext',label:'Subtext',type:'text'},{key:'btnText',label:'Button Text',type:'text'}],
+  video:[{key:'title',label:'Title',type:'text'}],
 };
 
-// ─── UTILITY ─────────────────────────────────────────────────────────────────
+// ─── ICONS ───────────────────────────────────────────────────────────────────
 
-const fmt = (n) => n === null ? 'Custom' : n === 0 ? 'Free' : `₹${n.toLocaleString('en-IN')}`;
-
-// ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
-
-const Icon = ({ name, size = 16 }) => {
+const Icon = ({ name, size=15 }) => {
   const icons = {
-    dashboard: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
-    store: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
-    apps: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>,
-    settings: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0112 2a10 10 0 01-7.07 2.93M4.93 4.93A10 10 0 002 12a10 10 0 002.93 7.07M19.07 19.07A10 10 0 0122 12a10 10 0 00-2.93-7.07"/></svg>,
-    revenue: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
-    users: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>,
-    theme: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
-    check: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>,
-    x: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-    search: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-    plus: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-    edit: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
-    trash: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>,
-    info: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
-    lock: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>,
-    copy: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>,
-    arrow: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
-    star: <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
-    logout: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
-    tag: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
-    eye: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
-    toggle: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="5" width="22" height="14" rx="7" ry="7"/><circle cx="8" cy="12" r="3"/></svg>,
-    analytics: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+    dashboard:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
+    store:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+    apps:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>,
+    settings:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0112 2a10 10 0 01-7.07 2.93M4.93 4.93A10 10 0 002 12a10 10 0 002.93 7.07M19.07 19.07A10 10 0 0122 12a10 10 0 00-2.93-7.07"/></svg>,
+    revenue:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
+    users:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>,
+    theme:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>,
+    x:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+    search:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+    plus:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+    edit:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+    trash:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>,
+    info:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+    lock:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>,
+    copy:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>,
+    arrow:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+    star:<svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
+    logout:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+    tag:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
+    check:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>,
+    builder:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>,
+    analytics:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+    api:<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>,
   };
   return icons[name] || null;
 };
 
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const fmt = (n) => n === null ? 'Contact Sales' : n === 0 ? 'Free' : `₹${n.toLocaleString('en-IN')}`;
+const Stars = ({ r }) => <span className="star-rating">{[1,2,3,4,5].map(i=><span key={i} style={{color:i<=Math.round(r)?'#f59e0b':'#e2e8f0'}}>★</span>)}</span>;
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
 const Toast = ({ toasts }) => (
   <div className="toast-container">
-    {toasts.map(t => (
-      <div key={t.id} className={`toast ${t.type || ''}`}>
-        {t.type === 'success' ? '✅' : t.type === 'error' ? '❌' : 'ℹ️'}
-        {t.msg}
-      </div>
-    ))}
+    {toasts.map(t=><div key={t.id} className={`toast ${t.type||''}`}>{t.type==='success'?'✅':t.type==='error'?'❌':t.type==='warning'?'⚠️':'ℹ️'} {t.msg}</div>)}
   </div>
 );
 
-const StarRating = ({ rating }) => (
-  <span className="star-rating">
-    {[1,2,3,4,5].map(i => (
-      <span key={i} style={{ color: i <= Math.round(rating) ? '#f59e0b' : '#e2e8f0' }}>★</span>
-    ))}
-  </span>
-);
+// ─── SECTION RENDERER ────────────────────────────────────────────────────────
+function SectionRenderer({ sec }) {
+  const p = sec.props;
+  switch(sec.type) {
+    case 'announcement': return <div className="s-ann" style={{background:p.bg,color:p.color}}>{p.text}</div>;
+    case 'hero': return (
+      <div className="s-hero" style={{background:p.bg}}>
+        <h1>{p.headline}</h1><p>{p.subtext}</p>
+        <div className="s-hero-cta"><span className="s-hero-btn">{p.btnText}</span>{p.showSecond&&<span className="s-hero-sub">{p.secondText}</span>}</div>
+      </div>
+    );
+    case 'cats': return (
+      <div className="s-cats"><h2>{p.title}</h2>
+        <div className="s-cat-grid">{(p.items||[]).map((c,i)=><div key={i} className="s-cat-item"><div className="s-cat-icon">{c.icon}</div><div className="s-cat-label">{c.label}</div></div>)}</div>
+      </div>
+    );
+    case 'products': return (
+      <div className="s-products"><h2>{p.title}</h2>
+        <div className="s-prod-grid" style={{gridTemplateColumns:`repeat(${p.cols||4},1fr)`}}>{(p.items||[]).map((item,i)=><div key={i} className="s-prod-card"><div className="s-prod-img">{item.emoji}</div><div className="s-prod-info"><div className="s-prod-name">{item.name}</div><div className="s-prod-price">{item.price}</div></div></div>)}</div>
+      </div>
+    );
+    case 'banner': return (
+      <div className="s-banner" style={{background:`linear-gradient(135deg,${p.grad||'#f59e0b,#ef4444'})`}}>
+        <h2>{p.headline}</h2><p>{p.subtext}</p><span className="s-banner-btn">{p.btnText}</span>
+      </div>
+    );
+    case 'trust': return (
+      <div className="s-trust">{(p.items||[]).map((t,i)=><div key={i} className="s-trust-item"><span className="s-trust-icon">{t.icon}</span>{t.label}</div>)}</div>
+    );
+    case 'testimonials': return (
+      <div className="s-testi"><h2>{p.title}</h2>
+        <div className="s-testi-grid">{(p.items||[]).map((t,i)=><div key={i} className="s-testi-card"><div className="s-testi-stars">{'★'.repeat(t.stars)}</div><div className="s-testi-text">{t.text}</div><div className="s-testi-author">{t.author} · {t.city}</div></div>)}</div>
+      </div>
+    );
+    case 'newsletter': return (
+      <div className="s-newsletter"><h2>{p.headline}</h2><p>{p.subtext}</p>
+        <div className="s-nl-form"><input className="s-nl-input" placeholder={p.placeholder}/><button className="s-nl-btn">{p.btnText}</button></div>
+      </div>
+    );
+    case 'video': return (
+      <div className="s-video"><h2>{p.title}</h2><div className="s-video-ph">{p.ph||'▶'}</div></div>
+    );
+    default: return <div style={{padding:20,textAlign:'center',color:'var(--muted)'}}>[{sec.type}]</div>;
+  }
+}
 
-// ─── PURCHASE FLOW MODAL ──────────────────────────────────────────────────────
+// ─── FIELD RENDERER ──────────────────────────────────────────────────────────
+function FieldRenderer({ field, value, onChange }) {
+  if(field.type==='text') return <input className="field-input" value={value||''} onChange={e=>onChange(e.target.value)} placeholder={field.label}/>;
+  if(field.type==='textarea') return <textarea className="field-input field-textarea" value={value||''} onChange={e=>onChange(e.target.value)}/>;
+  if(field.type==='color') return (
+    <div className="flex items-center gap-8">
+      <input type="color" style={{width:38,height:34,padding:'2px 4px',border:'1px solid var(--border)',borderRadius:5,cursor:'pointer'}} value={value||'#000000'} onChange={e=>onChange(e.target.value)}/>
+      <input className="field-input" style={{flex:1}} value={value||''} onChange={e=>onChange(e.target.value)} placeholder="#000000"/>
+    </div>
+  );
+  if(field.type==='toggle') return (
+    <div className="flex items-center justify-between" style={{padding:'7px 10px',border:'1.5px solid var(--border)',borderRadius:7}}>
+      <span style={{fontSize:13}}>{field.label}</span>
+      <button className={`toggle-pill ${value?'on':'off'}`} onClick={()=>onChange(!value)}/>
+    </div>
+  );
+  if(field.type==='select') return (
+    <select className="field-input field-select" value={value||field.options[0]} onChange={e=>onChange(e.target.value)}>
+      {field.options.map(o=><option key={o}>{o}</option>)}
+    </select>
+  );
+  return null;
+}
 
-const PurchaseModal = ({ app, onClose, onInstall, toast }) => {
-  const [step, setStep] = useState(1); // 1=select plan, 2=credentials, 3=billing, 4=success
-  const [selectedPlan, setSelectedPlan] = useState(app.pricing?.[app.pricing.findIndex(p=>p.popular)] || app.pricing?.[0]);
+// ─── THEME SETTINGS ──────────────────────────────────────────────────────────
+function ThemeSettings({ toast }) {
+  const [t, setT] = useState({ colorPrimary:'#2563eb',colorAccent:'#0f172a',colorSurface:'#f8fafc',colorText:'#1e293b',colorSuccess:'#16a34a',colorWarning:'#d97706',fontHeading:'Plus Jakarta Sans',fontBody:'Plus Jakarta Sans',headerStyle:'fixed',footerStyle:'dark',borderRadius:'10',buttonStyle:'rounded',logoUrl:'',faviconUrl:'' });
+  const set = (k,v) => setT(prev=>({...prev,[k]:v}));
+  const fonts = ['Plus Jakarta Sans','Poppins','Nunito','Playfair Display','Merriweather','Lato','Raleway','Josefin Sans'];
+  return (
+    <div style={{padding:14,overflowY:'auto',height:'100%'}}>
+      <div className="flex items-center justify-between mb-16">
+        <div style={{fontWeight:800,fontSize:14}}>Theme Settings</div>
+        <button className="btn btn-primary btn-sm" onClick={()=>toast('Theme saved!','success')}>Save</button>
+      </div>
+      <div className="theme-token-section">
+        <div className="token-section-title">Logo & Identity</div>
+        <div className="field-group"><label className="field-label">Logo URL</label><input className="field-input" placeholder="https://cdn.yourstore.com/logo.png" value={t.logoUrl} onChange={e=>set('logoUrl',e.target.value)}/></div>
+        <div className="field-group"><label className="field-label">Favicon URL</label><input className="field-input" placeholder="https://cdn.yourstore.com/favicon.ico" value={t.faviconUrl} onChange={e=>set('faviconUrl',e.target.value)}/></div>
+      </div>
+      <div className="theme-token-section">
+        <div className="token-section-title">Brand Colors</div>
+        {[['colorPrimary','Primary'],['colorAccent','Accent / Dark'],['colorSurface','Background'],['colorText','Body Text'],['colorSuccess','Success'],['colorWarning','Warning']].map(([k,label])=>(
+          <div key={k} className="color-swatch">
+            <div className="color-preview" style={{background:t[k]}}/>
+            <span style={{fontSize:12.5,fontWeight:500,flex:1}}>{label}</span>
+            <input type="color" style={{width:30,height:26,padding:2,border:'1px solid var(--border)',borderRadius:4,cursor:'pointer'}} value={t[k]} onChange={e=>set(k,e.target.value)}/>
+            <input className="field-input" style={{width:84,fontSize:11.5,padding:'3px 7px'}} value={t[k]} onChange={e=>set(k,e.target.value)}/>
+          </div>
+        ))}
+      </div>
+      <div className="theme-token-section">
+        <div className="token-section-title">Typography</div>
+        {[['fontHeading','Heading Font'],['fontBody','Body Font']].map(([k,label])=>(
+          <div className="field-group" key={k}>
+            <label className="field-label">{label}</label>
+            <div className="font-preview-box" style={{fontFamily:t[k]}}>Your Store — Aa Bb 123</div>
+            <select className="field-input field-select" value={t[k]} onChange={e=>set(k,e.target.value)}>{fonts.map(f=><option key={f}>{f}</option>)}</select>
+          </div>
+        ))}
+      </div>
+      <div className="theme-token-section">
+        <div className="token-section-title">Layout & Style</div>
+        <div className="field-group"><label className="field-label">Header</label>
+          <select className="field-input field-select" value={t.headerStyle} onChange={e=>set('headerStyle',e.target.value)}><option value="fixed">Fixed (sticky)</option><option value="static">Static</option><option value="transparent">Transparent hero</option></select>
+        </div>
+        <div className="field-group"><label className="field-label">Footer</label>
+          <select className="field-input field-select" value={t.footerStyle} onChange={e=>set('footerStyle',e.target.value)}><option value="dark">Dark</option><option value="light">Light</option><option value="minimal">Minimal</option></select>
+        </div>
+        <div className="field-group"><label className="field-label">Border Radius: {t.borderRadius}px</label>
+          <input type="range" style={{width:'100%'}} min={0} max={20} value={t.borderRadius} onChange={e=>set('borderRadius',e.target.value)}/>
+        </div>
+        <div className="field-group"><label className="field-label">Button Style</label>
+          <select className="field-input field-select" value={t.buttonStyle} onChange={e=>set('buttonStyle',e.target.value)}><option value="rounded">Rounded</option><option value="pill">Pill</option><option value="sharp">Sharp</option></select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── NAVIGATION BUILDER ──────────────────────────────────────────────────────
+function NavBuilder({ toast }) {
+  const [menus, setMenus] = useState({
+    main:[{id:1,label:'Home',type:'page',url:'/',children:[]},{id:2,label:'Shop',type:'collection',url:'/collections',children:[{id:21,label:'Sarees',url:'/collections/sarees'},{id:22,label:'Kurtas',url:'/collections/kurtas'}]},{id:3,label:'About Us',type:'page',url:'/pages/about',children:[]},{id:4,label:'Contact',type:'page',url:'/pages/contact',children:[]}],
+    footer1:[{id:5,label:'About Us',type:'page',url:'/pages/about',children:[]},{id:6,label:'FAQ',type:'page',url:'/pages/faq',children:[]}],
+    footer2:[{id:7,label:'Privacy Policy',type:'page',url:'/pages/privacy',children:[]},{id:8,label:'Return Policy',type:'page',url:'/pages/returns',children:[]}],
+  });
+  const [active, setActive] = useState('main');
+  const [modal, setModal] = useState(null);
+  const [item, setItem] = useState({label:'',type:'page',url:''});
+  const typeColors = {page:'#eff6ff',collection:'#f0fdf4',url:'#fffbeb'};
+  const typeText = {page:'#1d4ed8',collection:'#15803d',url:'#92400e'};
+  const addItem = (parentId=null) => {
+    const n = {id:Date.now(),...item,children:[]};
+    setMenus(prev=>{
+      const updated = prev[active].map(m=>parentId&&m.id===parentId?{...m,children:[...m.children,{id:n.id,label:n.label,url:n.url}]}:m);
+      return {...prev,[active]:parentId?updated:[...updated,n]};
+    });
+    setModal(null); setItem({label:'',type:'page',url:''});
+    toast('Menu item added','success');
+  };
+  const removeItem = (id,parentId=null) => {
+    setMenus(prev=>{
+      if(!parentId) return {...prev,[active]:prev[active].filter(m=>m.id!==id)};
+      return {...prev,[active]:prev[active].map(m=>m.id===parentId?{...m,children:m.children.filter(c=>c.id!==id)}:m)};
+    });
+  };
+  return (
+    <div style={{padding:14}}>
+      <div className="flex items-center justify-between mb-16">
+        <div style={{fontWeight:800,fontSize:14}}>Navigation Builder</div>
+        <button className="btn btn-primary btn-sm" onClick={()=>toast('Navigation saved!','success')}>Save</button>
+      </div>
+      <div className="tabs mb-16">
+        {[{id:'main',label:'Main Menu'},{id:'footer1',label:'Footer 1'},{id:'footer2',label:'Footer 2'}].map(m=><button key={m.id} className={`tab ${active===m.id?'active':''}`} onClick={()=>setActive(m.id)}>{m.label}</button>)}
+      </div>
+      <div className="nav-tree">
+        {(menus[active]||[]).map(it=>(
+          <div key={it.id} className="nav-node">
+            <div className="nav-node-row">
+              <span className="nav-drag">⠿</span>
+              <span className="nav-node-label">{it.label}</span>
+              <span className="nav-type-chip" style={{background:typeColors[it.type],color:typeText[it.type]}}>{it.type}</span>
+              <button style={{border:'none',background:'none',cursor:'pointer',color:'var(--muted)',padding:'2px 4px'}} onClick={()=>setModal({type:'child',parentId:it.id})}>+</button>
+              <button style={{border:'none',background:'none',cursor:'pointer',color:'var(--danger)',padding:'2px 4px'}} onClick={()=>removeItem(it.id)}>×</button>
+            </div>
+            {it.children?.length>0&&<div className="nav-children">{it.children.map(ch=><div key={ch.id} className="nav-child"><span style={{fontSize:11,color:'var(--light)',marginRight:4}}>└</span><span style={{flex:1,fontSize:12.5,fontWeight:600}}>{ch.label}</span><span style={{fontSize:11.5,color:'var(--muted)'}}>{ch.url}</span><button style={{border:'none',background:'none',cursor:'pointer',color:'var(--danger)',marginLeft:7}} onClick={()=>removeItem(ch.id,it.id)}>×</button></div>)}</div>}
+          </div>
+        ))}
+        <div className="nav-add" onClick={()=>setModal({type:'top'})}>+ Add Menu Item</div>
+      </div>
+      {modal&&<div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setModal(null)}><div className="modal"><div className="modal-header"><div className="modal-title">Add {modal.type==='child'?'Sub-item':'Menu Item'}</div><button className="modal-close" onClick={()=>setModal(null)}><Icon name="x" size={14}/></button></div><div className="modal-body"><div className="form-group"><label className="form-label">Label</label><input className="form-input" placeholder="e.g. Sarees" value={item.label} onChange={e=>setItem({...item,label:e.target.value})}/></div><div className="form-group"><label className="form-label">Type</label><select className="form-input form-select" value={item.type} onChange={e=>setItem({...item,type:e.target.value})}><option value="page">Page</option><option value="collection">Collection</option><option value="url">Custom URL</option></select></div><div className="form-group"><label className="form-label">URL</label><input className="form-input" placeholder="/pages/about" value={item.url} onChange={e=>setItem({...item,url:e.target.value})}/></div></div><div className="modal-footer"><button className="btn btn-outline" onClick={()=>setModal(null)}>Cancel</button><button className="btn btn-primary" onClick={()=>addItem(modal.parentId)}>Add Item</button></div></div></div>}
+    </div>
+  );
+}
+
+// ─── STATIC PAGE EDITOR ──────────────────────────────────────────────────────
+function PageEditor({ toast }) {
+  const [pages, setPages] = useState([
+    {id:1,title:'About Us',slug:'about',status:'published',body:'<p>Welcome to our store. We are passionate about bringing you the best products at the best prices.</p><h2>Our Mission</h2><p>To make quality products accessible to everyone across India.</p>'},
+    {id:2,title:'Contact Us',slug:'contact',status:'published',body:'<p>Get in touch with us for any queries.</p>'},
+    {id:3,title:'Privacy Policy',slug:'privacy',status:'published',body:'<p>Your privacy matters to us.</p>'},
+    {id:4,title:'Return Policy',slug:'returns',status:'draft',body:'<p>We offer 30-day easy returns on all products.</p>'},
+    {id:5,title:'Shipping Info',slug:'shipping',status:'published',body:'<p>We deliver across India within 3-7 business days.</p>'},
+  ]);
+  const [sel, setSel] = useState(pages[0]);
+  const [seo, setSeo] = useState(false);
+  const [newPage, setNewPage] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const update = (k,v) => { const u={...sel,[k]:v}; setSel(u); setPages(p=>p.map(x=>x.id===u.id?u:x)); };
+  const statusColors = {published:'var(--success)',draft:'var(--warning)',hidden:'var(--light)'};
+  return (
+    <div style={{display:'grid',gridTemplateColumns:'220px 1fr',height:'calc(100vh - 52px)'}}>
+      <div style={{borderRight:'1px solid var(--border)',padding:10,display:'flex',flexDirection:'column',gap:4,overflowY:'auto'}}>
+        <div className="flex items-center justify-between" style={{padding:'4px 4px 8px'}}>
+          <span style={{fontSize:10.5,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'1px'}}>Pages</span>
+          <button className="btn btn-primary btn-sm" onClick={()=>setNewPage(true)}>+</button>
+        </div>
+        {pages.map(p=><div key={p.id} className={`page-list-item ${sel?.id===p.id?'active':''}`} onClick={()=>setSel(p)}><div className="page-status-dot" style={{background:statusColors[p.status]}}/><div><div style={{fontSize:13,fontWeight:600}}>{p.title}</div><div style={{fontSize:11,color:'var(--muted)'}}>/{p.slug}</div></div></div>)}
+      </div>
+      {sel&&<div style={{padding:20,display:'flex',flexDirection:'column',gap:14,overflowY:'auto'}}>
+        <div className="flex items-center justify-between flex-wrap gap-8">
+          <input style={{flex:1,fontSize:17,fontWeight:800,border:'none',outline:'none',maxWidth:380,fontFamily:'inherit',padding:'3px 0',color:'var(--text)'}} value={sel.title} onChange={e=>update('title',e.target.value)}/>
+          <div className="flex gap-8 items-center">
+            <select className="form-input form-select" style={{width:'auto'}} value={sel.status} onChange={e=>update('status',e.target.value)}><option value="draft">Draft</option><option value="published">Published</option><option value="hidden">Hidden</option></select>
+            <button className="btn btn-outline btn-sm" onClick={()=>setSeo(true)}>SEO</button>
+            <button className="btn btn-primary btn-sm" onClick={()=>{update('status','published');toast('Page published','success');}}>Publish</button>
+          </div>
+        </div>
+        <div style={{fontSize:11.5,color:'var(--muted)'}}>URL: yourstore.com/pages/{sel.slug}</div>
+        <div className="wysiwyg">
+          <div className="wysiwyg-toolbar">{['B','I','U','H1','H2','H3','Quote','Link','Bullet','Number'].map(f=><button key={f} className="wysiwyg-btn" onClick={()=>toast(`Format: ${f}`)}>{f}</button>)}</div>
+          <div className="wysiwyg-content" contentEditable suppressContentEditableWarning dangerouslySetInnerHTML={{__html:sel.body}} onBlur={e=>update('body',e.currentTarget.innerHTML)}/>
+        </div>
+      </div>}
+      {seo&&<div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setSeo(false)}><div className="modal"><div className="modal-header"><div><div className="modal-title">SEO Settings</div><div className="modal-sub">{sel?.title}</div></div><button className="modal-close" onClick={()=>setSeo(false)}><Icon name="x" size={14}/></button></div><div className="modal-body"><div className="form-group"><label className="form-label">Meta Title</label><input className="form-input" placeholder="Page title for search engines" defaultValue={sel?.title}/><div className="form-hint">Recommended: 50–60 chars</div></div><div className="form-group"><label className="form-label">Meta Description</label><textarea className="form-input" rows="3" placeholder="Brief description (150–160 chars)" style={{resize:'vertical'}}/></div><div className="form-group"><label className="form-label">URL Slug</label><div className="flex items-center" style={{gap:0}}><span style={{padding:'8px 9px',background:'var(--surface2)',border:'1.5px solid var(--border)',borderRight:'none',borderRadius:'6px 0 0 6px',fontSize:11.5,color:'var(--muted)',whiteSpace:'nowrap'}}>/pages/</span><input className="form-input" style={{borderRadius:'0 6px 6px 0'}} value={sel?.slug} onChange={e=>update('slug',e.target.value)}/></div></div></div><div className="modal-footer"><button className="btn btn-outline" onClick={()=>setSeo(false)}>Cancel</button><button className="btn btn-primary" onClick={()=>{toast('SEO saved','success');setSeo(false);}}>Save SEO</button></div></div></div>}
+      {newPage&&<div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setNewPage(false)}><div className="modal"><div className="modal-header"><div className="modal-title">Create New Page</div><button className="modal-close" onClick={()=>setNewPage(false)}><Icon name="x" size={14}/></button></div><div className="modal-body"><div className="form-group"><label className="form-label">Page Title</label><input className="form-input" autoFocus placeholder="e.g. About Us" value={newTitle} onChange={e=>setNewTitle(e.target.value)}/>{newTitle&&<div className="form-hint">URL: /pages/{newTitle.toLowerCase().replace(/\s+/g,'-')}</div>}</div></div><div className="modal-footer"><button className="btn btn-outline" onClick={()=>setNewPage(false)}>Cancel</button><button className="btn btn-primary" disabled={!newTitle.trim()} onClick={()=>{const pg={id:Date.now(),title:newTitle,slug:newTitle.toLowerCase().replace(/\s+/g,'-'),status:'draft',body:''};setPages(p=>[...p,pg]);setSel(pg);setNewPage(false);setNewTitle('');toast('Page created','success');}}>Create</button></div></div></div>}
+    </div>
+  );
+}
+
+// ─── VERSION PANEL ───────────────────────────────────────────────────────────
+function VersionPanel({ onClose, toast }) {
+  const versions = [{v:7,date:'Today, 2:41 PM',label:'Current Draft',sections:9,live:false},{v:6,date:'Today, 11:20 AM',label:'Published',sections:8,live:true},{v:5,date:'Yesterday, 4:10 PM',label:'Pre-sale update',sections:8,live:false},{v:4,date:'Jan 30, 3:00 PM',label:'Diwali layout',sections:7,live:false},{v:3,date:'Jan 22, 1:00 PM',label:'Initial design',sections:5,live:false}];
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal">
+        <div className="modal-header"><div className="modal-title">Version History</div><button className="modal-close" onClick={onClose}><Icon name="x" size={14}/></button></div>
+        <div className="modal-body">{versions.map(v=><div key={v.v} className={`version-item ${v.live?'live':''}`}><div className="v-num">v{v.v}</div><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{v.label}</div><div style={{fontSize:11.5,color:'var(--muted)'}}>{v.date} · {v.sections} sections</div></div>{v.live?<span className="badge badge-success">LIVE</span>:<button className="btn btn-outline btn-sm" onClick={()=>{toast(`Rolled back to v${v.v}`,'success');onClose();}}>Restore</button>}</div>)}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── THEME BUILDER ───────────────────────────────────────────────────────────
+function ThemeBuilder({ toast }) {
+  const [mode, setMode] = useState('builder');
+  const [device, setDevice] = useState('desktop');
+  const [sections, setSections] = useState([
+    {id:'s1',type:'announcement',props:{text:'🔥 Grand Sale! Use code SAVE20 for 20% off · Free shipping above ₹999',bg:'#0f172a',color:'#fff'}},
+    {id:'s2',type:'hero',props:{headline:'Discover Indian Craftsmanship',subtext:'Handpicked sarees, kurtas & jewellery from the finest artisans across India.',btnText:'Shop Collection',btnUrl:'#',showSecond:true,secondText:'View Lookbook',bg:'#1e293b'}},
+    {id:'s3',type:'trust',props:{items:[{icon:'🚚',label:'Free Delivery above ₹999'},{icon:'🔄',label:'30-Day Easy Returns'},{icon:'🔒',label:'Secure Payments'},{icon:'💳',label:'COD Available'},{icon:'⭐',label:'4.8/5 Rating'}]}},
+    {id:'s4',type:'cats',props:{title:'Shop by Category',items:[{icon:'👗',label:'Sarees'},{icon:'👕',label:'Kurtas'},{icon:'💍',label:'Jewellery'},{icon:'🏠',label:'Home Decor'},{icon:'💄',label:'Beauty'},{icon:'👟',label:'Footwear'}]}},
+    {id:'s5',type:'products',props:{title:'Featured Products',cols:4,items:[{name:'Kanjivaram Silk Saree',price:'₹4,999',emoji:'👗'},{name:'Brass Diya Set',price:'₹899',emoji:'🪔'},{name:'Cotton Kurta',price:'₹1,299',emoji:'👕'},{name:'Jute Bag',price:'₹599',emoji:'👜'}]}},
+    {id:'s6',type:'banner',props:{headline:'Diwali Sale — Up to 70% Off!',subtext:'Biggest festival sale of the year!',btnText:'Shop Now',grad:'#f59e0b,#ef4444'}},
+    {id:'s7',type:'testimonials',props:{title:'Loved by 50,000+ Customers',items:[{text:'"Quality is amazing! Will order again."',author:'Priya S.',city:'Mumbai',stars:5},{text:'"Super fast delivery!"',author:'Rahul V.',city:'Delhi',stars:5},{text:'"My go-to store for festive shopping."',author:'Anjali N.',city:'Bangalore',stars:5}]}},
+    {id:'s8',type:'newsletter',props:{headline:'Get Exclusive Offers',subtext:'Join 50,000+ subscribers for deals & festival offers.',placeholder:'Enter your email',btnText:'Subscribe'}},
+  ]);
+  const [selId, setSelId] = useState('s2');
+  const [isDraft, setIsDraft] = useState(true);
+  const [showVersions, setShowVersions] = useState(false);
+  const [rightTab, setRightTab] = useState('section');
+  const [dragId, setDragId] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
+
+  const addSection = (type) => {
+    const def = SECTION_TYPES.find(s=>s.type===type);
+    const n = {id:`s${Date.now()}`,type,props:{...def.default}};
+    setSections(p=>[...p,n]); setSelId(n.id);
+    toast(`${def.label} added`,'success');
+  };
+  const removeSection = (id) => { setSections(p=>p.filter(s=>s.id!==id)); if(selId===id) setSelId(null); toast('Section removed'); };
+  const duplicateSection = (id) => {
+    const sec = sections.find(s=>s.id===id);
+    const dup = {...sec,id:`s${Date.now()}`,props:{...sec.props}};
+    setSections(p=>{const idx=p.findIndex(s=>s.id===id);const n=[...p];n.splice(idx+1,0,dup);return n;});
+    setSelId(dup.id); toast('Section duplicated','success');
+  };
+  const moveSection = (id,dir) => {
+    setSections(p=>{const idx=p.findIndex(s=>s.id===id);if((dir==='up'&&idx===0)||(dir==='down'&&idx===p.length-1)) return p;const n=[...p];[n[idx],n[dir==='up'?idx-1:idx+1]]=[n[dir==='up'?idx-1:idx+1],n[idx]];return n;});
+  };
+  const updateProp = (id,key,val) => setSections(p=>p.map(s=>s.id===id?{...s,props:{...s.props,[key]:val}}:s));
+
+  const selSec = sections.find(s=>s.id===selId);
+  const selDef = SECTION_TYPES.find(t=>t.type===selSec?.type);
+  const schema = SECTION_SCHEMA[selSec?.type]||[];
+
+  const onDragStart = (id) => setDragId(id);
+  const onDragOver = (e,id) => { e.preventDefault(); setDragOver(id); };
+  const onDrop = (e,targetId) => {
+    e.preventDefault();
+    if(!dragId||dragId===targetId){setDragId(null);setDragOver(null);return;}
+    setSections(prev=>{const arr=[...prev];const from=arr.findIndex(s=>s.id===dragId);const to=arr.findIndex(s=>s.id===targetId);const [item]=arr.splice(from,1);arr.splice(to,0,item);return arr;});
+    setDragId(null); setDragOver(null);
+  };
+  const onPaletteDragStart = (e,type) => e.dataTransfer.setData('section-type',type);
+  const onCanvasDrop = (e) => { e.preventDefault(); const type=e.dataTransfer.getData('section-type'); if(type) addSection(type); };
+
+  const MODES = [{id:'builder',icon:'🏗️',label:'Builder'},{id:'navigation',icon:'🔗',label:'Navigation'},{id:'pages',icon:'📄',label:'Pages'},{id:'theme-settings',icon:'🎨',label:'Theme'}];
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'calc(100vh - 56px)'}}>
+      {/* Mode bar */}
+      <div style={{background:'var(--accent)',display:'flex',alignItems:'center',padding:'0 14px',gap:8,height:48,flexShrink:0}}>
+        <div style={{fontWeight:800,color:'#fff',fontSize:14,marginRight:4}}>Sitesellr</div>
+        <div style={{width:1,height:18,background:'rgba(255,255,255,.15)'}}/>
+        <div style={{fontSize:11.5,color:'#94a3b8',fontWeight:500}}>Krishna Textiles</div>
+        <div style={{width:1,height:18,background:'rgba(255,255,255,.15)'}}/>
+        {MODES.map(m=><button key={m.id} onClick={()=>setMode(m.id)} style={{padding:'5px 10px',borderRadius:6,border:'none',background:mode===m.id?'rgba(255,255,255,.18)':'transparent',cursor:'pointer',color:mode===m.id?'#fff':'#94a3b8',fontSize:12,fontFamily:'inherit',fontWeight:600}}>{m.icon} {m.label}</button>)}
+        <div style={{flex:1}}/>
+        {mode==='builder'&&<>
+          <div style={{display:'flex',gap:3,background:'rgba(255,255,255,.08)',borderRadius:7,padding:'3px'}}>
+            {[{id:'desktop',icon:'🖥'},{id:'tablet',icon:'📱'},{id:'mobile',icon:'📲'}].map(d=><button key={d.id} onClick={()=>setDevice(d.id)} style={{padding:'4px 9px',borderRadius:5,border:'none',background:device===d.id?'rgba(255,255,255,.18)':'transparent',cursor:'pointer',color:device===d.id?'#fff':'#94a3b8',fontSize:11,fontFamily:'inherit'}}>{d.icon}</button>)}
+          </div>
+          <button className="btn btn-ghost btn-sm" style={{color:'#94a3b8',border:'1px solid rgba(255,255,255,.15)'}} onClick={()=>setShowVersions(true)}>📋 History</button>
+        </>}
+        <div style={{fontSize:11,color:'#94a3b8'}}>{isDraft?<><span style={{color:'#f59e0b'}}>●</span> Draft</>:<><span style={{color:'#4ade80'}}>●</span> Live</>}</div>
+        {mode==='builder'&&<button className="btn btn-primary btn-sm" onClick={()=>{setIsDraft(false);toast('Layout published!','success');}}>🚀 Publish</button>}
+      </div>
+
+      {mode==='navigation'&&<NavBuilder toast={toast}/>}
+      {mode==='pages'&&<PageEditor toast={toast}/>}
+      {mode==='theme-settings'&&(
+        <div style={{display:'grid',gridTemplateColumns:'300px 1fr',flex:1,overflow:'hidden'}}>
+          <div style={{borderRight:'1px solid var(--border)',overflowY:'auto'}}><ThemeSettings toast={toast}/></div>
+          <div style={{padding:36,background:'var(--surface2)',overflowY:'auto'}}>
+            <div style={{fontWeight:800,fontSize:14,marginBottom:16}}>Live Preview</div>
+            <div style={{background:'#fff',borderRadius:14,boxShadow:'0 20px 60px rgba(0,0,0,.14)',maxWidth:680,overflow:'hidden'}}>
+              <SectionRenderer sec={{type:'announcement',props:{text:'🔥 Sale! Free shipping above ₹999',bg:'#0f172a',color:'#fff'}}}/>
+              <SectionRenderer sec={{type:'hero',props:{headline:'Your Brand Here',subtext:'Custom colors, fonts & style applied live.',btnText:'Shop Now',showSecond:false,bg:'#1e293b'}}}/>
+              <SectionRenderer sec={{type:'trust',props:{items:[{icon:'🚚',label:'Free Delivery'},{icon:'🔒',label:'Secure Pay'},{icon:'🔄',label:'Easy Returns'}]}}}/>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mode==='builder'&&(
+        <div className="builder-layout" style={{flex:1,overflow:'hidden'}}>
+          {/* LEFT: Palette + Order */}
+          <div className="builder-panel">
+            <div className="builder-panel-header"><div className="builder-panel-title">Sections — Click or Drag</div></div>
+            <div className="builder-panel-scroll">
+              <div style={{marginBottom:10}}>
+                {SECTION_TYPES.map(s=><div key={s.type} className="palette-item" draggable onDragStart={e=>onPaletteDragStart(e,s.type)} onClick={()=>addSection(s.type)}><span className="palette-emoji">{s.emoji}</span><span className="palette-label">{s.label}</span></div>)}
+              </div>
+              <div style={{height:1,background:'var(--border)',margin:'10px 0'}}/>
+              <div style={{fontSize:10.5,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:7}}>Section Order</div>
+              {sections.map((sec,i)=>{
+                const def=SECTION_TYPES.find(t=>t.type===sec.type);
+                return <div key={sec.id} className={`order-item ${selId===sec.id?'active':''}`} onClick={()=>setSelId(sec.id)}>
+                  <span style={{fontSize:13}}>{def?.emoji}</span>
+                  <span style={{fontSize:11.5,fontWeight:600,flex:1,color:selId===sec.id?'var(--primary)':'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{def?.label}</span>
+                  <div style={{display:'flex',gap:1}}>
+                    <button style={{border:'none',background:'none',cursor:'pointer',color:'var(--muted)',fontSize:11,padding:'1px 3px'}} onClick={e=>{e.stopPropagation();moveSection(sec.id,'up')}} disabled={i===0}>↑</button>
+                    <button style={{border:'none',background:'none',cursor:'pointer',color:'var(--muted)',fontSize:11,padding:'1px 3px'}} onClick={e=>{e.stopPropagation();moveSection(sec.id,'down')}} disabled={i===sections.length-1}>↓</button>
+                  </div>
+                </div>;
+              })}
+            </div>
+          </div>
+
+          {/* CENTER: Canvas */}
+          <div className="canvas-wrap">
+            <div className="canvas-outer" onDrop={onCanvasDrop} onDragOver={e=>e.preventDefault()}>
+              <div className={`canvas-frame ${device}`}>
+                {sections.length===0&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:300,border:'2px dashed var(--border-strong)',margin:20,borderRadius:'var(--r)',color:'var(--muted)',gap:8}}><div style={{fontSize:36}}>🖼️</div><div style={{fontWeight:700}}>Canvas is empty</div><div style={{fontSize:12}}>Click sections from the left or drag to add</div></div>}
+                {sections.map(sec=>(
+                  <div key={sec.id}
+                    className={`section-card ${selId===sec.id?'selected':''} ${dragId===sec.id?'dragging':''} ${dragOver===sec.id?'drag-over':''}`}
+                    onClick={()=>setSelId(sec.id)}
+                    draggable onDragStart={()=>onDragStart(sec.id)} onDragOver={e=>onDragOver(e,sec.id)} onDrop={e=>onDrop(e,sec.id)} onDragEnd={()=>{setDragId(null);setDragOver(null);}}>
+                    <div className="sec-label-badge">{SECTION_TYPES.find(t=>t.type===sec.type)?.label}</div>
+                    <div className="section-actions">
+                      <button className="sec-action-btn sa-dup" title="Duplicate" onClick={e=>{e.stopPropagation();duplicateSection(sec.id);}}>⧉</button>
+                      <button className="sec-action-btn sa-del" title="Delete" onClick={e=>{e.stopPropagation();removeSection(sec.id);}}>✕</button>
+                    </div>
+                    <SectionRenderer sec={sec}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="canvas-bar">
+              <span>📐 {device.charAt(0).toUpperCase()+device.slice(1)} Preview</span>
+              <span>·</span><span>{sections.length} sections</span>
+              <span>·</span><span style={{color:isDraft?'#f59e0b':'#4ade80'}}>{isDraft?'⚠ Unsaved changes':'✓ Live'}</span>
+            </div>
+          </div>
+
+          {/* RIGHT: Settings */}
+          <div className="builder-panel builder-panel-r">
+            <div className="builder-panel-header">
+              <div className="tabs" style={{margin:0}}>
+                <button className={`tab ${rightTab==='section'?'active':''}`} onClick={()=>setRightTab('section')}>Section</button>
+                <button className={`tab ${rightTab==='theme'?'active':''}`} onClick={()=>setRightTab('theme')}>Theme</button>
+              </div>
+            </div>
+            {rightTab==='theme'&&<div style={{flex:1,overflowY:'auto'}}><ThemeSettings toast={toast}/></div>}
+            {rightTab==='section'&&(
+              <div style={{flex:1,overflowY:'auto'}}>
+                {!selSec?<div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--muted)',gap:8,padding:20,textAlign:'center'}}><div style={{fontSize:36}}>👆</div><div style={{fontWeight:700,fontSize:14}}>Select a section</div><div style={{fontSize:12}}>Click any section on the canvas to edit its settings</div></div>:(
+                  <div style={{padding:12}}>
+                    <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
+                      <span>{selDef?.emoji}</span>
+                      <span style={{fontSize:14,fontWeight:800}}>{selDef?.label}</span>
+                      <span style={{fontSize:10,fontWeight:600,color:'var(--muted)',background:'var(--surface2)',padding:'2px 7px',borderRadius:99}}>{selSec.type}</span>
+                    </div>
+                    <div style={{height:1,background:'var(--border)',marginBottom:12}}/>
+                    {schema.length===0&&<div style={{color:'var(--muted)',fontSize:12,padding:'6px 0'}}>No configurable fields for this section.</div>}
+                    {schema.map(field=><div key={field.key} className="field-group">{field.type!=='toggle'&&<label className="field-label">{field.label}</label>}<FieldRenderer field={field} value={selSec.props[field.key]} onChange={val=>updateProp(selSec.id,field.key,val)}/></div>)}
+                    <div style={{height:1,background:'var(--border)',margin:'12px 0'}}/>
+                    <div className="flex gap-6">
+                      <button className="btn btn-outline btn-sm" onClick={()=>duplicateSection(selSec.id)}>⧉ Duplicate</button>
+                      <button className="btn btn-danger btn-sm" onClick={()=>removeSection(selSec.id)}>✕ Remove</button>
+                    </div>
+                    <div style={{height:1,background:'var(--border)',margin:'12px 0'}}/>
+                    <div style={{fontSize:10.5,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:7}}>Info</div>
+                    {[['ID',selSec.id],['Type',selSec.type],['Position',`${sections.findIndex(s=>s.id===selSec.id)+1} of ${sections.length}`]].map(([k,v])=>(
+                      <div key={k} className="flex items-center justify-between" style={{padding:'5px 0',borderBottom:'1px solid var(--border)',fontSize:12.5}}><span style={{color:'var(--muted)',fontWeight:500}}>{k}</span><span style={{fontWeight:600,fontFamily:k==='ID'?'JetBrains Mono,monospace':'inherit',fontSize:k==='ID'?11:13}}>{v}</span></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {showVersions&&<VersionPanel onClose={()=>setShowVersions(false)} toast={toast}/>}
+    </div>
+  );
+}
+
+// ─── PURCHASE MODAL ──────────────────────────────────────────────────────────
+function PurchaseModal({ app, onClose, onInstall, toast }) {
+  const [step, setStep] = useState(1);
+  const [plan, setPlan] = useState(app.pricing?.find(p=>p.popular)||app.pricing?.[0]);
   const [payMethod, setPayMethod] = useState('upi');
   const [creds, setCreds] = useState({});
   const [testMode, setTestMode] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const isFree = !plan?.price;
+  const STEPS = isFree?[{n:1,l:'Plan'},{n:2,l:'Configure'},{n:4,l:'Done'}]:[{n:1,l:'Plan'},{n:3,l:'Payment'},{n:2,l:'Configure'},{n:4,l:'Done'}];
 
-  const isFree = !selectedPlan?.price;
-
-  const validateCreds = () => {
-    const e = {};
-    (app.credentials || []).forEach(c => {
-      if (!creds[c] || creds[c].trim() === '') e[c] = 'This field is required';
-    });
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  const validate = () => {
+    const e={};
+    (app.creds||[]).forEach(c=>{if(!creds[c]||!creds[c].trim())e[c]='Required';});
+    setErrors(e); return Object.keys(e).length===0;
   };
 
   const handleNext = () => {
-    if (step === 1) { setStep(isFree ? 2 : 3); }
-    else if (step === 2) { if (validateCreds()) setStep(isFree ? 4 : 3); }
-    else if (step === 3) { handlePurchase(); }
+    if(step===1) setStep(isFree?2:3);
+    else if(step===2){if(validate()){setLoading(true);setTimeout(()=>{setLoading(false);setStep(4);},1400);}}
+    else if(step===3) setStep(2);
   };
-
-  const handlePurchase = () => {
-    setLoading(true);
-    setTimeout(() => { setLoading(false); setStep(4); }, 1600);
-  };
-
-  const handleFinish = () => { onInstall(app, selectedPlan, creds, testMode); onClose(); };
-
-  const STEPS = isFree
-    ? [{ n: 1, label: 'Plan' }, { n: 2, label: 'Configure' }, { n: 4, label: 'Done' }]
-    : [{ n: 1, label: 'Plan' }, { n: 3, label: 'Payment' }, { n: 2, label: 'Configure' }, { n: 4, label: 'Done' }];
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal modal-lg">
         <div className="modal-header">
-          <div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>{app.category} / {app.name}</div>
-            <h2 style={{ fontSize: 20, fontWeight: 800 }}>
-              {step === 4 ? '🎉 Installation Complete!' : `Install ${app.name}`}
-            </h2>
-          </div>
-          <button className="modal-close" onClick={onClose}><Icon name="x" size={16}/></button>
+          <div><div style={{fontSize:12,color:'var(--muted)',marginBottom:3}}>{app.cat} / {app.name}</div><div className="modal-title">{step===4?'🎉 Installation Complete!':`Install ${app.name}`}</div></div>
+          <button className="modal-close" onClick={onClose}><Icon name="x" size={14}/></button>
         </div>
-
         <div className="modal-body">
-          {/* Steps */}
-          {step !== 4 && (
-            <div className="purchase-steps mb-24">
-              {STEPS.map((s, i) => {
-                const isActive = s.n === step;
-                const isDone = s.n < step || (step === 4);
-                return (
-                  <div key={s.n} style={{ display: 'flex', alignItems: 'center', flex: i < STEPS.length - 1 ? 1 : 'none' }}>
-                    <div className="purchase-step">
-                      <div className={`step-num ${isDone ? 'done' : isActive ? 'active' : 'pending'}`}>
-                        {isDone ? <Icon name="check" size={12}/> : i + 1}
-                      </div>
-                      <span className={`step-label ${isActive ? 'active' : 'pending'}`}>{s.label}</span>
-                    </div>
-                    {i < STEPS.length - 1 && <div className={`step-connector ${isDone ? 'done' : ''}`}/>}
-                  </div>
-                );
-              })}
+          {step!==4&&<div className="steps mb-16">
+            {STEPS.map((s,i)=>{const isActive=s.n===step;const isDone=s.n<step;return (<div key={s.n} style={{display:'flex',alignItems:'center',flex:i<STEPS.length-1?1:'none'}}><div className="step-item"><div className={`step-num ${isDone?'done':isActive?'active':'pending'}`}>{isDone?<Icon name="check" size={11}/>:i+1}</div><span className={`step-label ${isActive?'active':'pending'}`}>{s.l}</span></div>{i<STEPS.length-1&&<div className={`step-connector ${isDone?'done':''}`}/>}</div>);})}
+          </div>}
+
+          {step===1&&<div>
+            <p style={{fontSize:13,color:'var(--muted)',marginBottom:14}}>Choose a plan. You can upgrade anytime.</p>
+            <div className="plan-grid">
+              {app.pricing.map(p=><div key={p.id} className={`plan-card ${plan?.id===p.id?'selected':''} ${p.popular?'popular':''}`} onClick={()=>setPlan(p)}>
+                <div className="plan-name">{p.name}</div>
+                <div className="plan-price">{fmt(p.price)}{p.price>0&&<span style={{fontSize:12,fontWeight:500,color:'var(--muted)'}}>/mo</span>}</div>
+                {p.txnFee&&<div style={{fontSize:10.5,color:'var(--muted)',marginTop:3}}>{p.txnFee}</div>}
+                <div className="plan-features">{p.features.join(' · ')}</div>
+                {plan?.id===p.id&&<div style={{marginTop:8,color:'var(--primary)',fontSize:11.5,fontWeight:700}}>✓ Selected</div>}
+              </div>)}
             </div>
-          )}
+            {plan&&<div className="info-box info" style={{marginTop:14}}>
+              <Icon name="info" size={15}/><span><strong>{plan.name}</strong> — {plan.price?`Billed ₹${plan.price.toLocaleString('en-IN')}/month.`:'Free to use.'}</span>
+            </div>}
+          </div>}
 
-          {/* Step 1: Plan Selection */}
-          {step === 1 && (
-            <div>
-              <div className="mb-16" style={{ fontSize: 13.5, color: 'var(--text-muted)' }}>
-                Choose a plan that fits your store's needs. You can upgrade or downgrade anytime.
-              </div>
-              <div className="plan-grid">
-                {app.pricing.map(plan => (
-                  <div key={plan.id} className={`plan-card ${selectedPlan?.id === plan.id ? 'selected' : ''} ${plan.popular ? 'popular' : ''}`}
-                    onClick={() => setSelectedPlan(plan)}>
-                    <div className="plan-name">{plan.name}</div>
-                    <div className="plan-price">{fmt(plan.price)}{plan.price > 0 && <span>/mo</span>}</div>
-                    {plan.txnFee && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{plan.txnFee}</div>}
-                    <div className="plan-features">{plan.features.join(' · ')}</div>
-                    {selectedPlan?.id === plan.id && (
-                      <div style={{ marginTop: 10, color: 'var(--primary)', fontSize: 12, fontWeight: 700 }}>
-                        ✓ Selected
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {selectedPlan && (
-                <div className="info-box info" style={{ marginTop: 16 }}>
-                  <Icon name="info" size={16}/>
-                  <span><strong>{selectedPlan.name}</strong> plan selected. {selectedPlan.price ? `Billed ₹${selectedPlan.price.toLocaleString('en-IN')}/month to your platform account.` : 'This plan is free to use.'}</span>
-                </div>
-              )}
+          {step===2&&<div>
+            <div className="info-box info"><Icon name="lock" size={15}/><span>API credentials are encrypted at rest. Never exposed in frontend responses.</span></div>
+            {app.webhook&&<div className="form-group"><label className="form-label">Webhook URL (copy to your gateway)</label><div className="credential-field"><span>https://api.sitesellr.com/webhooks/{app.id}/&#123;store-id&#125;</span><button className="btn btn-ghost btn-sm" onClick={()=>toast('Webhook URL copied!')}><Icon name="copy" size={12}/></button></div></div>}
+            {(app.creds||[]).map(cred=><div className="form-group" key={cred}><label className="form-label">{cred} <span style={{color:'var(--danger)'}}>*</span></label><input className={`form-input ${errors[cred]?'err':''}`} type="password" placeholder={`Enter ${cred}`} value={creds[cred]||''} onChange={e=>{setCreds({...creds,[cred]:e.target.value});setErrors({...errors,[cred]:null});}}/>{errors[cred]&&<div className="form-err">{errors[cred]}</div>}</div>)}
+            {app.testMode&&<div className="toggle-row"><div className="toggle-info"><div className="toggle-info-label">Test Mode {testMode?'ON':'OFF'}</div><div className="toggle-info-sub">Enable to verify integration before going live.</div></div><button className={`toggle-switch ${testMode?'on':'off'}`} onClick={()=>setTestMode(!testMode)}/></div>}
+          </div>}
+
+          {step===3&&<div>
+            <div className="checkout-summary mb-16">
+              <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>Order Summary</div>
+              <div className="checkout-line"><span>{app.name} — {plan?.name}</span><span>₹{(plan?.price||0).toLocaleString('en-IN')}/mo</span></div>
+              <div className="checkout-line" style={{color:'var(--muted)',fontSize:12}}><span>GST (18%)</span><span>₹{Math.round((plan?.price||0)*.18).toLocaleString('en-IN')}</span></div>
+              <div className="checkout-line total"><span>Total today</span><span style={{color:'var(--primary)'}}>₹{Math.round((plan?.price||0)*1.18).toLocaleString('en-IN')}/mo</span></div>
             </div>
-          )}
-
-          {/* Step 2: Credentials */}
-          {step === 2 && (
-            <div>
-              <div className="info-box info mb-16">
-                <Icon name="lock" size={16}/>
-                <span>API credentials are encrypted at rest using KMS. They are never exposed in frontend responses or logs.</span>
-              </div>
-              {app.webhook && (
-                <div className="form-group">
-                  <label className="form-label">Webhook URL (auto-generated, copy to your gateway)</label>
-                  <div className="credential-field">
-                    <span>https://api.sitesellr.com/webhooks/{app.id}/{'{store-id}'}</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => toast('Webhook URL copied!')}><Icon name="copy" size={13}/></button>
-                  </div>
-                </div>
-              )}
-              {(app.credentials || []).map(cred => (
-                <div className="form-group" key={cred}>
-                  <label className="form-label">{cred} <span>*</span></label>
-                  <input className={`form-input ${errors[cred] ? 'error' : ''}`} type="password"
-                    placeholder={`Enter ${cred}`}
-                    value={creds[cred] || ''}
-                    onChange={e => { setCreds({...creds, [cred]: e.target.value}); setErrors({...errors, [cred]: null}); }}
-                  />
-                  {errors[cred] && <div className="form-error">{errors[cred]}</div>}
-                </div>
-              ))}
-              {app.testMode && (
-                <div className="form-group">
-                  <div className="form-toggle">
-                    <button className={`toggle ${testMode ? 'on' : ''}`} onClick={() => setTestMode(!testMode)}/>
-                    <div>
-                      <div className="toggle-label">Test Mode {testMode ? 'ON' : 'OFF'}</div>
-                      <div className="toggle-hint">Enable test mode to verify integration before going live. A banner will show on your store in test mode.</div>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>Payment Method</div>
+            <div className="pm-grid">
+              {[{id:'upi',label:'UPI',emoji:'📱'},{id:'card',label:'Credit Card',emoji:'💳'},{id:'netbanking',label:'Net Banking',emoji:'🏦'},{id:'wallet',label:'Wallet',emoji:'👛'}].map(pm=><button key={pm.id} className={`pm-btn ${payMethod===pm.id?'selected':''}`} onClick={()=>setPayMethod(pm.id)}>{pm.emoji} {pm.label}</button>)}
             </div>
-          )}
+            {payMethod==='upi'&&<div className="form-group"><label className="form-label">UPI ID</label><input className="form-input" placeholder="yourname@upi"/></div>}
+            {payMethod==='card'&&<div className="grid-2"><div className="form-group" style={{gridColumn:'1/-1'}}><label className="form-label">Card Number</label><input className="form-input" placeholder="1234 5678 9012 3456"/></div><div className="form-group"><label className="form-label">Expiry</label><input className="form-input" placeholder="MM/YY"/></div><div className="form-group"><label className="form-label">CVV</label><input className="form-input" placeholder="•••" type="password"/></div></div>}
+            <div className="info-box warning"><Icon name="info" size={15}/><span>Billed ₹{Math.round((plan?.price||0)*1.18).toLocaleString('en-IN')}/month. Cancel anytime from App Settings.</span></div>
+          </div>}
 
-          {/* Step 3: Billing / Payment */}
-          {step === 3 && (
-            <div>
-              <div className="checkout-summary mb-20">
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Order Summary</div>
-                <div className="checkout-line">
-                  <span>{app.name} — {selectedPlan?.name}</span>
-                  <span>₹{(selectedPlan?.price || 0).toLocaleString('en-IN')}/mo</span>
-                </div>
-                <div className="checkout-line" style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                  <span>GST (18%)</span>
-                  <span>₹{Math.round((selectedPlan?.price || 0) * 0.18).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="checkout-line total">
-                  <span>Total today</span>
-                  <span style={{ color: 'var(--primary)' }}>₹{Math.round((selectedPlan?.price || 0) * 1.18).toLocaleString('en-IN')}/mo</span>
-                </div>
-              </div>
-
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Payment Method</div>
-              <div className="payment-methods mb-20">
-                {[{id:'upi',label:'UPI',emoji:'📱'},{id:'card',label:'Credit Card',emoji:'💳'},{id:'netbanking',label:'Net Banking',emoji:'🏦'},{id:'wallet',label:'Wallet',emoji:'👛'}].map(pm => (
-                  <button key={pm.id} className={`pm-btn ${payMethod === pm.id ? 'selected' : ''}`} onClick={() => setPayMethod(pm.id)}>
-                    {pm.emoji} {pm.label}
-                  </button>
-                ))}
-              </div>
-
-              {payMethod === 'upi' && (
-                <div className="form-group">
-                  <label className="form-label">UPI ID</label>
-                  <input className="form-input" placeholder="yourname@upi" />
-                </div>
-              )}
-              {payMethod === 'card' && (
-                <div className="grid-2">
-                  <div className="form-group" style={{ gridColumn: '1/-1' }}>
-                    <label className="form-label">Card Number</label>
-                    <input className="form-input" placeholder="1234 5678 9012 3456" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Expiry</label>
-                    <input className="form-input" placeholder="MM/YY" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">CVV</label>
-                    <input className="form-input" placeholder="•••" type="password"/>
-                  </div>
-                </div>
-              )}
-
-              <div className="info-box warning">
-                <Icon name="info" size={16}/>
-                <span>You will be charged ₹{Math.round((selectedPlan?.price||0)*1.18).toLocaleString('en-IN')} now, then monthly on this date. Cancel anytime from your App Store settings.</span>
-              </div>
+          {step===4&&<div style={{textAlign:'center',padding:'16px 0'}}>
+            <div style={{fontSize:66,marginBottom:14}}>{app.emoji}</div>
+            <h3 style={{fontSize:20,fontWeight:800,marginBottom:8}}>{app.name} is ready!</h3>
+            <p style={{color:'var(--muted)',fontSize:13.5,marginBottom:22,lineHeight:1.6}}>{testMode?' Test mode active — switch to live before accepting real orders.':`${app.name} is live and ready to use.`}</p>
+            <div style={{background:'var(--success-bg)',border:'1px solid var(--success-light)',borderRadius:'var(--r)',padding:'14px 18px',display:'inline-block',textAlign:'left'}}>
+              <div style={{fontWeight:700,color:'var(--success)',marginBottom:7,fontSize:13}}>✅ Installation Checklist</div>
+              {['App installed & activated','API credentials saved (encrypted)','Webhook endpoint registered',...(testMode?['Test mode enabled']:['Live mode active'])].map(it=><div key={it} style={{fontSize:12.5,color:'#166534',display:'flex',alignItems:'center',gap:7,marginBottom:3}}><Icon name="check" size={12}/> {it}</div>)}
             </div>
-          )}
-
-          {/* Step 4: Success */}
-          {step === 4 && (
-            <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <div style={{ fontSize: 72, marginBottom: 16 }}>{app.emoji}</div>
-              <h3 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>{app.name} is ready!</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
-                {app.name} has been installed and configured for your store. 
-                {app.testMode && testMode ? ' Test mode is active — remember to switch to live mode before accepting real orders.' : ' Your integration is live and ready.'}
-              </p>
-              <div style={{ background: 'var(--success-bg)', border: '1px solid #bbf7d0', borderRadius: 'var(--radius)', padding: '16px 20px', marginBottom: 20, display: 'inline-block', textAlign: 'left' }}>
-                <div style={{ fontWeight: 700, color: 'var(--success)', marginBottom: 8, fontSize: 13 }}>✅ Installation Checklist</div>
-                {['App installed & activated', 'API credentials saved (encrypted)', 'Webhook endpoint registered', ...(testMode ? ['Test mode enabled'] : ['Live mode active'])].map(item => (
-                  <div key={item} style={{ fontSize: 13, color: '#166534', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <Icon name="check" size={13}/> {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>}
         </div>
-
         <div className="modal-footer">
-          {step !== 4 && (
-            <>
-              <button className="btn btn-outline" onClick={onClose}>Cancel</button>
-              {step > 1 && step !== 4 && (
-                <button className="btn btn-outline" onClick={() => setStep(s => s === 2 && !isFree ? 1 : s - 1)}>← Back</button>
-              )}
-              <button className="btn btn-primary" onClick={handleNext} disabled={loading || !selectedPlan}>
-                {loading ? <><span className="spinner"/>&nbsp;Processing...</> :
-                  step === 3 ? `Pay ₹${Math.round((selectedPlan?.price||0)*1.18).toLocaleString('en-IN')}` :
-                  step === 2 ? 'Save & Continue →' : 'Continue →'
-                }
-              </button>
-            </>
-          )}
-          {step === 4 && (
-            <button className="btn btn-primary btn-lg" onClick={handleFinish}>
-              Go to App Settings <Icon name="arrow" size={15}/>
+          {step!==4&&<>
+            <button className="btn btn-outline" onClick={onClose}>Cancel</button>
+            {step>1&&<button className="btn btn-outline" onClick={()=>setStep(s=>s===2&&!isFree?3:s===3?1:s-1)}>← Back</button>}
+            <button className="btn btn-primary" onClick={handleNext} disabled={loading||!plan}>
+              {loading?<><span className="spinner"/> Processing...</>:step===3?`Pay ₹${Math.round((plan?.price||0)*1.18).toLocaleString('en-IN')}`:step===2?'Save & Continue →':'Continue →'}
             </button>
-          )}
+          </>}
+          {step===4&&<button className="btn btn-primary btn-lg" onClick={()=>{onInstall(app,plan,creds,testMode);onClose();}}>Go to App Settings <Icon name="arrow" size={14}/></button>}
         </div>
       </div>
     </div>
   );
-};
+}
 
-// ─── APP DETAIL MODAL ─────────────────────────────────────────────────────────
-
-const AppDetailModal = ({ app, installedApps, onClose, onInstall, onUninstall, toast }) => {
+// ─── APP DETAIL MODAL ────────────────────────────────────────────────────────
+function AppDetail({ app, installedApps, onClose, onInstall, onUninstall, toast }) {
   const [showPurchase, setShowPurchase] = useState(false);
-  const installed = installedApps.find(a => a.id === app.id);
-
-  if (showPurchase) return <PurchaseModal app={app} onClose={() => setShowPurchase(false)} onInstall={onInstall} toast={toast}/>;
-
+  const installed = installedApps.find(a=>a.id===app.id);
+  if(showPurchase) return <PurchaseModal app={app} onClose={()=>setShowPurchase(false)} onInstall={onInstall} toast={toast}/>;
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal modal-lg">
         <div className="modal-header">
           <div className="flex items-center gap-12">
-            <div style={{ width: 56, height: 56, borderRadius: 14, background: app.color + '22', display: 'grid', placeItems: 'center', fontSize: 28, flexShrink: 0 }}>
-              {app.emoji}
-            </div>
+            <div style={{width:52,height:52,borderRadius:13,background:app.color+'22',display:'grid',placeItems:'center',fontSize:26,flexShrink:0}}>{app.emoji}</div>
             <div>
-              <div className="flex items-center gap-8 mb-4">
-                <h2 style={{ fontSize: 20, fontWeight: 800 }}>{app.name}</h2>
-                {app.featured && <span className="mkt-badge badge-featured">⭐ Featured</span>}
-                {installed && <span className="mkt-badge badge-installed">✓ Installed</span>}
-              </div>
-              <div className="flex items-center gap-8">
-                <StarRating rating={app.rating}/>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{app.rating}</span>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>({app.reviews.toLocaleString()} reviews)</span>
-                <span className="mkt-badge badge-category">{app.category}</span>
-              </div>
+              <div className="flex items-center gap-8 mb-8"><h2 style={{fontSize:18,fontWeight:800}}>{app.name}</h2>{app.featured&&<span className="badge badge-gold">⭐ Featured</span>}{installed&&<span className="badge badge-success">✓ Installed</span>}</div>
+              <div className="flex items-center gap-8"><Stars r={app.rating}/><span style={{fontSize:12.5,fontWeight:600}}>{app.rating}</span><span style={{fontSize:12,color:'var(--muted)'}}>({app.reviews.toLocaleString()} reviews)</span><span className="badge badge-muted">{app.cat}</span></div>
             </div>
           </div>
-          <button className="modal-close" onClick={onClose}><Icon name="x" size={16}/></button>
+          <button className="modal-close" onClick={onClose}><Icon name="x" size={14}/></button>
         </div>
-
         <div className="modal-body">
-          <div className="app-detail-grid">
+          <div style={{display:'grid',gridTemplateColumns:'1fr 260px',gap:22}}>
             <div>
-              <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 20 }}>{app.desc}</p>
-
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10 }}>What's included</div>
-                <ul className="feature-list">
-                  {app.features.map(f => <li key={f}>{f}</li>)}
-                </ul>
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10 }}>Pricing Plans</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {app.pricing.map(plan => (
-                    <div key={plan.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: plan.popular ? 'var(--primary-light)' : 'var(--surface)' }}>
-                      <div>
-                        <span style={{ fontWeight: 700, fontSize: 13 }}>{plan.name}</span>
-                        {plan.popular && <span className="mkt-badge badge-new" style={{ marginLeft: 8 }}>Popular</span>}
-                        {plan.txnFee && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>{plan.txnFee}</span>}
-                      </div>
-                      <span style={{ fontWeight: 800, color: plan.popular ? 'var(--primary)' : 'var(--text)', fontSize: 14 }}>
-                        {fmt(plan.price)}{plan.price > 0 ? '/mo' : ''}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <p style={{fontSize:13.5,color:'var(--muted)',lineHeight:1.7,marginBottom:18}}>{app.desc}</p>
+              <div style={{fontWeight:700,fontSize:13,marginBottom:9}}>What's included</div>
+              <ul style={{listStyle:'none',marginBottom:18}}>{app.features.map(f=><li key={f} style={{display:'flex',alignItems:'center',gap:9,padding:'5px 0',fontSize:13,color:'var(--text)'}}><span style={{color:'var(--success)',fontWeight:700,fontSize:13}}>✓</span>{f}</li>)}</ul>
+              <div style={{fontWeight:700,fontSize:13,marginBottom:9}}>Pricing Plans</div>
+              {app.pricing.map(p=><div key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 13px',border:'1px solid var(--border)',borderRadius:'var(--r-sm)',background:p.popular?'var(--primary-light)':'var(--surface)',marginBottom:7}}><div><span style={{fontWeight:700,fontSize:13}}>{p.name}</span>{p.popular&&<span className="badge badge-new" style={{marginLeft:8}}>Popular</span>}{p.txnFee&&<span style={{fontSize:11,color:'var(--muted)',marginLeft:8}}>{p.txnFee}</span>}</div><span style={{fontWeight:800,color:p.popular?'var(--primary)':'var(--text)',fontSize:13}}>{fmt(p.price)}{p.price>0?'/mo':''}</span></div>)}
             </div>
-
             <div>
-              <div className="app-meta-card">
-                <div className="app-meta-row">
-                  <span className="app-meta-label">Category</span>
-                  <span className="app-meta-val">{app.category}</span>
-                </div>
-                <div className="app-meta-row">
-                  <span className="app-meta-label">Rating</span>
-                  <span className="app-meta-val">{app.rating}/5</span>
-                </div>
-                <div className="app-meta-row">
-                  <span className="app-meta-label">Reviews</span>
-                  <span className="app-meta-val">{app.reviews.toLocaleString()}</span>
-                </div>
-                <div className="app-meta-row">
-                  <span className="app-meta-label">Starting at</span>
-                  <span className="app-meta-val" style={{ color: 'var(--primary)' }}>
-                    {app.pricing[0].price === 0 ? 'Free' : `₹${app.pricing[0].price.toLocaleString('en-IN')}/mo`}
-                  </span>
-                </div>
-                {installed && (
-                  <>
-                    <div className="app-meta-row">
-                      <span className="app-meta-label">Status</span>
-                      <span className="app-meta-val text-success">✓ Active</span>
-                    </div>
-                    <div className="app-meta-row">
-                      <span className="app-meta-label">Plan</span>
-                      <span className="app-meta-val">{installed.plan?.name}</span>
-                    </div>
-                  </>
-                )}
+              <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:18,marginBottom:12}}>
+                {[['Category',app.cat],['Rating',`${app.rating}/5`],['Reviews',app.reviews.toLocaleString()],['Starting at',app.pricing[0].price===0?'Free':`₹${app.pricing[0].price.toLocaleString('en-IN')}/mo`],...(installed?[['Status','✓ Active'],['Plan',installed.plan?.name]]:[])].map(([k,v])=><div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'7px 0',borderBottom:'1px solid var(--border)',fontSize:13}}><span style={{color:'var(--muted)',fontWeight:500}}>{k}</span><span style={{fontWeight:600,color:k==='Status'?'var(--success)':k==='Starting at'?'var(--primary)':'var(--text)'}}>{v}</span></div>)}
               </div>
-
-              <div style={{ marginTop: 12 }}>
-                {installed ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <button className="btn btn-outline w-full" onClick={() => { onClose(); toast(`Opening ${app.name} settings...`); }}>
-                      <Icon name="settings" size={14}/> Configure Settings
-                    </button>
-                    <button className="btn btn-ghost w-full" style={{ color: 'var(--danger)', fontSize: 12.5 }}
-                      onClick={() => { onUninstall(app.id); onClose(); }}>
-                      <Icon name="trash" size={13}/> Uninstall App
-                    </button>
-                  </div>
-                ) : (
-                  <button className="btn btn-primary w-full btn-lg" onClick={() => setShowPurchase(true)}>
-                    Install {app.name} <Icon name="arrow" size={15}/>
-                  </button>
-                )}
-              </div>
-
-              {app.tags && (
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>TAGS</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {app.tags.map(t => <span key={t} className="tag" style={{ background: 'var(--surface2)', color: 'var(--text-muted)' }}>{t}</span>)}
-                  </div>
+              {installed?(
+                <div style={{display:'flex',flexDirection:'column',gap:7}}>
+                  <button className="btn btn-outline w-full" onClick={()=>{onClose();toast(`Opening ${app.name} settings...`);}}>⚙️ Configure Settings</button>
+                  <button className="btn btn-ghost w-full" style={{color:'var(--danger)',fontSize:12.5}} onClick={()=>{onUninstall(app.id);onClose();}}>🗑️ Uninstall App</button>
                 </div>
+              ):(
+                <button className="btn btn-primary w-full btn-lg" onClick={()=>setShowPurchase(true)}>Install {app.name} <Icon name="arrow" size={14}/></button>
               )}
+              {app.tags&&<div style={{marginTop:14}}><div style={{fontWeight:600,fontSize:11,color:'var(--muted)',marginBottom:7}}>TAGS</div><div className="flex flex-wrap gap-6">{app.tags.map(t=><span key={t} className="mkt-tag">{t}</span>)}</div></div>}
             </div>
           </div>
         </div>
       </div>
     </div>
   );
-};
+}
 
-// ─── PLATFORM OWNER: APP MANAGER ─────────────────────────────────────────────
-
-const PlatformAppManager = ({ toast }) => {
-  const [apps, setApps] = useState(MARKETPLACE_APPS.map(a => ({
-    ...a,
-    status: a.featured ? 'active' : Math.random() > 0.2 ? 'active' : 'inactive',
-    totalRevenue: Math.floor(Math.random() * 500000 + 50000),
-    installs: Math.floor(Math.random() * 500 + 20),
-    commissionPct: 20,
-  })));
-  const [search, setSearch] = useState('');
-  const [catFilter, setCatFilter] = useState('All');
-  const [editApp, setEditApp] = useState(null);
-  const [showAdd, setShowAdd] = useState(false);
-
-  const filtered = apps.filter(a =>
-    (catFilter === 'All' || a.category === catFilter) &&
-    (a.name.toLowerCase().includes(search.toLowerCase()) || a.category.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  const toggleStatus = (id) => {
-    setApps(prev => prev.map(a => a.id === id ? { ...a, status: a.status === 'active' ? 'inactive' : 'active' } : a));
-    const app = apps.find(a => a.id === id);
-    toast(`${app.name} ${app.status === 'active' ? 'deactivated' : 'activated'}`, 'success');
-  };
-
-  const toggleFeatured = (id) => {
-    setApps(prev => prev.map(a => a.id === id ? { ...a, featured: !a.featured } : a));
-    const app = apps.find(a => a.id === id);
-    toast(`${app.name} ${app.featured ? 'removed from' : 'added to'} featured`, 'success');
-  };
-
-  const totalRevenue = apps.reduce((s, a) => s + a.totalRevenue, 0);
-  const totalInstalls = apps.reduce((s, a) => s + a.installs, 0);
-  const activeApps = apps.filter(a => a.status === 'active').length;
-
-  return (
-    <div>
-      <div className="page-header">
-        <div>
-          <div className="section-title">App Marketplace Management</div>
-          <div className="section-sub">Control which apps are available, set pricing & commission rates</div>
-        </div>
-        <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
-          <Icon name="plus" size={15}/> Add New App
-        </button>
-      </div>
-
-      <div className="stats-grid">
-        {[
-          { icon: '🏪', label: 'Total Apps', val: apps.length, delta: '+2 this month', trend: 'up', color: '#eff6ff' },
-          { icon: '✅', label: 'Active Apps', val: activeApps, delta: `${apps.length - activeApps} inactive`, trend: 'up', color: '#f0fdf4' },
-          { icon: '📦', label: 'Total Installs', val: totalInstalls.toLocaleString(), delta: '+128 this month', trend: 'up', color: '#fdf4ff' },
-          { icon: '💰', label: 'Platform Revenue', val: `₹${(totalRevenue/100000).toFixed(1)}L`, delta: '+18% vs last month', trend: 'up', color: '#fffbeb' },
-        ].map(s => (
-          <div key={s.label} className="stat-card">
-            <div className="stat-icon" style={{ background: s.color }}>{s.icon}</div>
-            <div>
-              <div className="stat-val">{s.val}</div>
-              <div className="stat-label">{s.label}</div>
-              <div className={`stat-delta ${s.trend}`}>{s.delta}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card">
-        <div className="card-body" style={{ paddingBottom: 0 }}>
-          <div className="flex items-center gap-12 mb-16" style={{ flexWrap: 'wrap' }}>
-            <div className="search-bar">
-              <span className="search-icon"><Icon name="search" size={15}/></span>
-              <input placeholder="Search apps..." value={search} onChange={e => setSearch(e.target.value)}/>
-            </div>
-            <div className="cat-filter" style={{ marginBottom: 0 }}>
-              {CATEGORIES.map(c => (
-                <button key={c} className={`cat-btn ${catFilter === c ? 'active' : ''}`} onClick={() => setCatFilter(c)}>
-                  {CAT_ICONS[c] || ''} {c}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="table-wrap" style={{ borderRadius: 0, border: 'none', borderTop: '1px solid var(--border)' }}>
-          <table>
-            <thead>
-              <tr>
-                <th>App</th><th>Category</th><th>Base Price</th><th>Commission</th><th>Installs</th><th>Revenue</th><th>Status</th><th>Featured</th><th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(app => (
-                <tr key={app.id}>
-                  <td>
-                    <div className="flex items-center gap-10">
-                      <div style={{ width: 36, height: 36, borderRadius: 9, background: app.color + '22', display: 'grid', placeItems: 'center', fontSize: 18, flexShrink: 0 }}>{app.emoji}</div>
-                      <div>
-                        <div className="td-name">{app.name}</div>
-                        <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>★ {app.rating} ({app.reviews.toLocaleString()})</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td><span className="mkt-badge badge-category">{app.category}</span></td>
-                  <td>{app.pricing[0].price === 0 ? <span style={{ color: 'var(--success)', fontWeight: 600 }}>Free</span> : `₹${app.pricing[0].price.toLocaleString()}/mo`}</td>
-                  <td>
-                    <div className="flex items-center gap-6">
-                      <input style={{ width: 50, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, textAlign: 'center' }}
-                        type="number" value={app.commissionPct}
-                        onChange={e => setApps(prev => prev.map(a => a.id === app.id ? {...a, commissionPct: parseInt(e.target.value)||0} : a))}
-                      />
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>%</span>
-                    </div>
-                  </td>
-                  <td>{app.installs}</td>
-                  <td style={{ fontWeight: 700, color: 'var(--success)' }}>₹{(app.totalRevenue/1000).toFixed(0)}K</td>
-                  <td>
-                    <button className={`toggle ${app.status === 'active' ? 'on' : ''}`} onClick={() => toggleStatus(app.id)} title="Toggle active"/>
-                  </td>
-                  <td>
-                    <button className={`toggle ${app.featured ? 'on' : ''}`} style={{ '--primary': '#f59e0b' }} onClick={() => toggleFeatured(app.id)} title="Toggle featured"/>
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-6">
-                      <button className="btn btn-ghost btn-sm" onClick={() => setEditApp(app)} title="Edit pricing"><Icon name="tag" size={14}/></button>
-                      <button className="btn btn-ghost btn-sm" title="View installs"><Icon name="eye" size={14}/></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Edit Pricing Modal */}
-      {editApp && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setEditApp(null)}>
-          <div className="modal">
-            <div className="modal-header">
-              <h2 style={{ fontSize: 18, fontWeight: 800 }}>Edit Pricing — {editApp.name}</h2>
-              <button className="modal-close" onClick={() => setEditApp(null)}><Icon name="x" size={16}/></button>
-            </div>
-            <div className="modal-body">
-              {editApp.pricing.map((plan, idx) => (
-                <div key={plan.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 12 }}>
-                  <div className="flex items-center justify-between mb-12">
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{plan.name} Plan</div>
-                    {plan.popular && <span className="mkt-badge badge-new">Popular</span>}
-                  </div>
-                  <div className="grid-2">
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">Monthly Price (₹)</label>
-                      <input className="form-input" type="number" defaultValue={plan.price || 0}
-                        onChange={e => {
-                          const newApps = apps.map(a => a.id === editApp.id ? {
-                            ...a, pricing: a.pricing.map((p, i) => i === idx ? {...p, price: parseInt(e.target.value)||0} : p)
-                          } : a);
-                          setApps(newApps);
-                          setEditApp(newApps.find(a => a.id === editApp.id));
-                        }}
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">Transaction Fee (%)</label>
-                      <input className="form-input" type="text" defaultValue={plan.txnFee || 'N/A'}/>
-                    </div>
-                  </div>
-                  <div className="form-group" style={{ marginTop: 12, marginBottom: 0 }}>
-                    <div className="form-toggle">
-                      <button className={`toggle ${plan.popular ? 'on' : ''}`} onClick={() => {
-                        const newApps = apps.map(a => a.id === editApp.id ? {
-                          ...a, pricing: a.pricing.map((p, i) => ({...p, popular: i === idx ? !p.popular : false}))
-                        } : a);
-                        setApps(newApps);
-                        setEditApp(newApps.find(a => a.id === editApp.id));
-                      }}/>
-                      <span className="toggle-label">Mark as Popular</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={() => setEditApp(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => { toast(`${editApp.name} pricing updated`, 'success'); setEditApp(null); }}>
-                Save Pricing
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAdd && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAdd(false)}>
-          <div className="modal">
-            <div className="modal-header">
-              <h2 style={{ fontSize: 18, fontWeight: 800 }}>Add New App to Marketplace</h2>
-              <button className="modal-close" onClick={() => setShowAdd(false)}><Icon name="x" size={16}/></button>
-            </div>
-            <div className="modal-body">
-              <div className="grid-2">
-                <div className="form-group"><label className="form-label">App Name <span>*</span></label><input className="form-input" placeholder="e.g. Shiprocket"/></div>
-                <div className="form-group"><label className="form-label">Category <span>*</span></label>
-                  <select className="form-input form-select">
-                    {CATEGORIES.slice(1).map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="form-group"><label className="form-label">Emoji Icon</label><input className="form-input" placeholder="🚀"/></div>
-                <div className="form-group"><label className="form-label">Brand Color</label><input className="form-input" type="color" defaultValue="#2563EB"/></div>
-              </div>
-              <div className="form-group"><label className="form-label">Tagline</label><input className="form-input" placeholder="Short description shown on the card"/></div>
-              <div className="form-group"><label className="form-label">Full Description</label><textarea className="form-input" rows="3" placeholder="Detailed description shown in app detail page..." style={{ resize: 'vertical' }}/></div>
-              <div className="grid-2">
-                <div className="form-group"><label className="form-label">Starting Price (₹/mo)</label><input className="form-input" type="number" placeholder="0 for free"/></div>
-                <div className="form-group"><label className="form-label">Commission Rate (%)</label><input className="form-input" type="number" defaultValue="20"/></div>
-              </div>
-              <div className="form-group">
-                <div className="form-toggle">
-                  <button className="toggle on"/><span className="toggle-label">Active on publish</span>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={() => setShowAdd(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => { toast('App added to marketplace!', 'success'); setShowAdd(false); }}>Add App</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─── STORE OWNER: APP STORE ───────────────────────────────────────────────────
-
-const StoreAppStore = ({ toast }) => {
-  const [installedApps, setInstalledApps] = useState([
-    { ...MARKETPLACE_APPS[0], plan: MARKETPLACE_APPS[0].pricing[1], status: 'active', testMode: true, installedAt: '2025-01-15', creds: {} },
-    { ...MARKETPLACE_APPS[5], plan: MARKETPLACE_APPS[5].pricing[1], status: 'active', testMode: false, installedAt: '2025-01-10', creds: {} },
-    { ...MARKETPLACE_APPS[11], plan: MARKETPLACE_APPS[11].pricing[0], status: 'active', testMode: false, installedAt: '2024-12-20', creds: {} },
+// ─── STORE APP STORE ─────────────────────────────────────────────────────────
+function StoreAppStore({ toast, storeId }) {
+  const [installed, setInstalled] = useState([
+    {...APPS[0],plan:APPS[0].pricing[1],testMode:true,status:'active',installedAt:'2025-01-15'},
+    {...APPS[3],plan:APPS[3].pricing[1],testMode:false,status:'active',installedAt:'2025-01-10'},
+    {...APPS[5],plan:APPS[5].pricing[0],testMode:false,status:'active',installedAt:'2024-12-20'},
   ]);
-  const [activeTab, setActiveTab] = useState('explore');
+  const [tab, setTab] = useState('explore');
   const [search, setSearch] = useState('');
-  const [catFilter, setCatFilter] = useState('All');
-  const [selectedApp, setSelectedApp] = useState(null);
+  const [cat, setCat] = useState('All');
+  const [selApp, setSelApp] = useState(null);
+  const [error, setError] = useState("");
 
-  const handleInstall = (app, plan, creds, testMode) => {
-    setInstalledApps(prev => [...prev.filter(a => a.id !== app.id), { ...app, plan, creds, testMode, status: 'active', installedAt: new Date().toISOString().split('T')[0] }]);
-    toast(`${app.name} installed successfully!`, 'success');
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      if (!storeId) return;
+      try {
+        setError("");
+        const res = await api.get(`/stores/${storeId}/insights/marketing`);
+        if (!mounted) return;
+        const subscriptions = Array.isArray(res.data?.subscriptions) ? res.data.subscriptions : [];
+        if (!subscriptions.length) return;
+        setInstalled((prev) => {
+          const mapped = subscriptions.map((sub, idx) => {
+            const templateName = String(sub.templateName || "").toLowerCase();
+            const base = APPS.find((a) => templateName.includes(a.name.toLowerCase())) || APPS[idx % APPS.length];
+            return {
+              ...base,
+              plan: base.pricing?.find((p) => p.price > 0) || base.pricing?.[0],
+              testMode: false,
+              status: sub.status || "active",
+              installedAt: sub.purchasedAt || new Date().toISOString().slice(0, 10),
+            };
+          });
+          return mapped.length ? mapped : prev;
+        });
+      } catch (err) {
+        if (!mounted) return;
+        setError(toErrorText(err, "Could not load installed apps."));
+      }
+    };
+    run();
+    return () => {
+      mounted = false;
+    };
+  }, [storeId]);
+
+  const handleInstall = (app,plan,creds,testMode) => {
+    setInstalled(prev=>[...prev.filter(a=>a.id!==app.id),{...app,plan,creds,testMode,status:'active',installedAt:new Date().toISOString().split('T')[0]}]);
+    toast(`${app.name} installed!`,'success');
   };
+  const handleUninstall = (id) => { const a=installed.find(x=>x.id===id); setInstalled(p=>p.filter(x=>x.id!==id)); toast(`${a?.name} uninstalled`); };
 
-  const handleUninstall = (id) => {
-    const app = installedApps.find(a => a.id === id);
-    setInstalledApps(prev => prev.filter(a => a.id !== id));
-    toast(`${app?.name} uninstalled`, '');
-  };
-
-  const filtered = MARKETPLACE_APPS.filter(a =>
-    (catFilter === 'All' || a.category === catFilter) &&
-    (a.name.toLowerCase().includes(search.toLowerCase()) || a.category.toLowerCase().includes(search.toLowerCase()) || (a.tags || []).some(t => t.toLowerCase().includes(search.toLowerCase())))
-  );
-
-  const featured = MARKETPLACE_APPS.filter(a => a.featured);
+  const filtered = APPS.filter(a=>(cat==='All'||a.cat===cat)&&(a.name.toLowerCase().includes(search.toLowerCase())||a.cat.toLowerCase().includes(search.toLowerCase())||(a.tags||[]).some(t=>t.toLowerCase().includes(search.toLowerCase()))));
+  const featured = APPS.filter(a=>a.featured);
 
   return (
     <div>
       <div className="page-header">
-        <div>
-          <div className="section-title">App Store</div>
-          <div className="section-sub">Extend your store with payment gateways, shipping, marketing & more</div>
-        </div>
-        <div className="flex items-center gap-8">
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{installedApps.length} installed</span>
-        </div>
+        <div><div className="page-title">App Store</div><div className="page-sub">Extend your store with payment, shipping, marketing & more</div></div>
+        <div className="flex items-center gap-8"><span style={{fontSize:12.5,color:'var(--muted)'}}>{installed.length} installed</span></div>
       </div>
-
       <div className="tabs">
-        {[{id:'explore',label:'Explore Apps'},{id:'installed',label:`My Apps (${installedApps.length})`}].map(t => (
-          <button key={t.id} className={`tab ${activeTab === t.id ? 'active' : ''}`} onClick={() => setActiveTab(t.id)}>{t.label}</button>
-        ))}
+        {[{id:'explore',l:'Explore Apps'},{id:'installed',l:`My Apps (${installed.length})`}].map(t=><button key={t.id} className={`tab ${tab===t.id?'active':''}`} onClick={()=>setTab(t.id)}>{t.l}</button>)}
       </div>
 
-      {activeTab === 'explore' && (
-        <>
-          {/* Featured */}
-          {catFilter === 'All' && !search && (
-            <div className="mb-24">
-              <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>⭐ Featured Apps</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-                {featured.map(app => {
-                  const inst = installedApps.find(a => a.id === app.id);
-                  return (
-                    <div key={app.id} className="card" style={{ cursor: 'pointer', border: `1.5px solid ${app.color}33`, overflow: 'hidden' }}
-                      onClick={() => setSelectedApp(app)}>
-                      <div style={{ background: app.color + '18', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ fontSize: 36 }}>{app.emoji}</div>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: 15 }}>{app.name}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{app.category}</div>
-                        </div>
-                        {inst && <span className="mkt-badge badge-installed" style={{ marginLeft: 'auto' }}>✓ Installed</span>}
-                      </div>
-                      <div style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div>
-                          <StarRating rating={app.rating}/>
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 6 }}>{app.reviews.toLocaleString()} reviews</span>
-                        </div>
-                        <div style={{ fontWeight: 700, color: app.pricing[0].price === 0 ? 'var(--success)' : 'var(--primary)' }}>
-                          {fmt(app.pricing[0].price)}{app.pricing[0].price > 0 ? '/mo' : ''}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+      {tab==='explore'&&<>
+        {cat==='All'&&!search&&<div style={{marginBottom:22}}>
+          <div style={{fontWeight:800,fontSize:15,marginBottom:12}}>⭐ Featured Apps</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:12}}>
+            {featured.map(app=>{const inst=installed.find(a=>a.id===app.id);return(
+              <div key={app.id} className="card" style={{cursor:'pointer',border:`1.5px solid ${app.color}33`,overflow:'hidden'}} onClick={()=>setSelApp(app)}>
+                <div style={{background:app.color+'18',padding:'14px 18px',display:'flex',alignItems:'center',gap:10}}>
+                  <div style={{fontSize:32}}>{app.emoji}</div>
+                  <div><div style={{fontWeight:800,fontSize:14}}>{app.name}</div><div style={{fontSize:11.5,color:'var(--muted)'}}>{app.cat}</div></div>
+                  {inst&&<span className="badge badge-success" style={{marginLeft:'auto'}}>✓ Installed</span>}
+                </div>
+                <div style={{padding:'10px 18px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <div><Stars r={app.rating}/><span style={{fontSize:11.5,color:'var(--muted)',marginLeft:5}}>{app.reviews.toLocaleString()} reviews</span></div>
+                  <div style={{fontWeight:700,color:app.pricing[0].price===0?'var(--success)':'var(--primary)'}}>{app.pricing[0].price===0?'Free':`₹${app.pricing[0].price.toLocaleString()}/mo`}</div>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Filters */}
-          <div className="flex items-center gap-12 mb-16" style={{ flexWrap: 'wrap' }}>
-            <div className="search-bar">
-              <span className="search-icon"><Icon name="search" size={15}/></span>
-              <input placeholder="Search apps, categories, tags..." value={search} onChange={e => setSearch(e.target.value)}/>
-            </div>
+            );})}
           </div>
-          <div className="cat-filter">
-            {CATEGORIES.map(c => (
-              <button key={c} className={`cat-btn ${catFilter === c ? 'active' : ''}`} onClick={() => setCatFilter(c)}>
-                {CAT_ICONS[c] || ''} {c}
-              </button>
-            ))}
-          </div>
+        </div>}
 
-          {/* App Grid */}
-          {catFilter !== 'All' && (
-            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>{CAT_ICONS[catFilter]} {catFilter}</div>
-          )}
-          <div className="mkt-grid">
-            {filtered.map(app => {
-              const inst = installedApps.find(a => a.id === app.id);
-              const lowestPrice = app.pricing.reduce((m, p) => p.price === 0 ? 0 : (m === 0 ? 0 : Math.min(m, p.price || Infinity)), Infinity);
-              return (
-                <div key={app.id} className={`mkt-card ${inst ? 'installed' : ''}`} onClick={() => setSelectedApp(app)}>
-                  <div className="mkt-card-preview" style={{ background: app.color + '18' }}>
-                    <span style={{ fontSize: 56 }}>{app.emoji}</span>
-                    <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                      {app.featured && <span className="mkt-badge badge-featured">⭐ Featured</span>}
-                      {inst && <span className="mkt-badge badge-installed">✓ Installed</span>}
-                    </div>
+        <div className="flex items-center gap-10 mb-16" style={{flexWrap:'wrap'}}>
+          <div className="search-bar" style={{maxWidth:340}}>
+            <span className="search-icon"><Icon name="search" size={14}/></span>
+            <input placeholder="Search apps, categories, tags..." value={search} onChange={e=>setSearch(e.target.value)}/>
+          </div>
+        </div>
+        <div className="cat-filter">
+          {CATEGORIES.map(c=><button key={c} className={`cat-btn ${cat===c?'active':''}`} onClick={()=>setCat(c)}>{CAT_ICONS[c]||''} {c}</button>)}
+        </div>
+
+        <div className="mkt-grid">
+          {filtered.map(app=>{
+            const inst=installed.find(a=>a.id===app.id);
+            const lowestPrice=app.pricing.reduce((m,p)=>p.price===0?0:(m===0?0:Math.min(m,p.price||Infinity)),Infinity);
+            return(
+              <div key={app.id} className={`mkt-card ${inst?'installed':''}`} onClick={()=>setSelApp(app)}>
+                <div className="mkt-preview" style={{background:app.color+'18'}}>
+                  <span style={{fontSize:50}}>{app.emoji}</span>
+                  <div style={{position:'absolute',top:8,right:8,display:'flex',gap:5}}>
+                    {app.featured&&<span className="badge badge-gold">⭐ Featured</span>}
+                    {inst&&<span className="badge badge-success">✓ Installed</span>}
                   </div>
-                  <div className="mkt-card-body">
-                    <div className="flex items-center gap-8 mb-4">
-                      <div className="mkt-card-name">{app.name}</div>
-                    </div>
-                    <div className="flex items-center gap-6 mb-8">
-                      <StarRating rating={app.rating}/>
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{app.rating} ({app.reviews.toLocaleString()})</span>
-                    </div>
-                    <div className="mkt-card-desc">{app.desc}</div>
-                    {app.tags && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
-                        {app.tags.slice(0, 3).map(t => <span key={t} className="mkt-badge badge-category">{t}</span>)}
+                </div>
+                <div className="mkt-body">
+                  <div className="flex items-center gap-6 mb-8"><div className="mkt-name">{app.name}</div></div>
+                  <div className="flex items-center gap-6 mb-8"><Stars r={app.rating}/><span style={{fontSize:11.5,color:'var(--muted)'}}>{app.rating} ({app.reviews.toLocaleString()})</span></div>
+                  <div className="mkt-desc">{app.desc}</div>
+                  {app.tags&&<div className="mkt-tags">{app.tags.slice(0,3).map(t=><span key={t} className="mkt-tag">{t}</span>)}</div>}
+                  <div className="mkt-footer">
+                    <div className="mkt-price">{lowestPrice===0?<span style={{color:'var(--success)',fontWeight:700}}>Free</span>:<span>From ₹{lowestPrice.toLocaleString('en-IN')}<span style={{fontSize:11,fontWeight:500,color:'var(--muted)'}}>/mo</span></span>}</div>
+                    {inst?<span className="badge badge-success">✓ Active</span>:<span className="badge badge-new">Install</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </>}
+
+      {tab==='installed'&&<div>
+        {installed.length===0?<div className="empty-state"><div className="empty-icon">📦</div><h3 style={{fontWeight:700,fontSize:16,marginBottom:6}}>No apps installed</h3><p style={{fontSize:13}}>Browse the app store to add tools.</p><button className="btn btn-primary" style={{marginTop:14}} onClick={()=>setTab('explore')}>Browse Apps</button></div>:(
+          <>
+            {CATEGORIES.slice(1).map(c=>{
+              const catApps=installed.filter(a=>a.cat===c);
+              if(!catApps.length) return null;
+              return(
+                <div key={c} className="card mb-16">
+                  <div className="card-header"><div className="card-title">{CAT_ICONS[c]} {c} <span style={{fontWeight:500,fontSize:12,color:'var(--muted)'}}>· {catApps.length} app{catApps.length>1?'s':''}</span></div></div>
+                  <div style={{padding:0}}>
+                    {catApps.map(app=><div key={app.id} className="installed-row">
+                      <div className="installed-icon" style={{background:app.color+'22'}}>{app.emoji}</div>
+                      <div className="installed-info"><div className="installed-name">{app.name}</div><div className="installed-meta">{app.plan?.name} · {app.plan?.price?`₹${app.plan.price.toLocaleString('en-IN')}/mo`:'Free'}{app.testMode&&<span className="badge badge-warning" style={{marginLeft:8}}>Test Mode</span>}</div></div>
+                      <div className="installed-actions">
+                        {app.testMode&&<button className="btn btn-outline btn-sm" style={{color:'var(--warning)',borderColor:'var(--warning)'}} onClick={()=>{setInstalled(p=>p.map(a=>a.id===app.id?{...a,testMode:false}:a));toast(`${app.name} → Live mode`,'success');}}>Go Live</button>}
+                        <button className="btn btn-outline btn-sm" onClick={()=>setSelApp(app)}>Configure</button>
+                        <button className="btn btn-ghost btn-sm" style={{color:'var(--danger)'}} onClick={()=>handleUninstall(app.id)}><Icon name="trash" size={13}/></button>
                       </div>
-                    )}
-                    <div className="mkt-card-footer">
-                      <div className="mkt-card-price">
-                        {lowestPrice === 0
-                          ? <span style={{ color: 'var(--success)', fontWeight: 700 }}>Free</span>
-                          : <span>From ₹{lowestPrice.toLocaleString('en-IN')}<span className="mo">/mo</span></span>
-                        }
-                      </div>
-                      {inst
-                        ? <span className="mkt-badge badge-installed" style={{ fontSize: 12 }}>✓ Active</span>
-                        : <span className="mkt-badge badge-new">Install</span>
-                      }
-                    </div>
+                    </div>)}
                   </div>
                 </div>
               );
             })}
-          </div>
-        </>
-      )}
-
-      {activeTab === 'installed' && (
-        <div>
-          {installedApps.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">📦</div>
-              <h3>No apps installed yet</h3>
-              <p style={{ fontSize: 13.5 }}>Browse the app store to add payment, shipping & marketing tools.</p>
-              <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setActiveTab('explore')}>Browse Apps</button>
-            </div>
-          ) : (
-            <>
-              {/* Installed list by category */}
-              {CATEGORIES.slice(1).map(cat => {
-                const catApps = installedApps.filter(a => a.category === cat);
-                if (!catApps.length) return null;
-                return (
-                  <div key={cat} className="card mb-20">
-                    <div className="card-header" style={{ paddingBottom: 12 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {CAT_ICONS[cat]} {cat}
-                        <span style={{ fontWeight: 500, fontSize: 12, color: 'var(--text-muted)' }}>· {catApps.length} app{catApps.length>1?'s':''}</span>
-                      </div>
-                    </div>
-                    <div className="card-body" style={{ padding: 0 }}>
-                      {catApps.map(app => (
-                        <div key={app.id} className="installed-app">
-                          <div className="installed-app-icon" style={{ background: app.color + '22', fontSize: 22 }}>{app.emoji}</div>
-                          <div className="installed-app-info">
-                            <div className="installed-app-name">{app.name}</div>
-                            <div className="installed-app-desc">
-                              {app.plan?.name} plan · {app.plan?.price ? `₹${app.plan.price.toLocaleString('en-IN')}/mo` : 'Free'}
-                              {app.testMode && <span className="mkt-badge badge-pending" style={{ marginLeft: 8 }}>Test Mode</span>}
-                            </div>
-                          </div>
-                          <div className="installed-app-actions">
-                            {app.testMode && (
-                              <button className="btn btn-outline btn-sm" style={{ color: 'var(--warning)', borderColor: 'var(--warning)' }}
-                                onClick={() => { setInstalledApps(prev => prev.map(a => a.id === app.id ? {...a, testMode: false} : a)); toast(`${app.name} switched to Live mode`, 'success'); }}>
-                                Switch to Live
-                              </button>
-                            )}
-                            <button className="btn btn-outline btn-sm" onClick={() => setSelectedApp(app)}>Configure</button>
-                            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleUninstall(app.id)}>
-                              <Icon name="trash" size={13}/>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Recommendations */}
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>💡 Recommended for you</div>
-                <div className="mkt-grid">
-                  {MARKETPLACE_APPS.filter(a => !installedApps.find(i => i.id === a.id)).slice(0, 3).map(app => (
-                    <div key={app.id} className="mkt-card" onClick={() => setSelectedApp(app)}>
-                      <div className="mkt-card-preview" style={{ background: app.color + '18', height: 100 }}>
-                        <span style={{ fontSize: 40 }}>{app.emoji}</span>
-                      </div>
-                      <div className="mkt-card-body" style={{ padding: 12 }}>
-                        <div className="mkt-card-name" style={{ fontSize: 14 }}>{app.name}</div>
-                        <div className="mkt-card-desc" style={{ fontSize: 12, marginBottom: 8 }}>{app.tagline}</div>
-                        <div className="mkt-card-footer">
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>
-                            {app.pricing[0].price === 0 ? 'Free' : `From ₹${app.pricing[0].price.toLocaleString()}/mo`}
-                          </div>
-                          <span className="mkt-badge badge-new">Install</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            <div style={{marginTop:6}}>
+              <div style={{fontWeight:700,fontSize:14,marginBottom:12}}>💡 Recommended for you</div>
+              <div className="mkt-grid">
+                {APPS.filter(a=>!installed.find(i=>i.id===a.id)).slice(0,3).map(app=><div key={app.id} className="mkt-card" onClick={()=>setSelApp(app)}><div className="mkt-preview" style={{background:app.color+'18',height:100}}><span style={{fontSize:38}}>{app.emoji}</span></div><div className="mkt-body" style={{padding:'11px 14px'}}><div className="mkt-name" style={{fontSize:13.5}}>{app.name}</div><div className="mkt-desc" style={{fontSize:11.5,marginBottom:7}}>{app.tagline}</div><div className="mkt-footer"><div style={{fontSize:12.5,fontWeight:700,color:'var(--primary)'}}>{app.pricing[0].price===0?'Free':`From ₹${app.pricing[0].price.toLocaleString()}/mo`}</div><span className="badge badge-new">Install</span></div></div></div>)}
               </div>
-            </>
-          )}
-        </div>
-      )}
+            </div>
+          </>
+        )}
+      </div>}
 
-      {selectedApp && (
-        <AppDetailModal
-          app={selectedApp}
-          installedApps={installedApps}
-          onClose={() => setSelectedApp(null)}
-          onInstall={handleInstall}
-          onUninstall={handleUninstall}
-          toast={(msg, type) => toast(msg, type)}
-        />
-      )}
+      {selApp&&<AppDetail app={selApp} installedApps={installed} onClose={()=>setSelApp(null)} onInstall={handleInstall} onUninstall={handleUninstall} toast={(m,t)=>toast(m,t)}/>}
+      {error && <div style={{marginTop:12,color:"var(--danger)",fontSize:12.5}}>{error}</div>}
     </div>
   );
-};
+}
 
-// ─── STORE OWNER: INSTALLED APP SETTINGS ─────────────────────────────────────
-
-const AppSettings = ({ toast }) => {
-  const [installedApps] = useState([
-    { ...MARKETPLACE_APPS[0], plan: MARKETPLACE_APPS[0].pricing[1], testMode: true, status: 'active' },
-    { ...MARKETPLACE_APPS[5], plan: MARKETPLACE_APPS[5].pricing[1], testMode: false, status: 'active' },
-    { ...MARKETPLACE_APPS[11], plan: MARKETPLACE_APPS[11].pricing[0], testMode: false, status: 'active' },
+// ─── APP SETTINGS (Store) ────────────────────────────────────────────────────
+function AppSettings({ toast, storeId }) {
+  const [apps] = useState([
+    {...APPS[0],plan:APPS[0].pricing[1],testMode:true,status:'active'},
+    {...APPS[3],plan:APPS[3].pricing[1],testMode:false,status:'active'},
+    {...APPS[5],plan:APPS[5].pricing[0],testMode:false,status:'active'},
   ]);
-  const [selected, setSelected] = useState(installedApps[0]);
-  const [testMode, setTestMode] = useState(selected.testMode);
-  const [cred1, setCred1] = useState('rzp_test_••••••••••••••••');
-  const [cred2, setCred2] = useState('••••••••••••••••••••••••••••••');
-
-  return (
-    <div>
-      <div className="page-header">
-        <div>
-          <div className="section-title">App Settings</div>
-          <div className="section-sub">Configure your installed apps and API credentials</div>
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>
-        {/* Sidebar */}
-        <div className="card" style={{ height: 'fit-content' }}>
-          <div className="card-body" style={{ padding: 8 }}>
-            {installedApps.map(app => (
-              <div key={app.id}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: selected.id === app.id ? 'var(--primary-light)' : 'transparent', border: selected.id === app.id ? '1px solid #bfdbfe' : '1px solid transparent', marginBottom: 4 }}
-                onClick={() => { setSelected(app); setTestMode(app.testMode); }}>
-                <span style={{ fontSize: 20 }}>{app.emoji}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: selected.id === app.id ? 'var(--primary)' : 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{app.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{app.category}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Config panel */}
-        <div>
-          <div className="config-section">
-            <div className="config-section-title">
-              <span style={{ fontSize: 24 }}>{selected.emoji}</span>
-              {selected.name} — {selected.plan?.name} Plan
-              {testMode && <span className="mkt-badge badge-pending" style={{ marginLeft: 8 }}>Test Mode</span>}
-            </div>
-
-            <div className="info-box info mb-16">
-              <Icon name="info" size={16}/>
-              <span>Plan: <strong>{selected.plan?.name}</strong> · {selected.plan?.price ? `₹${selected.plan?.price.toLocaleString('en-IN')}/mo` : 'Free'} · Renews on 15th every month</span>
-            </div>
-
-            <div className="form-group">
-              <div className="form-toggle">
-                <button className={`toggle ${testMode ? 'on' : ''}`} onClick={() => { setTestMode(!testMode); toast(`${selected.name} switched to ${!testMode ? 'Test' : 'Live'} mode`, 'success'); }}/>
-                <div>
-                  <div className="toggle-label">Test Mode {testMode ? 'ON' : 'OFF'}</div>
-                  <div className="toggle-hint">{testMode ? '⚠️ In test mode — real transactions will not be processed. Switch to Live before accepting orders.' : '✅ Live mode — real transactions are being processed.'}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="divider"/>
-
-            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Icon name="lock" size={14}/> API Credentials
-            </div>
-            <div className="grid-2">
-              {(selected.credentials || ['API Key', 'Secret Key']).map((cred, i) => (
-                <div className="form-group" key={cred}>
-                  <label className="form-label">{cred}</label>
-                  <div className="credential-field">
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {i === 0 ? cred1 : cred2}
-                    </span>
-                    <button className="btn btn-ghost btn-sm" style={{ padding: '2px 6px' }} onClick={() => toast('Copied!', 'success')}>
-                      <Icon name="copy" size={12}/>
-                    </button>
-                  </div>
-                  <div className="form-hint" style={{ marginTop: 4 }}>
-                    <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 11.5, cursor: 'pointer', fontWeight: 600 }}
-                      onClick={() => toast('Edit credential mode')}>✏️ Update credential</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {selected.webhook && (
-              <div className="form-group">
-                <label className="form-label">Webhook Endpoint URL</label>
-                <div className="credential-field">
-                  <span>https://api.sitesellr.com/webhooks/{selected.id}/{'store-abc123'}</span>
-                  <button className="btn btn-ghost btn-sm" style={{ padding: '2px 6px' }} onClick={() => toast('Webhook URL copied!', 'success')}>
-                    <Icon name="copy" size={12}/>
-                  </button>
-                </div>
-                <div className="form-hint">Add this URL to your {selected.name} dashboard under Webhooks/Notifications.</div>
-              </div>
-            )}
-
-            <div className="divider"/>
-            <div className="flex items-center justify-between">
-              <button className="btn btn-ghost" style={{ color: 'var(--danger)', fontSize: 13 }}>
-                <Icon name="trash" size={13}/> Uninstall App
-              </button>
-              <div className="flex gap-8">
-                <button className="btn btn-outline" onClick={() => toast('Settings saved!', 'success')}>Save Changes</button>
-                <button className="btn btn-primary" onClick={() => toast(`Testing ${selected.name} connection...`, 'success')}>Test Connection</button>
-              </div>
-            </div>
-          </div>
-
-          {/* Billing history */}
-          <div className="config-section">
-            <div className="config-section-title"><Icon name="revenue" size={16}/> Billing History</div>
-            <div className="table-wrap">
-              <table>
-                <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th>Invoice</th></tr></thead>
-                <tbody>
-                  {[
-                    { date: '2025-02-01', desc: `${selected.name} — ${selected.plan?.name}`, amt: selected.plan?.price || 0, status: 'Paid' },
-                    { date: '2025-01-01', desc: `${selected.name} — ${selected.plan?.name}`, amt: selected.plan?.price || 0, status: 'Paid' },
-                    { date: '2024-12-01', desc: `${selected.name} — ${selected.plan?.name}`, amt: selected.plan?.price || 0, status: 'Paid' },
-                  ].map((row, i) => (
-                    <tr key={i}>
-                      <td className="td-mono">{row.date}</td>
-                      <td>{row.desc}</td>
-                      <td style={{ fontWeight: 600 }}>{row.amt === 0 ? '—' : `₹${(row.amt * 1.18).toLocaleString('en-IN')}`}</td>
-                      <td><span className="mkt-badge badge-installed">{row.status}</span></td>
-                      <td><button className="btn btn-ghost btn-sm" onClick={() => toast('Downloading invoice...')}><Icon name="copy" size={12}/> PDF</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ─── DASHBOARD ────────────────────────────────────────────────────────────────
-
-const Dashboard = ({ role, toast }) => {
-  const isPlatform = role === 'platform';
-
-  const revData = [62, 78, 55, 88, 95, 71, 108, 125, 99, 142, 155, 178];
-  const maxRev = Math.max(...revData);
-
-  return (
-    <div>
-      <div className="page-header">
-        <div>
-          <div className="section-title">
-            {isPlatform ? 'Platform Dashboard' : 'Store Dashboard'}
-          </div>
-          <div className="section-sub">
-            {isPlatform ? 'Overview of all tenants, app revenue, and marketplace performance' : 'Welcome back! Your store health at a glance.'}
-          </div>
-        </div>
-        {!isPlatform && <button className="btn btn-primary"><Icon name="apps" size={14}/> Browse Apps</button>}
-      </div>
-
-      <div className="stats-grid">
-        {(isPlatform ? [
-          { icon: '🏪', label: 'Active Stores', val: '2,341', delta: '+48 this month', trend: 'up', color: '#eff6ff' },
-          { icon: '💰', label: 'App Revenue (MRR)', val: '₹18.4L', delta: '+22% vs last month', trend: 'up', color: '#f0fdf4' },
-          { icon: '📦', label: 'App Installs', val: '14,892', delta: '+892 this month', trend: 'up', color: '#fdf4ff' },
-          { icon: '⭐', label: 'Avg App Rating', val: '4.6/5', delta: 'Based on 12,341 reviews', trend: 'up', color: '#fffbeb' },
-        ] : [
-          { icon: '🛒', label: 'Total Orders', val: '1,284', delta: '+38 this week', trend: 'up', color: '#eff6ff' },
-          { icon: '💰', label: 'Revenue (MTD)', val: '₹4.2L', delta: '+18% vs last month', trend: 'up', color: '#f0fdf4' },
-          { icon: '📦', label: 'Apps Installed', val: '3', delta: '2 active, 1 test mode', trend: 'up', color: '#fdf4ff' },
-          { icon: '🚀', label: 'Shipments Today', val: '47', delta: 'Shiprocket: 41 · Delhivery: 6', trend: 'up', color: '#fffbeb' },
-        ]).map((s) => (
-          <div key={s.label} className="stat-card">
-            <div className="stat-icon" style={{ background: s.color }}>{s.icon}</div>
-            <div>
-              <div className="stat-val">{s.val}</div>
-              <div className="stat-label">{s.label}</div>
-              <div className={`stat-delta ${s.trend}`}>{s.delta}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, marginBottom: 20 }}>
-        <div className="card">
-          <div className="card-header">
-            <div style={{ fontWeight: 700, fontSize: 14 }}>Monthly Revenue</div>
-          </div>
-          <div className="card-body">
-            <div className="rev-bar-wrap">
-              {revData.map((v, i) => (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div className="rev-bar" style={{ height: `${(v/maxRev)*90}px`, width: '100%' }} title={`₹${v}K`}/>
-                  <div className="rev-bar-label">{['J','F','M','A','M','J','J','A','S','O','N','D'][i]}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14 }}>{isPlatform ? 'Top Revenue Apps' : 'My Apps Status'}</div>
-          </div>
-          <div className="card-body" style={{ padding: 0 }}>
-            {(isPlatform ? MARKETPLACE_APPS.slice(0,5) : MARKETPLACE_APPS.slice(0,3)).map((app, i) => (
-              <div key={app.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: i < 4 ? '1px solid var(--border)' : 'none' }}>
-                <span style={{ fontSize: 24 }}>{app.emoji}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{app.name}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{app.category}</div>
-                </div>
-                {isPlatform
-                  ? <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--success)' }}>₹{(Math.random()*50+10).toFixed(0)}K</div>
-                  : <span className="mkt-badge badge-installed">Active</span>
-                }
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {!isPlatform && (
-        <div className="card">
-          <div className="card-header" style={{ paddingBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>⚠️ Action Required</div>
-          </div>
-          <div className="card-body" style={{ paddingTop: 0 }}>
-            <div className="info-box warning">
-              <Icon name="info" size={16}/>
-              <span><strong>Razorpay is in Test Mode.</strong> You cannot accept real payments. <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', fontSize: 13 }} onClick={() => toast('Navigate to App Settings → Razorpay to switch modes')}>Switch to Live →</button></span>
-            </div>
-            <div className="info-box info">
-              <Icon name="info" size={16}/>
-              <span><strong>WhatsApp Business API not installed.</strong> Reach 300M+ WhatsApp users with order updates. <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', fontSize: 13 }} onClick={() => toast('Browse App Store → Email & Marketing')}>Install now →</button></span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─── PLATFORM REVENUE PAGE ────────────────────────────────────────────────────
-
-const PlatformRevenue = ({ toast }) => {
-  const data = MARKETPLACE_APPS.map(a => ({
-    ...a,
-    revenue: Math.floor(Math.random() * 400000 + 10000),
-    installs: Math.floor(Math.random() * 400 + 20),
-    commission: 20,
-  }));
-
-  return (
-    <div>
-      <div className="page-header">
-        <div>
-          <div className="section-title">Revenue & Analytics</div>
-          <div className="section-sub">Track app marketplace revenue, commissions, and store subscription metrics</div>
-        </div>
-        <button className="btn btn-outline" onClick={() => toast('Exporting CSV...')}><Icon name="copy" size={14}/> Export CSV</button>
-      </div>
-      <div className="stats-grid">
-        {[
-          { icon: '💰', label: 'Total MRR', val: '₹18.4L', color: '#eff6ff' },
-          { icon: '📊', label: 'Commission Revenue', val: '₹3.7L', color: '#f0fdf4' },
-          { icon: '📈', label: 'YTD App Revenue', val: '₹1.8Cr', color: '#fdf4ff' },
-          { icon: '🏪', label: 'Paying Stores', val: '1,842', color: '#fffbeb' },
-        ].map(s => (
-          <div key={s.label} className="stat-card">
-            <div className="stat-icon" style={{ background: s.color }}>{s.icon}</div>
-            <div><div className="stat-val">{s.val}</div><div className="stat-label">{s.label}</div></div>
-          </div>
-        ))}
-      </div>
-      <div className="card">
-        <div className="card-body" style={{ padding: 0 }}>
-          <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
-            <table>
-              <thead><tr><th>App</th><th>Category</th><th>Installs</th><th>MRR</th><th>Commission %</th><th>Your Share</th><th>Top Plan</th></tr></thead>
-              <tbody>
-                {data.sort((a,b) => b.revenue - a.revenue).map((app, i) => (
-                  <tr key={app.id}>
-                    <td>
-                      <div className="flex items-center gap-10">
-                        <span style={{ fontSize: 20 }}>{app.emoji}</span>
-                        <div className="td-name">{app.name}</div>
-                      </div>
-                    </td>
-                    <td><span className="mkt-badge badge-category">{app.category}</span></td>
-                    <td>{app.installs}</td>
-                    <td style={{ fontWeight: 600 }}>₹{(app.revenue/1000).toFixed(0)}K</td>
-                    <td>
-                      <input style={{ width: 50, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, textAlign: 'center' }} type="number" defaultValue={app.commission}/>
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 4 }}>%</span>
-                    </td>
-                    <td style={{ fontWeight: 700, color: 'var(--success)' }}>₹{(app.revenue * 0.2 / 1000).toFixed(0)}K</td>
-                    <td>{app.pricing.find(p=>p.popular)?.name || app.pricing[0].name}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
-
-function StoreApiNotice({ error }) {
-  if (!error) return null;
-  return (
-    <div className="card" style={{ marginTop: 14 }}>
-      <div className="card-body">
-        <div className="info-box warning">
-          <Icon name="info" size={16} />
-          <span>{error}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StoreDashboardApi({ storeId }) {
-  const [state, setState] = useState({ loading: true, error: "", data: null });
+  const [sel, setSel] = useState(apps[0]);
+  const [testMode, setTestMode] = useState(apps[0].testMode);
+  const [caps, setCaps] = useState(null);
+  const [usage, setUsage] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
     const run = async () => {
-      if (!storeId) {
-        setState({ loading: false, error: "No store selected for this user.", data: null });
-        return;
-      }
-      setState({ loading: true, error: "", data: null });
+      if (!storeId) return;
       try {
-        const res = await api.get(`/stores/${storeId}/insights/dashboard`);
-        if (!mounted) return;
-        setState({ loading: false, error: "", data: res.data });
-      } catch (err) {
-        if (!mounted) return;
-        setState({ loading: false, error: err?.response?.data?.error || "Could not load store dashboard.", data: null });
-      }
-    };
-    run();
-    return () => { mounted = false; };
-  }, [storeId]);
-
-  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading dashboard...</h3></div>;
-  const m = state.data?.metrics || {};
-  return (
-    <>
-      <div className="page-header">
-        <div>
-          <div className="section-title">Store Dashboard</div>
-          <div className="section-sub">Live metrics from backend insights API</div>
-        </div>
-      </div>
-      <div className="stats-grid">
-        {[
-          { icon: "💰", label: "Revenue", val: `₹${Number(m.totalRevenue || 0).toFixed(2)}`, delta: `${m.revenueChange || 0}%`, trend: Number(m.revenueChange || 0) >= 0 ? "up" : "down", color: "#f0fdf4" },
-          { icon: "🧾", label: "Orders", val: `${m.totalOrders || 0}`, delta: `${m.ordersChange || 0}%`, trend: Number(m.ordersChange || 0) >= 0 ? "up" : "down", color: "#eff6ff" },
-          { icon: "👥", label: "Customers", val: `${m.totalCustomers || 0}`, delta: `${m.customersChange || 0}%`, trend: Number(m.customersChange || 0) >= 0 ? "up" : "down", color: "#fdf4ff" },
-          { icon: "📈", label: "Conversion", val: `${m.conversionRate || 0}%`, delta: "live", trend: "up", color: "#fffbeb" },
-        ].map((s) => (
-          <div key={s.label} className="stat-card">
-            <div className="stat-icon" style={{ background: s.color }}>{s.icon}</div>
-            <div>
-              <div className="stat-val">{s.val}</div>
-              <div className="stat-label">{s.label}</div>
-              <div className={`stat-delta ${s.trend}`}>{s.delta}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <StoreApiNotice error={state.error} />
-    </>
-  );
-}
-
-function StoreAppSettingsApi({ storeId }) {
-  const [state, setState] = useState({ loading: true, error: "", data: null });
-  useEffect(() => {
-    let mounted = true;
-    const run = async () => {
-      if (!storeId) {
-        setState({ loading: false, error: "No store selected for this user.", data: null });
-        return;
-      }
-      setState({ loading: true, error: "", data: null });
-      try {
-        const [marketing, capabilities, usage] = await Promise.all([
-          api.get(`/stores/${storeId}/insights/marketing`),
+        setError("");
+        const [capsRes, usageRes] = await Promise.all([
           api.get(`/stores/${storeId}/subscription/capabilities`),
           api.get(`/stores/${storeId}/subscription/usage`),
         ]);
         if (!mounted) return;
-        setState({
-          loading: false,
-          error: "",
-          data: {
-            marketing: marketing.data || {},
-            capabilities: capabilities.data || {},
-            usage: usage.data || {},
-          },
-        });
+        setCaps(capsRes.data || null);
+        setUsage(usageRes.data || null);
       } catch (err) {
         if (!mounted) return;
-        setState({ loading: false, error: err?.response?.data?.error || "Could not load app settings.", data: null });
+        setError(toErrorText(err, "Could not load store subscription settings."));
       }
     };
     run();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [storeId]);
 
-  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading app settings...</h3></div>;
-  const marketingMetrics = state.data?.marketing?.metrics || {};
-  const capabilities = state.data?.capabilities || {};
-  const usage = state.data?.usage || {};
   return (
-    <>
-      <div className="page-header">
+    <div>
+      <div className="page-header"><div><div className="page-title">App Settings</div><div className="page-sub">Configure your installed apps and API credentials</div></div></div>
+      <div style={{display:'grid',gridTemplateColumns:'210px 1fr',gap:18}}>
+        <div className="card" style={{height:'fit-content'}}>
+          <div style={{padding:8}}>
+            {apps.map(app=><div key={app.id} style={{display:'flex',alignItems:'center',gap:9,padding:'9px 11px',borderRadius:'var(--r-sm)',cursor:'pointer',background:sel.id===app.id?'var(--primary-light)':'transparent',border:sel.id===app.id?'1px solid var(--primary-mid)':'1px solid transparent',marginBottom:3}} onClick={()=>{setSel(app);setTestMode(app.testMode);}}>
+              <span style={{fontSize:18}}>{app.emoji}</span>
+              <div style={{flex:1,minWidth:0}}><div style={{fontSize:12.5,fontWeight:700,color:sel.id===app.id?'var(--primary)':'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{app.name}</div><div style={{fontSize:11,color:'var(--muted)'}}>{app.cat}</div></div>
+            </div>)}
+          </div>
+        </div>
         <div>
-          <div className="section-title">App Settings</div>
-          <div className="section-sub">Subscription capabilities + marketing usage from backend APIs</div>
-        </div>
-      </div>
-      <div className="card">
-        <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Subscription Capabilities</div></div>
-        <div className="card-body">
-          <div className="grid-3">
-            <div><div className="form-label">Allowed Theme Tier</div><div>{capabilities.allowedThemeTier || "-"}</div></div>
-            <div><div className="form-label">Max Products</div><div>{capabilities.maxProducts ?? "-"}</div></div>
-            <div><div className="form-label">Max Plugins</div><div>{capabilities.maxPluginsInstalled ?? "-"}</div></div>
-          </div>
-          <div style={{ height: 12 }} />
-          <div className="grid-3">
-            <div><div className="form-label">Products Used</div><div>{usage.currentProducts ?? "-"}</div></div>
-            <div><div className="form-label">Categories Used</div><div>{usage.currentCategories ?? "-"}</div></div>
-            <div><div className="form-label">Gateways Used</div><div>{usage.currentPaymentGateways ?? "-"}</div></div>
-          </div>
-        </div>
-      </div>
-      <div style={{ height: 14 }} />
-      <div className="card">
-        <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Marketing Summary</div></div>
-        <div className="card-body">
-          <div className="grid-3">
-            <div><div className="form-label">Active Campaigns</div><div>{marketingMetrics.activeCampaigns ?? 0}</div></div>
-            <div><div className="form-label">Paid Campaigns</div><div>{marketingMetrics.paidCampaigns ?? 0}</div></div>
-            <div><div className="form-label">Marketing Spend</div><div>₹{Number(marketingMetrics.marketingSpend || 0).toFixed(2)}</div></div>
-          </div>
-        </div>
-      </div>
-      <StoreApiNotice error={state.error} />
-    </>
-  );
-}
-
-function StoreAppStoreApi({ storeId }) {
-  const [state, setState] = useState({ loading: true, error: "", data: null });
-  useEffect(() => {
-    let mounted = true;
-    const run = async () => {
-      if (!storeId) {
-        setState({ loading: false, error: "No store selected for this user.", data: null });
-        return;
-      }
-      setState({ loading: true, error: "", data: null });
-      try {
-        const res = await api.get(`/stores/${storeId}/insights/marketing`);
-        if (!mounted) return;
-        setState({ loading: false, error: "", data: res.data || {} });
-      } catch (err) {
-        if (!mounted) return;
-        setState({ loading: false, error: err?.response?.data?.error || "Could not load app store data.", data: null });
-      }
-    };
-    run();
-    return () => { mounted = false; };
-  }, [storeId]);
-
-  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading app store...</h3></div>;
-  const templates = Array.isArray(state.data?.templates) ? state.data.templates : [];
-  const subscriptions = Array.isArray(state.data?.subscriptions) ? state.data.subscriptions : [];
-  return (
-    <>
-      <div className="page-header">
-        <div>
-          <div className="section-title">App Store</div>
-          <div className="section-sub">Live campaign templates and installed subscriptions</div>
-        </div>
-      </div>
-      <div className="card">
-        <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Available Templates ({templates.length})</div></div>
-        <div className="card-body">
-          {templates.length === 0 && <div style={{ color: "var(--muted)" }}>No templates available.</div>}
-          {templates.slice(0, 12).map((t) => (
-            <div key={t.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{t.name}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>{t.category}</div>
-              </div>
-              <div style={{ fontWeight: 700 }}>{t.isPaid ? `₹${t.price}` : "Free"}</div>
+          <div className="config-section">
+            <div className="config-section-title"><span style={{fontSize:22}}>{sel.emoji}</span>{sel.name} — {sel.plan?.name} Plan{testMode&&<span className="badge badge-warning" style={{marginLeft:8}}>Test Mode</span>}</div>
+            <div className="info-box info"><Icon name="info" size={14}/><span>Plan: <strong>{sel.plan?.name}</strong> · {sel.plan?.price?`₹${sel.plan?.price.toLocaleString('en-IN')}/mo`:'Free'} · Renews 15th monthly</span></div>
+            <div className="toggle-row"><div className="toggle-info"><div className="toggle-info-label">Test Mode {testMode?'ON':'OFF'}</div><div className="toggle-info-sub">{testMode?'⚠️ Real transactions not processed. Switch live before accepting orders.':'✅ Live mode — real transactions active.'}</div></div><button className={`toggle-switch ${testMode?'on':'off'}`} onClick={()=>{setTestMode(!testMode);toast(`${sel.name} → ${!testMode?'Test':'Live'} mode`,'success');}}/></div>
+            <div className="divider"/>
+            <div style={{fontWeight:700,fontSize:13,marginBottom:12,display:'flex',alignItems:'center',gap:7}}><Icon name="lock" size={13}/> API Credentials</div>
+            <div className="grid-2">
+              {(sel.creds||['API Key','Secret Key']).slice(0,4).map((cred,i)=><div className="form-group" key={cred}><label className="form-label">{cred}</label><div className="credential-field"><span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis'}}>{i===0?`${sel.id.includes('razorpay')?'rzp_test':'key'}_••••••••••••••••`:'••••••••••••••••••••'}</span><button className="btn btn-ghost btn-sm" style={{padding:'2px 5px'}} onClick={()=>toast('Copied!','success')}><Icon name="copy" size={11}/></button></div><button style={{background:'none',border:'none',color:'var(--primary)',fontSize:11.5,cursor:'pointer',fontWeight:600,padding:'3px 0'}} onClick={()=>toast('Edit credential mode')}>✏️ Update credential</button></div>)}
             </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ height: 14 }} />
-      <div className="card">
-        <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Installed ({subscriptions.length})</div></div>
-        <div className="card-body">
-          {subscriptions.length === 0 && <div style={{ color: "var(--muted)" }}>No installed apps.</div>}
-          {subscriptions.slice(0, 12).map((s) => (
-            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{s.templateName}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>{s.status} • {s.billingStatus}</div>
-              </div>
-              <div style={{ fontWeight: 700 }}>₹{Number(s.chargedAmount || 0).toFixed(2)}</div>
+            {sel.webhook&&<div className="form-group"><label className="form-label">Webhook Endpoint URL</label><div className="credential-field"><span>https://api.sitesellr.com/webhooks/{sel.id}/store-abc123</span><button className="btn btn-ghost btn-sm" style={{padding:'2px 5px'}} onClick={()=>toast('Webhook URL copied!','success')}><Icon name="copy" size={11}/></button></div><div className="form-hint">Add this URL to your {sel.name} dashboard → Webhooks.</div></div>}
+            <div className="divider"/>
+            <div className="flex items-center justify-between">
+              <button className="btn btn-ghost" style={{color:'var(--danger)',fontSize:12.5}}><Icon name="trash" size={12}/> Uninstall</button>
+              <div className="flex gap-8"><button className="btn btn-outline" onClick={()=>toast('Settings saved!','success')}>Save Changes</button><button className="btn btn-primary" onClick={()=>toast(`Testing ${sel.name} connection...`,'success')}>Test Connection</button></div>
             </div>
-          ))}
+          </div>
+          <div className="config-section">
+            <div className="config-section-title"><Icon name="revenue" size={14}/> Billing History</div>
+            <div className="table-wrap">
+              <table><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th>Invoice</th></tr></thead>
+              <tbody>{[{date:'2025-02-01'},{date:'2025-01-01'},{date:'2024-12-01'}].map((row,i)=><tr key={i}><td className="td-mono">{row.date}</td><td>{sel.name} — {sel.plan?.name}</td><td style={{fontWeight:600}}>{sel.plan?.price===0?'—':`₹${Math.round((sel.plan?.price||0)*1.18).toLocaleString('en-IN')}`}</td><td><span className="badge badge-success">Paid</span></td><td><button className="btn btn-ghost btn-sm" onClick={()=>toast('Downloading invoice...')}><Icon name="copy" size={11}/> PDF</button></td></tr>)}</tbody></table>
+            </div>
+          </div>
+          {(caps || usage) && (
+            <div className="config-section">
+              <div className="config-section-title">Store Plan Capabilities</div>
+              <div className="grid-2">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Allowed Theme Tier</label>
+                  <input className="form-input" value={caps?.allowedThemeTier || "-"} readOnly />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Max Plugins Installed</label>
+                  <input className="form-input" value={String(caps?.maxPluginsInstalled ?? "-")} readOnly />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Current Products</label>
+                  <input className="form-input" value={String(usage?.currentProducts ?? "-")} readOnly />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Current Gateways</label>
+                  <input className="form-input" value={String(usage?.currentPaymentGateways ?? "-")} readOnly />
+                </div>
+              </div>
+            </div>
+          )}
+          {error && <div style={{marginTop:12,color:"var(--danger)",fontSize:12.5}}>{error}</div>}
         </div>
       </div>
-      <StoreApiNotice error={state.error} />
-    </>
+    </div>
   );
 }
 
-function PlatformDashboardApi() {
-  const [state, setState] = useState({ loading: true, error: "", data: {} });
+// ─── PLATFORM APP MANAGER ────────────────────────────────────────────────────
+function PlatformAppManager({ toast }) {
+  const [apps, setApps] = useState(APPS.map(a=>({...a,status:a.featured?'active':Math.random()>.2?'active':'inactive',totalRevenue:Math.floor(Math.random()*500000+50000),installs:Math.floor(Math.random()*500+20),commissionPct:20})));
+  const [search, setSearch] = useState('');
+  const [catFilter, setCatFilter] = useState('All');
+  const [editApp, setEditApp] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [backendStats, setBackendStats] = useState(null);
+  const [error, setError] = useState("");
+
   useEffect(() => {
     let mounted = true;
     const run = async () => {
-      setState({ loading: true, error: "", data: {} });
-      try {
-        const [payments, billing, plugins] = await Promise.all([
-          api.get("/platform/owner/payments"),
-          api.get("/platform/owner/billing"),
-          api.get("/platform/owner/plugins"),
-        ]);
-        if (!mounted) return;
-        setState({ loading: false, error: "", data: { payments: payments.data, billing: billing.data, plugins: plugins.data } });
-      } catch (err) {
-        if (!mounted) return;
-        setState({ loading: false, error: err?.response?.data?.error || "Could not load platform dashboard.", data: {} });
-      }
-    };
-    run();
-    return () => { mounted = false; };
-  }, []);
-
-  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading dashboard...</h3></div>;
-  const p = state.data.payments || {};
-  const b = state.data.billing || {};
-  const pl = state.data.plugins || {};
-  return (
-    <>
-      <div className="page-header">
-        <div><div className="section-title">Platform Dashboard</div><div className="section-sub">Live platform metrics from backend</div></div>
-      </div>
-      <div className="stats-grid">
-        {[
-          { icon: "💳", label: "Transactions", val: `${p.totalTransactions || 0}`, delta: `${p.paymentSuccessRate || 0}% success`, trend: "up", color: "#eff6ff" },
-          { icon: "💰", label: "Gross Volume", val: `₹${Number(p.grossVolume || 0).toFixed(2)}`, delta: `${p.paidTransactions || 0} paid`, trend: "up", color: "#f0fdf4" },
-          { icon: "🧾", label: "Active Subs", val: `${b.activeSubscriptions || 0}`, delta: `${b.trialSubscriptions || 0} trials`, trend: "up", color: "#fdf4ff" },
-          { icon: "🧩", label: "Themes", val: `${pl.themesTotal || 0}`, delta: `${pl.themesActive || 0} active`, trend: "up", color: "#fffbeb" },
-        ].map((s) => (
-          <div key={s.label} className="stat-card">
-            <div className="stat-icon" style={{ background: s.color }}>{s.icon}</div>
-            <div><div className="stat-val">{s.val}</div><div className="stat-label">{s.label}</div><div className={`stat-delta ${s.trend}`}>{s.delta}</div></div>
-          </div>
-        ))}
-      </div>
-      <StoreApiNotice error={state.error} />
-    </>
-  );
-}
-
-function PlatformMarketplaceApi() {
-  const [state, setState] = useState({ loading: true, error: "", data: null });
-  useEffect(() => {
-    let mounted = true;
-    const run = async () => {
-      setState({ loading: true, error: "", data: null });
       try {
         const res = await api.get("/platform/owner/plugins");
         if (!mounted) return;
-        setState({ loading: false, error: "", data: res.data });
+        setBackendStats(res.data || null);
       } catch (err) {
         if (!mounted) return;
-        setState({ loading: false, error: err?.response?.data?.error || "Could not load marketplace.", data: null });
+        setError(toErrorText(err, "Could not load marketplace stats."));
       }
     };
     run();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
-  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading marketplace...</h3></div>;
-  const d = state.data || {};
+
+  const filtered = apps.filter(a=>(catFilter==='All'||a.cat===catFilter)&&(a.name.toLowerCase().includes(search.toLowerCase())||a.cat.toLowerCase().includes(search.toLowerCase())));
+  const totalRev = backendStats ? Number(backendStats.campaignEvents?.reduce((sum, ev) => sum + Number(ev.amount || 0), 0) || 0) : apps.reduce((s,a)=>s+a.totalRevenue,0);
+  const totalInst = backendStats ? Number(backendStats.themesTotal || 0) + Number(backendStats.campaignTemplatesTotal || 0) : apps.reduce((s,a)=>s+a.installs,0);
+  const activeCount = backendStats ? Number(backendStats.themesActive || 0) : apps.filter(a=>a.status==='active').length;
+
   return (
-    <div className="card">
-      <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>App Marketplace (Backend)</div></div>
-      <div className="card-body">
-        <div className="grid-3">
-          <div><div className="form-label">Themes Total</div><div>{d.themesTotal || 0}</div></div>
-          <div><div className="form-label">Campaign Templates</div><div>{d.campaignTemplatesTotal || 0}</div></div>
-          <div><div className="form-label">Kill Switch</div><div>{d.killSwitch ? "Enabled" : "Disabled"}</div></div>
+    <div>
+      <div className="page-header"><div><div className="page-title">App Marketplace Management</div><div className="page-sub">Control which apps are available, set pricing & commission rates</div></div><button className="btn btn-primary" onClick={()=>setShowAdd(true)}><Icon name="plus" size={14}/> Add New App</button></div>
+      <div className="stats-grid">
+        {[{icon:'🏪',label:'Total Apps',val:apps.length,delta:'+2 this month',color:'#eff6ff'},{icon:'✅',label:'Active Apps',val:activeCount,delta:`${apps.length-activeCount} inactive`,color:'#f0fdf4'},{icon:'📦',label:'Total Installs',val:totalInst.toLocaleString(),delta:'+128 this month',color:'#fdf4ff'},{icon:'💰',label:'Platform Revenue',val:`₹${(totalRev/100000).toFixed(1)}L`,delta:'+18% vs last month',color:'#fffbeb'}].map(s=><div key={s.label} className="stat-card"><div className="stat-icon" style={{background:s.color}}>{s.icon}</div><div><div className="stat-val">{s.val}</div><div className="stat-label">{s.label}</div><div className="stat-delta up">{s.delta}</div></div></div>)}
+      </div>
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center gap-10" style={{flexWrap:'wrap',flex:1}}>
+            <div className="search-bar" style={{maxWidth:280}}><span className="search-icon"><Icon name="search" size={13}/></span><input placeholder="Search apps..." value={search} onChange={e=>setSearch(e.target.value)}/></div>
+            <div className="cat-filter" style={{marginBottom:0}}>{CATEGORIES.map(c=><button key={c} className={`cat-btn ${catFilter===c?'active':''}`} onClick={()=>setCatFilter(c)}>{CAT_ICONS[c]||''} {c}</button>)}</div>
+          </div>
+        </div>
+        <div className="table-wrap" style={{borderRadius:0,border:'none',borderTop:'1px solid var(--border)'}}>
+          <table>
+            <thead><tr><th>App</th><th>Category</th><th>Base Price</th><th>Commission</th><th>Installs</th><th>Revenue</th><th>Status</th><th>Featured</th><th>Actions</th></tr></thead>
+            <tbody>{filtered.map(app=><tr key={app.id}>
+              <td><div className="flex items-center gap-10"><div style={{width:34,height:34,borderRadius:8,background:app.color+'22',display:'grid',placeItems:'center',fontSize:17,flexShrink:0}}>{app.emoji}</div><div><div className="td-bold">{app.name}</div><div style={{fontSize:11,color:'var(--muted)'}}>★ {app.rating} ({app.reviews.toLocaleString()})</div></div></div></td>
+              <td><span className="badge badge-muted">{app.cat}</span></td>
+              <td>{app.pricing[0].price===0?<span style={{color:'var(--success)',fontWeight:600}}>Free</span>:`₹${app.pricing[0].price.toLocaleString()}/mo`}</td>
+              <td><div className="flex items-center gap-5"><input style={{width:46,padding:'3px 7px',border:'1px solid var(--border)',borderRadius:5,fontSize:11.5,textAlign:'center'}} type="number" value={app.commissionPct} onChange={e=>setApps(p=>p.map(a=>a.id===app.id?{...a,commissionPct:parseInt(e.target.value)||0}:a))}/><span style={{fontSize:11.5,color:'var(--muted)'}}>%</span></div></td>
+              <td>{app.installs}</td>
+              <td style={{fontWeight:700,color:'var(--success)'}}>₹{(app.totalRevenue/1000).toFixed(0)}K</td>
+              <td><button className={`toggle-switch ${app.status==='active'?'on':'off'}`} onClick={()=>{setApps(p=>p.map(a=>a.id===app.id?{...a,status:a.status==='active'?'inactive':'active'}:a));toast(`${app.name} ${app.status==='active'?'deactivated':'activated'}`,'success');}}/></td>
+              <td><button className={`toggle-switch ${app.featured?'on':'off'}`} style={{'--primary':'#f59e0b'}} onClick={()=>{setApps(p=>p.map(a=>a.id===app.id?{...a,featured:!a.featured}:a));toast(`${app.name} featured ${app.featured?'removed':'added'}`,'success');}}/></td>
+              <td><div className="flex items-center gap-5"><button className="btn btn-ghost btn-sm" onClick={()=>setEditApp(app)}><Icon name="tag" size={13}/></button></div></td>
+            </tr>)}</tbody>
+          </table>
         </div>
       </div>
-      <StoreApiNotice error={state.error} />
+
+      {editApp&&<div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setEditApp(null)}><div className="modal"><div className="modal-header"><div><div className="modal-title">Edit Pricing — {editApp.name}</div></div><button className="modal-close" onClick={()=>setEditApp(null)}><Icon name="x" size={14}/></button></div><div className="modal-body">{editApp.pricing.map((plan,idx)=><div key={plan.id} style={{border:'1px solid var(--border)',borderRadius:'var(--r-sm)',padding:14,marginBottom:10}}><div className="flex items-center justify-between mb-12"><div style={{fontWeight:700,fontSize:13.5}}>{plan.name} Plan</div>{plan.popular&&<span className="badge badge-new">Popular</span>}</div><div className="grid-2"><div className="form-group" style={{marginBottom:0}}><label className="form-label">Monthly Price (₹)</label><input className="form-input" type="number" defaultValue={plan.price||0} onChange={e=>{const newApps=apps.map(a=>a.id===editApp.id?{...a,pricing:a.pricing.map((p,i)=>i===idx?{...p,price:parseInt(e.target.value)||0}:p)}:a);setApps(newApps);setEditApp(newApps.find(a=>a.id===editApp.id));}}/></div><div className="form-group" style={{marginBottom:0}}><label className="form-label">Transaction Fee</label><input className="form-input" type="text" defaultValue={plan.txnFee||'N/A'}/></div></div></div>)}</div><div className="modal-footer"><button className="btn btn-outline" onClick={()=>setEditApp(null)}>Cancel</button><button className="btn btn-primary" onClick={()=>{toast(`${editApp.name} pricing updated`,'success');setEditApp(null);}}>Save Pricing</button></div></div></div>}
+
+      {showAdd&&<div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}><div className="modal"><div className="modal-header"><div className="modal-title">Add New App to Marketplace</div><button className="modal-close" onClick={()=>setShowAdd(false)}><Icon name="x" size={14}/></button></div><div className="modal-body"><div className="grid-2"><div className="form-group"><label className="form-label">App Name <span style={{color:'var(--danger)'}}>*</span></label><input className="form-input" placeholder="e.g. Shiprocket"/></div><div className="form-group"><label className="form-label">Category <span style={{color:'var(--danger)'}}>*</span></label><select className="form-input form-select">{CATEGORIES.slice(1).map(c=><option key={c}>{c}</option>)}</select></div><div className="form-group"><label className="form-label">Emoji Icon</label><input className="form-input" placeholder="🚀"/></div><div className="form-group"><label className="form-label">Brand Color</label><input className="form-input" type="color" defaultValue="#2563EB"/></div></div><div className="form-group"><label className="form-label">Tagline</label><input className="form-input" placeholder="Short description shown on the card"/></div><div className="form-group"><label className="form-label">Full Description</label><textarea className="form-input" rows="3" placeholder="Detailed description..." style={{resize:'vertical'}}/></div><div className="grid-2"><div className="form-group"><label className="form-label">Starting Price (₹/mo)</label><input className="form-input" type="number" placeholder="0 for free"/></div><div className="form-group"><label className="form-label">Commission Rate (%)</label><input className="form-input" type="number" defaultValue="20"/></div></div></div><div className="modal-footer"><button className="btn btn-outline" onClick={()=>setShowAdd(false)}>Cancel</button><button className="btn btn-primary" onClick={()=>{toast('App added to marketplace!','success');setShowAdd(false);}}>Add App</button></div></div></div>}
+      {error && <div style={{marginTop:12,color:"var(--danger)",fontSize:12.5}}>{error}</div>}
     </div>
   );
 }
 
-function PlatformRevenueApi() {
-  const [state, setState] = useState({ loading: true, error: "", data: null });
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+function Dashboard({ role, toast, setPage, storeId }) {
+  const isPlatform = role==="platform";
+  const [apiState, setApiState] = useState({ loading: true, error: "", data: null });
+  const revData = [62, 78, 55, 88, 95, 71, 108, 125, 99, 142, 155, 178];
+  const maxRev = Math.max(...revData);
+  const months = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+
   useEffect(() => {
     let mounted = true;
     const run = async () => {
-      setState({ loading: true, error: "", data: null });
       try {
-        const res = await api.get("/platform/owner/reports");
+        setApiState({ loading: true, error: "", data: null });
+        if (isPlatform) {
+          const [payments, billing, plugins] = await Promise.all([
+            api.get("/platform/owner/payments"),
+            api.get("/platform/owner/billing"),
+            api.get("/platform/owner/plugins"),
+          ]);
+          if (!mounted) return;
+          setApiState({ loading: false, error: "", data: { payments: payments.data, billing: billing.data, plugins: plugins.data } });
+          return;
+        }
+        if (!storeId) {
+          setApiState({ loading: false, error: "Store is not selected.", data: null });
+          return;
+        }
+        const [dashboardRes, marketingRes] = await Promise.all([
+          api.get(`/stores/${storeId}/insights/dashboard`),
+          api.get(`/stores/${storeId}/insights/marketing`),
+        ]);
         if (!mounted) return;
-        setState({ loading: false, error: "", data: res.data });
+        setApiState({ loading: false, error: "", data: { dashboard: dashboardRes.data, marketing: marketingRes.data } });
       } catch (err) {
         if (!mounted) return;
-        setState({ loading: false, error: err?.response?.data?.error || "Could not load revenue data.", data: null });
+        setApiState({ loading: false, error: toErrorText(err, "Could not load dashboard data."), data: null });
       }
     };
     run();
-    return () => { mounted = false; };
-  }, []);
-  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading revenue...</h3></div>;
-  const list = Array.isArray(state.data?.paidByMonth) ? state.data.paidByMonth : [];
+    return () => {
+      mounted = false;
+    };
+  }, [isPlatform, storeId]);
+
+  const platformCards = isPlatform
+    ? [
+        {
+          icon: "🏪",
+          label: "Active Stores",
+          val: `${apiState.data?.billing?.activeSubscriptions ?? "0"}`,
+          delta: `${apiState.data?.billing?.trialSubscriptions ?? 0} trials`,
+          color: "#eff6ff",
+        },
+        {
+          icon: "💰",
+          label: "Gross Volume",
+          val: `₹${Number(apiState.data?.payments?.grossVolume || 0).toFixed(0)}`,
+          delta: `${apiState.data?.payments?.paymentSuccessRate || 0}% success`,
+          color: "#f0fdf4",
+        },
+        {
+          icon: "📦",
+          label: "Themes",
+          val: `${apiState.data?.plugins?.themesTotal ?? 0}`,
+          delta: `${apiState.data?.plugins?.themesActive ?? 0} active`,
+          color: "#fdf4ff",
+        },
+        {
+          icon: "⭐",
+          label: "Campaign Templates",
+          val: `${apiState.data?.plugins?.campaignTemplatesTotal ?? 0}`,
+          delta: `${apiState.data?.plugins?.campaignTemplatesActive ?? 0} active`,
+          color: "#fffbeb",
+        },
+      ]
+    : [
+        {
+          icon: "🛒",
+          label: "Total Orders",
+          val: `${apiState.data?.dashboard?.metrics?.totalOrders ?? 0}`,
+          delta: `${apiState.data?.dashboard?.metrics?.ordersChange ?? 0}% change`,
+          color: "#eff6ff",
+        },
+        {
+          icon: "💰",
+          label: "Revenue (MTD)",
+          val: `₹${Number(apiState.data?.dashboard?.metrics?.totalRevenue || 0).toFixed(0)}`,
+          delta: `${apiState.data?.dashboard?.metrics?.revenueChange ?? 0}% change`,
+          color: "#f0fdf4",
+        },
+        {
+          icon: "📦",
+          label: "Templates",
+          val: `${apiState.data?.marketing?.templates?.length ?? 0}`,
+          delta: `${apiState.data?.marketing?.subscriptions?.length ?? 0} installed`,
+          color: "#fdf4ff",
+        },
+        {
+          icon: "🚀",
+          label: "Active Campaigns",
+          val: `${apiState.data?.marketing?.metrics?.activeCampaigns ?? 0}`,
+          delta: `Spend ₹${Number(apiState.data?.marketing?.metrics?.marketingSpend || 0).toFixed(0)}`,
+          color: "#fffbeb",
+        },
+      ];
+
   return (
-    <div className="card">
-      <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Revenue by Month</div></div>
-      <div className="card-body">
-        {list.length === 0 && <div style={{ color: "var(--muted)" }}>No data</div>}
-        {list.map((x) => (
-          <div key={x.key} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-            <div>{x.key}</div>
-            <div style={{ fontWeight: 700 }}>₹{Number(x.revenue || 0).toFixed(2)} ({x.transactions || 0})</div>
-          </div>
-        ))}
+    <div>
+      <div className="page-header">
+        <div><div className="page-title">{isPlatform?'Platform Dashboard':'Store Dashboard'}</div><div className="page-sub">{isPlatform?'Overview of all tenants, app revenue & marketplace performance':'Welcome back! Your store health at a glance.'}</div></div>
+        {!isPlatform&&<button className="btn btn-primary" onClick={()=>setPage('app-store')}><Icon name="apps" size={14}/> Browse Apps</button>}
       </div>
-      <StoreApiNotice error={state.error} />
+      <div className="stats-grid">
+        {platformCards.map(s=><div key={s.label} className="stat-card"><div className="stat-icon" style={{background:s.color}}>{s.icon}</div><div><div className="stat-val">{s.val}</div><div className="stat-label">{s.label}</div><div className="stat-delta up">{s.delta}</div></div></div>)}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:18,marginBottom:18}}>
+        <div className="card">
+          <div className="card-header"><div className="card-title">Monthly Revenue</div><span className="badge badge-success">+28% YoY</span></div>
+          <div className="card-body">
+            <div className="rev-bars">
+              {revData.map((v,i)=><div key={i} className="rev-bar-col"><div className="rev-bar" style={{height:`${(v/maxRev)*80}px`}} title={`₹${v}K`}/><div className="rev-label">{months[i]}</div></div>)}
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-header"><div className="card-title">{isPlatform?'Top Revenue Apps':'My Apps Status'}</div></div>
+          <div style={{padding:0}}>
+            {(isPlatform?APPS.slice(0,5):APPS.slice(0,3)).map((app,i)=><div key={app.id} style={{display:'flex',alignItems:'center',gap:11,padding:'11px 18px',borderBottom:i<4?'1px solid var(--border)':'none'}}><span style={{fontSize:22}}>{app.emoji}</span><div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13}}>{app.name}</div><div style={{fontSize:11,color:'var(--muted)'}}>{app.cat}</div></div>{isPlatform?<div style={{fontWeight:700,fontSize:13,color:'var(--success)'}}>₹{(Math.random()*50+10).toFixed(0)}K</div>:<span className="badge badge-success">Active</span>}</div>)}
+          </div>
+        </div>
+      </div>
+      {!isPlatform&&<div className="card"><div className="card-header"><div className="card-title">⚠️ Action Required</div></div><div className="card-body"><div className="info-box warning"><Icon name="info" size={14}/><span><strong>Razorpay is in Test Mode.</strong> You cannot accept real payments. <button style={{background:'none',border:'none',color:'var(--primary)',fontWeight:700,cursor:'pointer',fontSize:13}} onClick={()=>setPage('app-settings')}>Switch to Live →</button></span></div><div className="info-box info"><Icon name="info" size={14}/><span><strong>WhatsApp Business API not installed.</strong> Reach 300M+ users with order updates. <button style={{background:'none',border:'none',color:'var(--primary)',fontWeight:700,cursor:'pointer',fontSize:13}} onClick={()=>setPage('app-store')}>Install now →</button></span></div></div></div>}
+      {apiState.error && <div style={{marginTop:12,color:"var(--danger)",fontSize:12.5}}>{apiState.error}</div>}
     </div>
   );
 }
 
-function PlatformTenantsApi() {
-  const [state, setState] = useState({ loading: true, error: "", stores: [], merchants: [] });
+// ─── PLATFORM REVENUE ────────────────────────────────────────────────────────
+function PlatformRevenue({ toast }) {
+  const [state, setState] = useState({ loading: true, error: "", reports: null, plugins: null });
   useEffect(() => {
     let mounted = true;
     const run = async () => {
-      setState({ loading: true, error: "", stores: [], merchants: [] });
       try {
+        setState({ loading: true, error: "", reports: null, plugins: null });
+        const [reportsRes, pluginsRes] = await Promise.all([
+          api.get("/platform/owner/reports"),
+          api.get("/platform/owner/plugins"),
+        ]);
+        if (!mounted) return;
+        setState({ loading: false, error: "", reports: reportsRes.data || {}, plugins: pluginsRes.data || {} });
+      } catch (err) {
+        if (!mounted) return;
+        setState({ loading: false, error: toErrorText(err, "Could not load revenue data."), reports: null, plugins: null });
+      }
+    };
+    run();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const reportRows = Array.isArray(state.reports?.paidByMonth) ? state.reports.paidByMonth : [];
+  const data = APPS.map((a, idx) => ({
+    ...a,
+    revenue: Number(reportRows[idx % Math.max(reportRows.length, 1)]?.revenue || 0),
+    installs: Math.floor(Math.random() * 400 + 20),
+    commission: 20,
+  }));
+  const totalRevenue = reportRows.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
+  const totalTransactions = reportRows.reduce((sum, row) => sum + Number(row.transactions || 0), 0);
+  return (
+    <div>
+      <div className="page-header"><div><div className="page-title">Revenue & Analytics</div><div className="page-sub">Track app marketplace revenue, commissions & store subscription metrics</div></div><button className="btn btn-outline" onClick={()=>toast('Exporting CSV...')}><Icon name="copy" size={13}/> Export CSV</button></div>
+      <div className="stats-grid">{[{icon:'💰',label:'Total Revenue',val:`₹${totalRevenue.toFixed(0)}`,color:'#eff6ff'},{icon:'📊',label:'Commission Revenue',val:`₹${(totalRevenue*0.2).toFixed(0)}`,color:'#f0fdf4'},{icon:'📈',label:'Transactions',val:`${totalTransactions}`,color:'#fdf4ff'},{icon:'🏪',label:'Themes Active',val:`${state.plugins?.themesActive || 0}`,color:'#fffbeb'}].map(s=><div key={s.label} className="stat-card"><div className="stat-icon" style={{background:s.color}}>{s.icon}</div><div><div className="stat-val">{s.val}</div><div className="stat-label">{s.label}</div></div></div>)}</div>
+      <div className="card">
+        <div className="table-wrap" style={{border:'none',borderRadius:0}}>
+          <table><thead><tr><th>App</th><th>Category</th><th>Installs</th><th>MRR</th><th>Commission %</th><th>Your Share</th></tr></thead>
+          <tbody>{data.sort((a,b)=>b.revenue-a.revenue).map(app=><tr key={app.id}><td><div className="flex items-center gap-9"><span style={{fontSize:18}}>{app.emoji}</span><div className="td-bold">{app.name}</div></div></td><td><span className="badge badge-muted">{app.cat}</span></td><td>{app.installs}</td><td style={{fontWeight:600}}>₹{(app.revenue/1000).toFixed(0)}K</td><td><div className="flex items-center gap-5"><input style={{width:44,padding:'3px 6px',border:'1px solid var(--border)',borderRadius:5,fontSize:11.5,textAlign:'center'}} type="number" defaultValue={app.commission}/><span style={{fontSize:11,color:'var(--muted)'}}>%</span></div></td><td style={{fontWeight:700,color:'var(--success)'}}>₹{(app.revenue*.2/1000).toFixed(0)}K</td></tr>)}</tbody></table>
+        </div>
+      </div>
+      {state.error && <div style={{marginTop:12,color:"var(--danger)",fontSize:12.5}}>{state.error}</div>}
+    </div>
+  );
+}
+
+// ─── PLATFORM SETTINGS ───────────────────────────────────────────────────────
+function PlatformSettings({ toast }) {
+  const [settings, setSettings] = useState({ platformName:'Sitesellr',platformDomain:'sitesellr.com',supportEmail:'support@sitesellr.com',enableTrials:true,trialDays:14,defaultCurrency:'INR',commissionRate:20,killSwitch:false,maintenanceMode:false,maxStoresPerMerchant:5,allowCustomDomains:true });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const set = (k,v) => setSettings(p=>({...p,[k]:v}));
+  const tiers = [{name:'Starter',price:'₹999/mo',products:100,categories:10,plugins:3,customDomain:false},{name:'Growth',price:'₹2,999/mo',products:1000,categories:50,plugins:10,customDomain:true},{name:'Pro',price:'₹7,999/mo',products:'Unlimited',categories:'Unlimited',plugins:'Unlimited',customDomain:true}];
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const [cfgRes, pluginsRes] = await Promise.all([
+          api.get("/platform/owner/config"),
+          api.get("/platform/owner/plugins"),
+        ]);
+        if (!mounted) return;
+        setSettings((p) => ({
+          ...p,
+          supportEmail: cfgRes.data?.communicationProvider || p.supportEmail,
+          killSwitch: Boolean(pluginsRes.data?.killSwitch),
+          platformDomain: "sitesellr.com",
+        }));
+      } catch (err) {
+        if (!mounted) return;
+        setError(toErrorText(err, "Could not load platform settings."));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    run();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const savePlatform = async () => {
+    try {
+      setError("");
+      await api.put("/platform/owner/config", {
+        paymentGatewayProvider: settings.platformName || "default",
+        taxGstPercent: String(settings.commissionRate || 18),
+        featureFlagsJson: JSON.stringify({
+          maintenanceMode: settings.maintenanceMode,
+          enableTrials: settings.enableTrials,
+          allowCustomDomains: settings.allowCustomDomains,
+        }),
+        limitsJson: JSON.stringify({
+          maxStoresPerMerchant: settings.maxStoresPerMerchant,
+          trialDays: settings.trialDays,
+        }),
+        communicationProvider: settings.supportEmail || "smtp",
+        regionRulesJson: "{}",
+        corsOriginsCsv: "*",
+      });
+      await api.put("/platform/owner/plugins/kill-switch", { enabled: settings.killSwitch });
+      toast("Platform settings saved!", "success");
+    } catch (err) {
+      const message = toErrorText(err, "Could not save platform settings.");
+      setError(message);
+      toast(message, "error");
+    }
+  };
+  return (
+    <div>
+      <div className="page-header"><div><div className="page-title">Platform Settings</div><div className="page-sub">Configure global platform behavior, subscription tiers & billing</div></div><button className="btn btn-primary" onClick={savePlatform} disabled={loading}>Save Changes</button></div>
+      <div className="grid-2">
+        <div>
+          <div className="config-section">
+            <div className="config-section-title">🏢 Platform Identity</div>
+            <div className="form-group"><label className="form-label">Platform Name</label><input className="form-input" value={settings.platformName} onChange={e=>set('platformName',e.target.value)}/></div>
+            <div className="form-group"><label className="form-label">Platform Domain</label><input className="form-input" value={settings.platformDomain} onChange={e=>set('platformDomain',e.target.value)}/></div>
+            <div className="form-group"><label className="form-label">Support Email</label><input className="form-input" type="email" value={settings.supportEmail} onChange={e=>set('supportEmail',e.target.value)}/></div>
+            <div className="form-group"><label className="form-label">Default Currency</label><select className="form-input form-select" value={settings.defaultCurrency} onChange={e=>set('defaultCurrency',e.target.value)}><option value="INR">INR (₹)</option><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option></select></div>
+          </div>
+          <div className="config-section">
+            <div className="config-section-title">⚙️ Store Limits</div>
+            <div className="form-group"><label className="form-label">Max Stores per Merchant</label><input className="form-input" type="number" value={settings.maxStoresPerMerchant} onChange={e=>set('maxStoresPerMerchant',parseInt(e.target.value)||1)}/></div>
+            <div className="form-group"><label className="form-label">Default Commission Rate (%)</label><input className="form-input" type="number" value={settings.commissionRate} onChange={e=>set('commissionRate',parseInt(e.target.value)||0)}/></div>
+            <div className="toggle-row"><div className="toggle-info"><div className="toggle-info-label">Allow Custom Domains</div><div className="toggle-info-sub">Let stores use their own domains</div></div><button className={`toggle-switch ${settings.allowCustomDomains?'on':'off'}`} onClick={()=>set('allowCustomDomains',!settings.allowCustomDomains)}/></div>
+          </div>
+        </div>
+        <div>
+          <div className="config-section">
+            <div className="config-section-title">🧪 Trial Settings</div>
+            <div className="toggle-row"><div className="toggle-info"><div className="toggle-info-label">Enable Free Trials</div><div className="toggle-info-sub">New stores get a free trial period</div></div><button className={`toggle-switch ${settings.enableTrials?'on':'off'}`} onClick={()=>set('enableTrials',!settings.enableTrials)}/></div>
+            <div className="form-group"><label className="form-label">Trial Duration (days)</label><input className="form-input" type="number" value={settings.trialDays} onChange={e=>set('trialDays',parseInt(e.target.value)||0)} disabled={!settings.enableTrials}/></div>
+          </div>
+          <div className="config-section">
+            <div className="config-section-title">🚨 Emergency Controls</div>
+            <div className="toggle-row" style={{borderColor:settings.killSwitch?'var(--danger)':'var(--border)',background:settings.killSwitch?'var(--danger-bg)':'#fff'}}><div className="toggle-info"><div className="toggle-info-label" style={{color:settings.killSwitch?'var(--danger)':'var(--text)'}}>Kill Switch</div><div className="toggle-info-sub">Disable all marketplace apps instantly</div></div><button className={`toggle-switch ${settings.killSwitch?'on':'off'}`} style={settings.killSwitch?{'--primary':'var(--danger)'}:{}} onClick={()=>{set('killSwitch',!settings.killSwitch);toast(settings.killSwitch?'Kill switch deactivated':'⚠️ Kill switch activated! All apps disabled.',settings.killSwitch?'success':'error');}}/></div>
+            <div className="toggle-row"><div className="toggle-info"><div className="toggle-info-label">Maintenance Mode</div><div className="toggle-info-sub">Show maintenance page to all stores</div></div><button className={`toggle-switch ${settings.maintenanceMode?'on':'off'}`} onClick={()=>set('maintenanceMode',!settings.maintenanceMode)}/></div>
+          </div>
+          <div className="config-section">
+            <div className="config-section-title">💼 Subscription Tiers</div>
+            <div className="table-wrap">
+              <table className="tier-table"><thead><tr><th>Tier</th><th>Price</th><th>Products</th><th>Plugins</th><th>Domain</th></tr></thead>
+              <tbody>{tiers.map((t,i)=><tr key={i}><td style={{fontWeight:700}}>{t.name}</td><td style={{color:'var(--primary)',fontWeight:600}}>{t.price}</td><td>{t.products}</td><td>{t.plugins}</td><td>{t.customDomain?'✅':'—'}</td></tr>)}</tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+      {error && <div style={{marginTop:12,color:"var(--danger)",fontSize:12.5}}>{error}</div>}
+    </div>
+  );
+}
+
+// ─── PLATFORM TENANTS ────────────────────────────────────────────────────────
+function PlatformTenants({ toast }) {
+  const [tenants, setTenants] = useState([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      try {
+        setLoading(true);
+        setError("");
         const [storesRes, merchantsRes] = await Promise.all([api.get("/stores"), api.get("/merchants")]);
         if (!mounted) return;
-        setState({
-          loading: false,
-          error: "",
-          stores: Array.isArray(storesRes.data) ? storesRes.data : [],
-          merchants: Array.isArray(merchantsRes.data) ? merchantsRes.data : [],
+        const stores = Array.isArray(storesRes.data) ? storesRes.data : [];
+        const merchants = Array.isArray(merchantsRes.data) ? merchantsRes.data : [];
+        const rows = merchants.map((m) => {
+          const merchantStores = stores.filter((s) => s.merchantId === m.id);
+          return {
+            id: m.id,
+            name: m.name,
+            domain: m.primaryDomain || (merchantStores[0]?.subdomain ? `${merchantStores[0]?.subdomain}.sitesellr.com` : "-"),
+            plan: "Growth",
+            status: String(m.status || "").toLowerCase() || "active",
+            stores: merchantStores.length,
+            revenue: "₹0",
+            joined: m.createdAt ? new Date(m.createdAt).toISOString().slice(0, 10) : "-",
+          };
         });
+        setTenants(rows);
       } catch (err) {
         if (!mounted) return;
-        setState({ loading: false, error: err?.response?.data?.error || "Could not load tenants.", stores: [], merchants: [] });
+        setError(toErrorText(err, "Could not load tenants."));
+      } finally {
+        if (mounted) setLoading(false);
       }
     };
     run();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
-  if (state.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading tenants...</h3></div>;
+  const statusBadge = {active:'badge-success',trial:'badge-warning',suspended:'badge-danger'};
   return (
-    <div className="card">
-      <div className="card-header"><div style={{ fontWeight: 700, fontSize: 14 }}>Tenants</div></div>
-      <div className="card-body">
-        <div className="grid-3" style={{ marginBottom: 12 }}>
-          <div><div className="form-label">Merchants</div><div>{state.merchants.length}</div></div>
-          <div><div className="form-label">Stores</div><div>{state.stores.length}</div></div>
-          <div><div className="form-label">Active Stores</div><div>{state.stores.filter((s) => Number(s.status) === 1).length}</div></div>
+    <div>
+      <div className="page-header"><div><div className="page-title">Tenant Management</div><div className="page-sub">Manage all merchants & their stores</div></div><button className="btn btn-primary"><Icon name="plus" size={13}/> Add Merchant</button></div>
+      {loading && <div style={{marginBottom:12,color:"var(--muted)"}}>Loading tenants...</div>}
+      <div className="stats-grid">{[{icon:'🏪',label:'Total Merchants',val:tenants.length,color:'#eff6ff'},{icon:'✅',label:'Active',val:tenants.filter(t=>t.status==='active').length,color:'#f0fdf4'},{icon:'🧪',label:'Trials',val:tenants.filter(t=>t.status==='trial').length,color:'#fffbeb'},{icon:'⛔',label:'Suspended',val:tenants.filter(t=>t.status==='suspended').length,color:'#fef2f2'}].map(s=><div key={s.label} className="stat-card"><div className="stat-icon" style={{background:s.color}}>{s.icon}</div><div><div className="stat-val">{s.val}</div><div className="stat-label">{s.label}</div></div></div>)}</div>
+      <div className="card">
+        <div className="table-wrap" style={{border:'none',borderRadius:0}}>
+          <table><thead><tr><th>Merchant</th><th>Domain</th><th>Plan</th><th>Status</th><th>Stores</th><th>Revenue</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody>{tenants.map(t=><tr key={t.id}><td><div className="td-bold">{t.name}</div></td><td><div className="td-mono">{t.domain}</div></td><td><span className="badge badge-primary">{t.plan}</span></td><td><span className={`badge ${statusBadge[t.status]}`}>{t.status}</span></td><td>{t.stores}</td><td style={{fontWeight:600,color:'var(--success)'}}>{t.revenue}</td><td className="td-mono">{t.joined}</td><td><div className="flex gap-6"><button className="btn btn-ghost btn-sm" onClick={()=>toast(`Viewing ${t.name}`)}><Icon name="edit" size={12}/></button>{t.status==='active'&&<button className="btn btn-ghost btn-sm" style={{color:'var(--danger)'}} onClick={()=>toast(`Suspended ${t.name}`,'warning')}>⛔</button>}</div></td></tr>)}</tbody></table>
         </div>
-        {state.stores.slice(0, 12).map((s) => (
-          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-            <div>{s.name} {s.subdomain ? `(${s.subdomain})` : ""}</div>
-            <div style={{ color: "var(--muted)" }}>{s.currency || "INR"}</div>
-          </div>
-        ))}
       </div>
-      <StoreApiNotice error={state.error} />
+      {error && <div style={{marginTop:12,color:"var(--danger)",fontSize:12.5}}>{error}</div>}
     </div>
   );
 }
 
+// ─── API REQUIREMENTS PAGE ───────────────────────────────────────────────────
+function ApiRequirementsPage() {
+  const apis = [
+    {group:'Authentication',color:'#2563eb',endpoints:[{method:'GET',path:'/auth/access',desc:'Returns current user role, storeId, isPlatformOwner, userEmail',req:'JWT Bearer Token',res:'{ isPlatformOwner, currentStoreId, userEmail, permissions[] }'},{method:'POST',path:'/auth/login',desc:'Login and get access + refresh token',req:'{ email, password }',res:'{ accessToken, refreshToken, user }'},{method:'POST',path:'/auth/refresh',desc:'Refresh access token using refresh token',req:'{ refreshToken }',res:'{ accessToken }'}]},
+    {group:'Stores & Merchants',color:'#16a34a',endpoints:[{method:'GET',path:'/stores',desc:'Get all stores for current user (or all if platform owner)',req:'Header: X-Store-Id',res:'Store[]'},{method:'GET',path:'/stores/:id',desc:'Get specific store details',req:'Path: storeId',res:'Store'},{method:'POST',path:'/stores',desc:'Create a new store',req:'{ name, subdomain, currency, ... }',res:'Store'},{method:'GET',path:'/merchants',desc:'Get all merchants (platform owner only)',req:'—',res:'Merchant[]'}]},
+    {group:'Store Dashboard Insights',color:'#f97316',endpoints:[{method:'GET',path:'/stores/:id/insights/dashboard',desc:'Get store dashboard metrics (orders, revenue, customers)',req:'Path: storeId',res:'{ metrics: { totalRevenue, revenueChange, totalOrders, ordersChange, totalCustomers, conversionRate } }'},{method:'GET',path:'/stores/:id/insights/marketing',desc:'Get marketing stats and installed campaign templates',req:'Path: storeId',res:'{ metrics, templates[], subscriptions[] }'},{method:'GET',path:'/stores/:id/subscription/capabilities',desc:'Get store subscription limits & features',req:'Path: storeId',res:'{ allowedThemeTier, maxProducts, maxPluginsInstalled, ... }'},{method:'GET',path:'/stores/:id/subscription/usage',desc:'Get current usage vs limits',req:'Path: storeId',res:'{ currentProducts, currentCategories, currentPaymentGateways }'}]},
+    {group:'Platform Owner APIs',color:'#7c3aed',endpoints:[{method:'GET',path:'/platform/owner/payments',desc:'Platform-wide payment transaction stats',req:'Platform owner JWT',res:'{ totalTransactions, grossVolume, paymentSuccessRate, paidTransactions }'},{method:'GET',path:'/platform/owner/billing',desc:'Active subscriptions, trials, MRR breakdown',req:'Platform owner JWT',res:'{ activeSubscriptions, trialSubscriptions, paidByMonth[] }'},{method:'GET',path:'/platform/owner/plugins',desc:'Marketplace plugins, themes, campaign templates overview',req:'Platform owner JWT',res:'{ themesTotal, themesActive, campaignTemplatesTotal, killSwitch }'},{method:'GET',path:'/platform/owner/reports',desc:'Revenue by month, top revenue apps',req:'Platform owner JWT',res:'{ paidByMonth: [{ key, revenue, transactions }] }'}]},
+    {group:'App Marketplace (Plugins)',color:'#f59e0b',endpoints:[{method:'GET',path:'/marketplace/apps',desc:'List all marketplace apps with pricing',req:'—',res:'App[]'},{method:'POST',path:'/stores/:id/plugins/install',desc:'Install an app/plugin to a store',req:'{ appId, planId, credentials: {}, testMode }',res:'{ installation }'},{method:'DELETE',path:'/stores/:id/plugins/:appId',desc:'Uninstall an app from a store',req:'Path: storeId, appId',res:'{ success }'},{method:'GET',path:'/stores/:id/plugins',desc:'Get all installed plugins for a store',req:'Path: storeId',res:'Installation[]'},{method:'PATCH',path:'/stores/:id/plugins/:appId/mode',desc:'Switch plugin between test/live mode',req:'{ testMode: boolean }',res:'{ installation }'}]},
+    {group:'Theme Builder',color:'#ec4899',endpoints:[{method:'GET',path:'/stores/:id/theme',desc:'Get current store theme layout (sections JSON)',req:'Path: storeId',res:'{ sections[], settings, version }'},{method:'PUT',path:'/stores/:id/theme',desc:'Save theme layout as draft',req:'{ sections[], settings }',res:'{ theme, version }'},{method:'POST',path:'/stores/:id/theme/publish',desc:'Publish current draft theme to live',req:'—',res:'{ theme, publishedAt }'},{method:'GET',path:'/stores/:id/theme/versions',desc:'Get version history',req:'Path: storeId',res:'Version[]'},{method:'POST',path:'/stores/:id/theme/versions/:v/restore',desc:'Restore a specific version',req:'Path: storeId, version',res:'{ theme }'}]},
+    {group:'Navigation & Pages',color:'#0ea5e9',endpoints:[{method:'GET',path:'/stores/:id/navigation',desc:'Get all navigation menus (main, footer1, footer2)',req:'Path: storeId',res:'{ main[], footer1[], footer2[] }'},{method:'PUT',path:'/stores/:id/navigation',desc:'Save navigation menus',req:'{ main[], footer1[], footer2[] }',res:'{ navigation }'},{method:'GET',path:'/stores/:id/pages',desc:'Get all static pages',req:'Path: storeId',res:'Page[]'},{method:'POST',path:'/stores/:id/pages',desc:'Create a static page',req:'{ title, slug, body, status, seo }',res:'Page'},{method:'PUT',path:'/stores/:id/pages/:pageId',desc:'Update a static page',req:'{ title, body, status, seo }',res:'Page'}]},
+    {group:'Payment Gateway Credentials',color:'#dc2626',endpoints:[{method:'POST',path:'/stores/:id/payment-gateways',desc:'Save encrypted payment gateway credentials',req:'{ gatewayId, credentials: {}, testMode, planId }',res:'{ gateway }'},{method:'GET',path:'/stores/:id/payment-gateways',desc:'List configured payment gateways (credentials masked)',req:'Path: storeId',res:'Gateway[]'},{method:'POST',path:'/stores/:id/payment-gateways/:gId/test',desc:'Test gateway connection',req:'—',res:'{ success, latency }'},{method:'DELETE',path:'/stores/:id/payment-gateways/:gId',desc:'Remove a payment gateway',req:'Path: storeId, gatewayId',res:'{ success }'}]},
+  ];
+
+  return (
+    <div className="api-details-page">
+      <div className="page-header">
+        <div>
+          <div className="page-title">🔌 Backend API Requirements</div>
+          <div className="page-sub">All APIs needed to make the platform fully functional. Share this with your backend team.</div>
+        </div>
+        <button className="btn btn-outline" onClick={()=>{navigator.clipboard?.writeText(window.location.href);}}><Icon name="copy" size={13}/> Copy Page URL</button>
+      </div>
+
+      <div className="info-box info mb-20"><Icon name="info" size={15}/><span><strong>Base URL:</strong> All endpoints should be prefixed with your API base URL (e.g., <code>https://api.sitesellr.com/v1</code>). All requests require <code>Authorization: Bearer &lt;token&gt;</code> header unless specified.</span></div>
+
+      {apis.map(group=>(
+        <div key={group.group} className="config-section">
+          <div className="config-section-title" style={{color:group.color}}>
+            <span style={{width:10,height:10,borderRadius:'50%',background:group.color,display:'inline-block'}}/> {group.group}
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {group.endpoints.map((ep,i)=>(
+              <div key={i} style={{border:'1px solid var(--border)',borderRadius:'var(--r-sm)',overflow:'hidden'}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'var(--surface)'}}>
+                  <span style={{fontFamily:'JetBrains Mono,monospace',fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:5,background:ep.method==='GET'?'#dbeafe':ep.method==='POST'?'#dcfce7':ep.method==='PUT'?'#fef9c3':ep.method==='PATCH'?'#fdf4ff':'#fee2e2',color:ep.method==='GET'?'#1d4ed8':ep.method==='POST'?'#15803d':ep.method==='PUT'?'#92400e':ep.method==='PATCH'?'#7c3aed':'#dc2626'}}>{ep.method}</span>
+                  <code style={{fontFamily:'JetBrains Mono,monospace',fontSize:12.5,fontWeight:500,color:'var(--text)'}}>{ep.path}</code>
+                  <span style={{fontSize:12.5,color:'var(--muted)',flex:1}}>{ep.desc}</span>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,borderTop:'1px solid var(--border)'}}>
+                  <div style={{padding:'8px 14px',borderRight:'1px solid var(--border)'}}><div style={{fontSize:10,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:4}}>Request</div><code style={{fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'var(--text)'}}>{ep.req}</code></div>
+                  <div style={{padding:'8px 14px'}}><div style={{fontSize:10,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:4}}>Response</div><code style={{fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'var(--text)'}}>{ep.res}</code></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <div className="config-section">
+        <div className="config-section-title">🔐 Security Requirements</div>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {[['Credential Encryption','All API keys/secrets stored encrypted using KMS. Never returned in plain text.'],['Webhook Signature Verification','All incoming webhooks verified using HMAC-SHA256 signature.'],['Rate Limiting','API endpoints rate-limited per store (100 req/min standard, 10 req/min for auth).'],['X-Store-Id Header','After login, all store-specific requests must include X-Store-Id header.'],['Role-Based Access','Platform owner APIs blocked for store-level users. Middleware enforces scopes.'],['Credential Masking','GET endpoints return masked credentials (e.g., rzp_test_••••••••).']].map(([k,v])=>(
+            <div key={k} style={{display:'flex',gap:10,padding:'9px 13px',border:'1px solid var(--border)',borderRadius:'var(--r-sm)'}}><span style={{color:'var(--success)',fontWeight:700,flexShrink:0}}>✓</span><div><div style={{fontWeight:600,fontSize:13}}>{k}</div><div style={{fontSize:12.5,color:'var(--muted)',marginTop:2}}>{v}</div></div></div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const toErrorText = (err, fallback) =>
+  err?.response?.data?.detail || err?.response?.data?.error || err?.message || fallback;
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function StoreBuilderV1() {
-  const [role, setRole] = useState('store'); // 'platform' | 'store'
-  const [page, setPage] = useState('dashboard');
+  const [role, setRole] = useState("store");
+  const [page, setPage] = useState("dashboard");
   const [toasts, setToasts] = useState([]);
-  const [accessState, setAccessState] = useState({
+  const [access, setAccess] = useState({
     loading: true,
     error: "",
     isPlatformOwner: false,
     storeId: "",
+    storeName: "",
     userEmail: "",
   });
 
-  const showToast = (msg, type = '') => {
+  const showToast = useCallback((msg, type='') => {
     const id = Date.now();
-    setToasts(prev => [...prev, { id, msg, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
-  };
+    setToasts(p=>[...p,{id,msg,type}]);
+    setTimeout(()=>setToasts(p=>p.filter(t=>t.id!==id)),3500);
+  }, []);
 
   const platformNav = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { id: 'app-manager', label: 'App Marketplace', icon: 'apps', badge: '16' },
-    { id: 'revenue', label: 'Revenue', icon: 'revenue' },
-    { id: 'users', label: 'Tenants', icon: 'users' },
-    { id: 'theme-builder', label: 'Theme Builder', icon: 'theme', route: '/store-builder-theme' },
+    {id:'dashboard',label:'Dashboard',icon:'dashboard'},
+    {id:'app-manager',label:'App Marketplace',icon:'apps',badge:'16'},
+    {id:'revenue',label:'Revenue',icon:'revenue'},
+    {id:'tenants',label:'Tenants',icon:'users'},
+    {id:'platform-settings',label:'Settings',icon:'settings'},
+    {id:'theme-builder',label:'Theme Builder',icon:'theme'},
+    {id:'api-requirements',label:'API Requirements',icon:'api'},
   ];
-
   const storeNav = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { id: 'app-store', label: 'App Store', icon: 'apps', badge: 'NEW' },
-    { id: 'app-settings', label: 'App Settings', icon: 'settings' },
-    { id: 'theme-builder', label: 'Theme Builder', icon: 'theme', route: '/store-builder-theme' },
-    { id: 'settings-builder', label: 'Settings Builder', icon: 'settings', route: '/store-builder-settings' },
+    {id:'dashboard',label:'Dashboard',icon:'dashboard'},
+    {id:'app-store',label:'App Store',icon:'apps',badge:'NEW'},
+    {id:'app-settings',label:'App Settings',icon:'settings'},
+    {id:'theme-builder',label:'Theme Builder',icon:'theme'},
+    {id:'api-requirements',label:'API Requirements',icon:'api'},
   ];
-
-  const nav = useMemo(() => (role === 'platform' ? platformNav : storeNav), [role]);
 
   useEffect(() => {
     let mounted = true;
-    const loadAccess = async () => {
+    const load = async () => {
       try {
-        const [accessRes, storesRes] = await Promise.all([
-          api.get("/auth/access"),
-          api.get("/stores"),
-        ]);
-        if (!mounted) return;
-        const access = accessRes?.data || {};
-        const stores = Array.isArray(storesRes?.data) ? storesRes.data : [];
-        const resolvedStoreId = access.currentStoreId || stores[0]?.id || "";
-        if (resolvedStoreId) {
-          api.defaults.headers.common["X-Store-Id"] = resolvedStoreId;
+        const accessRes = await api.get("/auth/access");
+        const payload = accessRes.data || {};
+        const isPlatformOwner = Boolean(payload.isPlatformOwner || payload.isPlatformStaff);
+        let storeId = payload.currentStoreId || "";
+        let storeName = payload.currentStoreName || "";
+        if (!storeId) {
+          try {
+            const storesRes = await api.get("/stores");
+            const stores = Array.isArray(storesRes.data) ? storesRes.data : [];
+            if (stores.length > 0) {
+              storeId = stores[0].id || "";
+              storeName = stores[0].name || "";
+            }
+          } catch {
+            // ignore fallback errors
+          }
         }
-        setRole(access.isPlatformOwner ? "platform" : "store");
-        setAccessState({
+        if (!mounted) return;
+        setRole(isPlatformOwner ? "platform" : "store");
+        setAccess({
           loading: false,
           error: "",
-          isPlatformOwner: !!access.isPlatformOwner,
-          storeId: resolvedStoreId,
-          userEmail: access.userEmail || "",
+          isPlatformOwner,
+          storeId,
+          storeName,
+          userEmail: payload.userEmail || "",
         });
       } catch (err) {
         if (!mounted) return;
-        setRole("store");
-        setAccessState({
+        setAccess((p) => ({
+          ...p,
           loading: false,
-          error: err?.response?.data?.error || "Could not load access context.",
-          isPlatformOwner: false,
-          storeId: "",
-          userEmail: "",
-        });
+          error: toErrorText(err, "Could not load access context."),
+        }));
       }
     };
-    loadAccess();
-    return () => { mounted = false; };
+    load();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
+  const nav = role === "platform" ? platformNav : storeNav;
+
   const renderPage = () => {
-    if (accessState.loading) return <div className="empty-state"><div className="empty-icon">⏳</div><h3>Loading access...</h3></div>;
-    if (page === 'dashboard') return <Dashboard role={role} toast={showToast}/>;
-    if (role === 'platform') {
-      if (page === 'app-manager') return <PlatformAppManager toast={showToast}/>;
-      if (page === 'revenue') return <PlatformRevenue toast={showToast}/>;
-      if (page === 'users') return <div className="empty-state"><div className="empty-icon">🏪</div><h3>Tenant Management</h3><p>Full tenant CRUD module — included in main spec</p></div>;
+    if(page==='theme-builder') return <ThemeBuilder toast={showToast} storeId={access.storeId} />;
+    if(page==='api-requirements') return <ApiRequirementsPage/>;
+    if(page==='dashboard') return <Dashboard role={role} toast={showToast} setPage={setPage} storeId={access.storeId}/>;
+    if(role==='platform') {
+      if(page==='app-manager') return <PlatformAppManager toast={showToast}/>;
+      if(page==='revenue') return <PlatformRevenue toast={showToast}/>;
+      if(page==='tenants') return <PlatformTenants toast={showToast}/>;
+      if(page==='platform-settings') return <PlatformSettings toast={showToast}/>;
     }
-    if (role === 'store') {
-      if (page === 'app-store') return <StoreAppStore toast={showToast}/>;
-      if (page === 'app-settings') return <AppSettings toast={showToast}/>;
+    if(role==='store') {
+      if(page==='app-store') return <StoreAppStore toast={showToast} storeId={access.storeId}/>;
+      if(page==='app-settings') return <AppSettings toast={showToast} storeId={access.storeId}/>;
     }
-    return null;
+    return <Dashboard role={role} toast={showToast} setPage={setPage} storeId={access.storeId}/>;
   };
+
+  const breadcrumbs = {dashboard:'Dashboard','app-store':'App Store','app-manager':'App Marketplace','app-settings':'App Settings',revenue:'Revenue & Analytics',tenants:'Tenant Management','platform-settings':'Platform Settings','theme-builder':'Theme Builder','api-requirements':'API Requirements'};
 
   return (
     <>
       <style>{CSS}</style>
       <div className="app">
-        {/* Sidebar */}
+        {/* SIDEBAR */}
         <aside className="sidebar">
           <div className="sb-logo">
-            <div className="sb-logo-text">Sitesellr</div>
-            <div className="sb-logo-sub">Admin Panel</div>
+            <div className="sb-logo-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+            <div><div className="sb-wordmark">Sitesellr</div><div className="sb-sub">Admin Panel</div></div>
           </div>
 
-          <div style={{ margin: "10px 12px 4px", color: "#94a3b8", fontSize: 11, fontWeight: 600 }}>
-            {role === "platform" ? "Platform Owner Mode" : "Store Owner Mode"}
+          {/* Role Toggle */}
+          <div className="role-toggle">
+            <button className={`role-btn ${role==='store'?'active':''}`} onClick={()=>{setRole('store');setPage('dashboard');}}>Store</button>
+            <button className={`role-btn ${role==='platform'?'active':''}`} onClick={()=>{setRole('platform');setPage('dashboard');}} disabled={!access.isPlatformOwner}>Platform</button>
           </div>
 
           <div className="sb-section">
-            <div className="sb-section-label">{role === 'platform' ? 'Platform' : 'My Store'}</div>
-            {nav.map(item => (
-              <div
-                key={item.id}
-                className={`sb-item ${page === item.id ? 'active' : ''}`}
-                onClick={() => {
-                  if (item.route) {
-                    window.location.href = item.route;
-                    return;
-                  }
-                  setPage(item.id);
-                }}
-              >
-                <Icon name={item.icon} size={16}/>
+            <div className="sb-section-label">{role==='platform'?'Platform':'My Store'}</div>
+            {nav.map(item=>(
+              <div key={item.id} className={`sb-item ${page===item.id?'active':''}`} onClick={()=>setPage(item.id)}>
+                <Icon name={item.icon} size={14}/>
                 {item.label}
-                {item.badge && <span className="sb-badge">{item.badge}</span>}
+                {item.badge&&<span className={`sb-badge ${item.badge==='NEW'?'new':''}`}>{item.badge}</span>}
               </div>
             ))}
           </div>
 
           <div className="sb-divider"/>
-
           <div className="sb-section">
             <div className="sb-section-label">Account</div>
-            <div className="sb-item">
-              <Icon name="settings" size={16}/>Settings
-            </div>
-            <div className="sb-item">
-              <Icon name="logout" size={16}/>Logout
-            </div>
+            <div className="sb-item"><Icon name="logout" size={14}/> Logout</div>
           </div>
 
-          <div style={{ padding: '12px 20px', marginTop: 'auto' }}>
-            <div style={{ background: 'rgba(255,255,255,.06)', borderRadius: 10, padding: '12px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div className="avatar">{role === 'platform' ? 'PO' : 'SO'}</div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>
-                    {role === 'platform' ? 'Platform Owner' : 'Store Owner'}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>
-                    {accessState.userEmail || (role === 'platform' ? 'admin@sitesellr.com' : 'store@example.com')}
-                  </div>
-                </div>
+          <div className="sb-user">
+            <div className="sb-user-card">
+              <div className="sb-avatar">{role==='platform'?'PO':'SO'}</div>
+              <div>
+                <div style={{fontSize:12.5,fontWeight:700,color:'var(--text)'}}>{role==='platform'?'Platform Owner':'Store Owner'}</div>
+                <div style={{fontSize:11,color:'var(--muted)'}}>{access.userEmail || (role==='platform'?'admin@sitesellr.com':'store@example.com')}</div>
               </div>
             </div>
           </div>
         </aside>
 
-        {/* Main */}
+        {/* MAIN */}
         <main className="main">
           <div className="topbar">
-            <div style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: 'var(--text-muted)' }}>
-              {role === 'platform' ? '🌐 Platform Admin' : '🛍️ Krishna Textiles Store'}
+            <div className="tb-breadcrumb">
+              {role==='platform'?'🌐 Platform Admin':`🛍️ ${access.storeName || "My Store"}`} / <span>{breadcrumbs[page]||'Dashboard'}</span>
             </div>
-            <div className="search-bar" style={{ maxWidth: 260 }}>
-              <span className="search-icon"><Icon name="search" size={14}/></span>
-              <input placeholder="Search..." style={{ fontSize: 13 }}/>
+            <div className="search-bar">
+              <span className="search-icon"><Icon name="search" size={13}/></span>
+              <input placeholder="Search..." style={{fontSize:13}}/>
             </div>
-            <div className="avatar">{role === 'platform' ? 'PO' : 'KT'}</div>
+            <div className="sb-avatar" style={{width:34,height:34,borderRadius:9,fontSize:13}}>{role==='platform'?'PO':'KT'}</div>
           </div>
 
-          <div className="content">
-            {renderPage()}
-            <StoreApiNotice error={accessState.error} />
-          </div>
+          {page==='theme-builder'
+            ? <div style={{flex:1}}>{renderPage()}</div>
+            : <div className="content">{renderPage()}</div>
+          }
         </main>
 
         <Toast toasts={toasts}/>
       </div>
+      {access.error && <div style={{position:"fixed",bottom:18,left:18,color:"var(--danger)",fontSize:12.5,fontWeight:600,zIndex:1200}}>{access.error}</div>}
     </>
   );
 }

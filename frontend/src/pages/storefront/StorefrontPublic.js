@@ -3,6 +3,11 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import api from "../../lib/api";
 import { resolveThemeRuntime } from "./theme-runtime";
 
+const svgPlaceholder = (label, width = 1600, height = 900, bg = "#F4F4F5", fg = "#334155") =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='${width}' height='${height}'><rect width='100%' height='100%' fill='${bg}'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='${fg}' font-family='Arial' font-size='56'>${label}</text></svg>`
+  )}`;
+
 const parseJsonArray = (value) => {
   if (!value) return [];
   try {
@@ -13,14 +18,13 @@ const parseJsonArray = (value) => {
   }
 };
 
-const fallbackHeroImage =
-  "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1800&q=80";
+const fallbackHeroImage = svgPlaceholder("Sitesellr Hero", 1800, 800, "#E2E8F0", "#0F172A");
 
 const fallbackCategoryImages = [
-  "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
+  svgPlaceholder("Category 1", 900, 700, "#F8FAFC", "#334155"),
+  svgPlaceholder("Category 2", 900, 700, "#ECFEFF", "#155E75"),
+  svgPlaceholder("Category 3", 900, 700, "#FEF3C7", "#92400E"),
+  svgPlaceholder("Category 4", 900, 700, "#F3E8FF", "#6B21A8"),
 ];
 
 const isVideoMediaUrl = (url) => {
@@ -48,7 +52,7 @@ const parseAttributes = (value) => {
 const productImageUrl = (product) => {
   const media = Array.isArray(product?.media) ? product.media : [];
   const first = media.find((m) => m?.url && !isVideoMediaUrl(m.url));
-  return first?.url || "https://placehold.co/1200x1200/F4F4F5/334155?text=Product";
+  return first?.url || svgPlaceholder("Product", 1200, 1200, "#F4F4F5", "#334155");
 };
 
 const productRating = (id) => {
@@ -511,11 +515,11 @@ export default function StorefrontPublic() {
       : "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
   const heroImageFromTheme = themeAssetBase ? `${themeAssetBase}/banner.jpg` : "";
   const fallbackHeroByTheme = runtimePack.heroStyle === "cinema"
-    ? "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1800&q=80"
+    ? svgPlaceholder("Cinema Hero", 1800, 900, "#0F172A", "#E2E8F0")
     : runtimePack.heroStyle === "minimal"
-      ? "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=1800&q=80"
+      ? svgPlaceholder("Minimal Hero", 1800, 900, "#F8FAFC", "#334155")
       : runtimePack.heroStyle === "split"
-        ? "https://images.unsplash.com/photo-1517940310602-26535839fe84?auto=format&fit=crop&w=1800&q=80"
+        ? svgPlaceholder("Split Hero", 1800, 900, "#EEF2FF", "#1E3A8A")
         : fallbackHeroImage;
 
   const addToCart = (product, qty = 1) => {
@@ -525,9 +529,10 @@ export default function StorefrontPublic() {
     }
     setCart((prev) => {
       const idx = prev.findIndex((x) => x.id === product.id);
-      if (idx < 0) return [...prev, { id: product.id, title: product.title, price: Number(product.price || 0), quantity: qty }];
+      const imageUrl = productImageUrl(product);
+      if (idx < 0) return [...prev, { id: product.id, title: product.title, price: Number(product.price || 0), quantity: qty, imageUrl }];
       const next = [...prev];
-      next[idx] = { ...next[idx], quantity: next[idx].quantity + qty };
+      next[idx] = { ...next[idx], quantity: next[idx].quantity + qty, imageUrl };
       return next;
     });
     setCartToast("Added to cart");
@@ -885,7 +890,7 @@ export default function StorefrontPublic() {
   if (!data) return <div className="min-h-screen p-10">Loading storefront...</div>;
   const runtime = resolveThemeRuntime(data?.theme?.activeTheme);
   const RuntimeComponent = runtime.Component;
-  const useIsolatedRuntime = Boolean(RuntimeComponent) && ["home", "catalog", "pdp"].includes(mode);
+  const useIsolatedRuntime = Boolean(RuntimeComponent) && ["home", "catalog", "pdp", "cart", "checkout", "login", "account"].includes(mode);
 
   return (
     <div
@@ -977,6 +982,53 @@ export default function StorefrontPublic() {
           pdpColor={pdpColor}
           setPdpColor={setPdpColor}
           themeAssetBase={themeAssetBase}
+          themeTokens={tokens}
+          cart={cart}
+          cartCount={cartCount}
+          cartTotal={cartTotal}
+          coupon={coupon}
+          setCoupon={setCoupon}
+          configuredOfferCode={configuredOfferCode}
+          configuredOfferPercent={configuredOfferPercent}
+          discountAmount={discountAmount}
+          shippingMethod={shippingMethod}
+          setShippingMethod={setShippingMethod}
+          shippingAmount={shippingAmount}
+          payableTotal={payableTotal}
+          updateCartQty={updateCartQty}
+          removeFromCart={removeFromCart}
+          checkout={checkout}
+          checkoutForm={checkoutForm}
+          setCheckoutForm={setCheckoutForm}
+          checkoutMessage={checkoutMessage}
+          checkoutStatus={checkoutStatus}
+          checkoutAccount={checkoutAccount}
+          availablePaymentModes={availablePaymentModes}
+          indiaStates={indiaStates}
+          authState={authState}
+          authForm={authForm}
+          setAuthForm={setAuthForm}
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          customerAuthSubmit={customerAuthSubmit}
+          securityForm={securityForm}
+          setSecurityForm={setSecurityForm}
+          verifyEmailOtp={verifyEmailOtp}
+          forgotPassword={forgotPassword}
+          resetPassword={resetPassword}
+          accountData={accountData}
+          accountLoading={accountLoading}
+          accountError={accountError}
+          accountMessage={accountMessage}
+          selectedAccountOrder={selectedAccountOrder}
+          accountSelectedOrderId={accountSelectedOrderId}
+          setAccountSelectedOrderId={setAccountSelectedOrderId}
+          refundForm={refundForm}
+          setRefundForm={setRefundForm}
+          ticketForm={ticketForm}
+          setTicketForm={setTicketForm}
+          submitRefundRequest={submitRefundRequest}
+          submitSupportTicket={submitSupportTicket}
         />
       ) : mode === "home" ? (
         <main className="max-w-7xl mx-auto px-4 py-8 space-y-10">

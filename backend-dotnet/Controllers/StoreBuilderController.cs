@@ -3,6 +3,7 @@ using System.Text.Json;
 using backend_dotnet.Data;
 using backend_dotnet.Models;
 using backend_dotnet.Security;
+using backend_dotnet.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,12 @@ namespace backend_dotnet.Controllers;
 public class StoreBuilderController : BaseApiController
 {
     private readonly AppDbContext _db;
+    private readonly ISubscriptionCapabilityService _caps;
 
-    public StoreBuilderController(AppDbContext db)
+    public StoreBuilderController(AppDbContext db, ISubscriptionCapabilityService caps)
     {
         _db = db;
+        _caps = caps;
     }
 
     [HttpGet("/api/marketplace/apps")]
@@ -236,6 +239,7 @@ public class StoreBuilderController : BaseApiController
         if (access is not null) return access;
 
         var cfg = await _db.StoreThemeConfigs.AsNoTracking().FirstOrDefaultAsync(x => x.StoreId == storeId, ct);
+        var caps = await _caps.GetCapabilitiesAsync(storeId, ct);
         var rows = await _db.ThemeCatalogItems.AsNoTracking()
             .Where(x => x.IsActive)
             .OrderByDescending(x => x.IsFeatured)
@@ -251,11 +255,32 @@ public class StoreBuilderController : BaseApiController
                 x.PreviewUrl,
                 x.IsPaid,
                 x.Price,
-                x.ThemeVersion
+                x.ThemeVersion,
+                x.AllowedPlanCodesCsv
             })
             .ToListAsync(ct);
+        var themes = rows.Select(x =>
+        {
+            var allowedPlans = ParseCsvLower(x.AllowedPlanCodesCsv);
+            var allowedByPlan = allowedPlans.Count == 0 || allowedPlans.Contains(caps.PlanCode.Trim().ToLowerInvariant());
+            var allowedByPremium = !x.IsPaid || caps.PremiumThemeAccess;
+            return new
+            {
+                x.Id,
+                x.Name,
+                x.Slug,
+                x.Category,
+                x.Description,
+                x.PreviewUrl,
+                x.IsPaid,
+                x.Price,
+                x.ThemeVersion,
+                allowedPlanCodes = allowedPlans.ToArray(),
+                canActivate = allowedByPlan && allowedByPremium
+            };
+        });
 
-        return Ok(new { activeThemeId = cfg?.ActiveThemeId, themes = rows });
+        return Ok(new { activeThemeId = cfg?.ActiveThemeId, themes });
     }
 
     [HttpPut("/api/stores/{storeId:guid}/theme/active")]
@@ -267,6 +292,30 @@ public class StoreBuilderController : BaseApiController
 
         var themeItem = await _db.ThemeCatalogItems.AsNoTracking().FirstOrDefaultAsync(x => x.Id == req.ThemeId && x.IsActive, ct);
         if (themeItem == null) return BadRequest(new { error = "theme_not_found" });
+        var caps = await _caps.GetCapabilitiesAsync(storeId, ct);
+        var allowedPlans = ParseCsvLower(themeItem.AllowedPlanCodesCsv);
+        if (allowedPlans.Count > 0 && !allowedPlans.Contains(caps.PlanCode.Trim().ToLowerInvariant()))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                error = "theme_plan_upgrade_required",
+                details = new
+                {
+                    currentPlan = caps.PlanCode,
+                    requiredPlans = allowedPlans.ToArray(),
+                    theme = themeItem.Name
+                }
+            });
+        }
+        var featureCheck = await _caps.CheckThemeApplyAsync(storeId, themeItem.IsPaid, InferThemeTier(themeItem), ct);
+        if (!featureCheck.Allowed)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                error = featureCheck.Error ?? "feature_not_enabled",
+                details = featureCheck.Details ?? new { action = "themes.activate" }
+            });
+        }
 
         var theme = await _db.StoreThemeConfigs.FirstOrDefaultAsync(x => x.StoreId == storeId, ct);
         if (theme == null)
@@ -802,6 +851,25 @@ public class StoreBuilderController : BaseApiController
         {
             return new Dictionary<string, object?>();
         }
+    }
+
+    private static HashSet<string> ParseCsvLower(string? csv)
+    {
+        if (string.IsNullOrWhiteSpace(csv)) return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        return csv
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(x => x.Trim().ToLowerInvariant())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string InferThemeTier(ThemeCatalogItem item)
+    {
+        var plans = ParseCsvLower(item.AllowedPlanCodesCsv);
+        if (plans.Contains("enterprise")) return "enterprise";
+        if (plans.Contains("pro")) return "premium";
+        if (plans.Contains("growth")) return "standard";
+        return item.IsPaid ? "standard" : "free";
     }
 }
 

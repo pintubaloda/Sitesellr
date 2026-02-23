@@ -1,0 +1,15 @@
+{
+  "name": "Sitesellr Ecom Luxe",
+  "slug": "sitesellr-ecom-luxe",
+  "type": "theme",
+  "category": "Theme",
+  "icon": "palette",
+  "brandColor": "#E8650A",
+  "pricePlans": [
+    { "code": "free", "name": "Free", "price": 0 },
+    { "code": "growth", "name": "Growth", "price": 1499 },
+    { "code": "pro", "name": "Pro", "price": 2499 }
+  ],
+  "entry": "sitesellr-ecommerce-theme.jsx",
+  "notes": "Imported marketplace source theme for later runtime integration."
+}

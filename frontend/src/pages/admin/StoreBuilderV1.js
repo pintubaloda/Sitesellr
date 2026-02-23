@@ -430,10 +430,13 @@ const APPS = [
   { id:'cs-freshdesk', cat:'Customer Support', name:'Freshdesk', emoji:'🎧', color:'#00b388', tagline:'Customer support helpdesk', desc:'Manage customer queries from email, WhatsApp, chat in one unified inbox.', rating:4.5, reviews:1102,
     pricing:[{id:'free',name:'Free',price:0,features:['10 agents','Email tickets','Basic reports']},{id:'growth',name:'Growth',price:1499,features:['Unlimited agents','WhatsApp + Chat','Automations','SLA management'],popular:true}],
     creds:['API Key','Domain (subdomain.freshdesk.com)'], features:['Unified inbox','WhatsApp integration','Ticket automation','CSAT surveys','Knowledge base'], tags:['Helpdesk','WhatsApp','Chat'] },
+  { id:'th-sitesellr-ecom-luxe', cat:'Theme', name:'Sitesellr Ecom Luxe', emoji:'🎨', color:'#E8650A', tagline:'Complete India-ready ecommerce storefront theme', desc:'Landing, PDP, cart, checkout, auth, and customer dashboard theme pack with saffron-teal premium styling.', rating:4.9, reviews:142,
+    pricing:[{id:'free',name:'Free',price:0,features:['Theme preview','Read-only demo pages']},{id:'growth',name:'Growth',price:1499,features:['Full theme usage','Brand color controls','Page-level theme settings'],popular:true},{id:'pro',name:'Pro',price:2499,features:['Everything in Growth','Advanced layout variants','Priority theme updates']}],
+    creds:['Theme License Key'], features:['Home + PLP + PDP','Cart + Checkout','Login + Signup','Customer dashboard pages','Color-token branding support'], tags:['Theme','Ecommerce','India','Checkout'], featured:true },
 ];
 
-const CATEGORIES = ['All','Payment Gateway','Shipping','Email & Marketing','Analytics','Customer Support'];
-const CAT_ICONS = { 'Payment Gateway':'💳','Shipping':'📦','Email & Marketing':'📣','Analytics':'📊','Customer Support':'🎧' };
+const CATEGORIES = ['All','Payment Gateway','Shipping','Email & Marketing','Analytics','Customer Support','Theme'];
+const CAT_ICONS = { 'Payment Gateway':'💳','Shipping':'📦','Email & Marketing':'📣','Analytics':'📊','Customer Support':'🎧','Theme':'🎨' };
 
 const SECTION_TYPES = [
   { type:'announcement', label:'Announcement Bar', emoji:'📢', default:{ text:'🔥 Sale Live! Use code SAVE20 for 20% off · Free shipping above ₹999', bg:'#0f172a', color:'#fff' }},
@@ -929,7 +932,11 @@ function ThemeBuilder({ toast, storeId }) {
       await loadVersions();
       toast(`Active theme changed to ${selected?.name || "selected theme"}.`, "success");
     } catch (err) {
-      const message = toErrorText(err, "Could not switch active theme.");
+      const apiError = err?.response?.data?.error;
+      const requiredPlans = err?.response?.data?.details?.requiredPlans;
+      const message = apiError === "theme_plan_upgrade_required"
+        ? `Upgrade required to activate this theme${Array.isArray(requiredPlans) && requiredPlans.length ? ` (${requiredPlans.join(", ")})` : ""}.`
+        : toErrorText(err, "Could not switch active theme.");
       setError(message);
       toast(message, "error");
     } finally {

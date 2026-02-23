@@ -796,6 +796,20 @@ using (var scope = app.Services.CreateScope())
         5,
         "{\"homeTemplate\":\"editorial\",\"heroStyle\":\"minimal\",\"headerStyle\":\"minimal\",\"cardStyle\":\"clean\",\"plpDensity\":\"comfortable\",\"pdpLayout\":\"split\"}");
     await EnsureThemeAsync(
+        "Sitesellr Ecom Luxe",
+        "sitesellr-ecom-luxe",
+        "Theme",
+        "Indian ecommerce theme pack with landing, PDP, cart, checkout, auth, and customer dashboard flows.",
+        "https://placehold.co/800x500/E8650A/FFFFFF?text=Sitesellr+Ecom+Luxe",
+        true,
+        2499,
+        "growth,pro,enterprise",
+        true,
+        4,
+        "{\"runtime\":\"sitesellr-ecommerce-theme\",\"palette\":{\"primary\":\"#E8650A\",\"teal\":\"#0D6E6E\",\"gold\":\"#C9921A\"},\"supports\":{\"home\":true,\"pdp\":true,\"cart\":true,\"checkout\":true,\"auth\":true,\"customerDashboard\":true}}",
+        "[\"premium-grid\",\"fashion-cards\",\"showcase\"]",
+        "[\"gallery-detail\",\"split\",\"storytelling\"]");
+    await EnsureThemeAsync(
         "Electronics Mega Store",
         "electronics-mega-store",
         "Electronics",

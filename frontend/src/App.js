@@ -28,6 +28,7 @@ import PlatformModule from "./pages/admin/PlatformModule";
 import StoreBuilderV1 from "./pages/admin/StoreBuilderV1";
 import StoreBuilderThemeBuilder from "./pages/admin/StoreBuilderThemeBuilder";
 import StoreBuilderSettingsPlatform from "./pages/admin/StoreBuilderSettingsPlatform";
+import PortalApp from "./portal/PortalApp";
 import { getStoredAccessToken } from "./lib/session";
 
 const ProtectedRoute = ({ children }) => {
@@ -52,6 +53,7 @@ function App() {
           <Route path="/auth/accept-invite" element={<AcceptInvite />} />
           <Route path="/onboarding" element={<Navigate to="/auth/register" replace />} />
           <Route path="/s/:subdomain/*" element={<StorefrontPublic />} />
+          <Route path="/portal/*" element={<Navigate to="/admin" replace />} />
           <Route
             path="/store-builder-v1"
             element={
@@ -77,9 +79,19 @@ function App() {
             }
           />
           
-          {/* Admin Dashboard Routes */}
+          {/* New Admin UI */}
           <Route
-            path="/admin"
+            path="/admin/*"
+            element={
+              <ProtectedRoute>
+                <PortalApp />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Legacy Admin Dashboard Routes */}
+          <Route
+            path="/admin-legacy"
             element={
               <ProtectedRoute>
                 <DashboardLayout />

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import api from "../../lib/api";
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -190,7 +191,7 @@ tbody tr:hover td{background:var(--surface)}
 `;
 
 // ─── STORE SETTINGS MODULE ────────────────────────────────────────────────────
-function StoreSettings({ toast }) {
+function StoreSettings({ toast, context }) {
   const [tab, setTab] = useState('identity');
   const [store, setStore] = useState({
     name:'Krishna Textiles', tagline:'Premium Indian Fabrics Since 1984',
@@ -202,14 +203,65 @@ function StoreSettings({ toast }) {
     language:'en', currency:'INR', timezone:'Asia/Kolkata',
     metaTitle:'Krishna Textiles — Premium Indian Fabrics', metaDescription:'Shop handloom sarees, silk fabrics, and traditional textiles from Pune.',
     colorPrimary:'#2563eb', colorAccent:'#0f172a', colorSurface:'#f8fafc',
+    status:1, wholesaleEnabled:false, subdomain:'',
   });
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const set = (k,v) => setStore(s=>({...s,[k]:v}));
+
+  useEffect(() => {
+    const load = async () => {
+      if (!context?.storeId) return;
+      setLoading(true);
+      try {
+        const res = await api.get(`/stores/${context.storeId}`);
+        const row = res.data || {};
+        setStore((prev) => ({
+          ...prev,
+          name: row.name || prev.name,
+          currency: row.currency || prev.currency,
+          timezone: row.timezone || prev.timezone,
+          status: typeof row.status === "number" ? row.status : prev.status,
+          wholesaleEnabled: !!row.isWholesaleEnabled,
+          subdomain: row.subdomain || "",
+        }));
+      } catch (err) {
+        toast(err?.response?.data?.error || "Could not load store settings.", "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [context?.storeId, toast]);
+
+  const saveStore = async () => {
+    if (!context?.storeId) {
+      toast("Store is not selected.", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.put(`/stores/${context.storeId}`, {
+        name: store.name,
+        subdomain: store.subdomain || null,
+        currency: store.currency || "INR",
+        timezone: store.timezone || "Asia/Kolkata",
+        status: Number(store.status || 1),
+        isWholesaleEnabled: !!store.wholesaleEnabled,
+      });
+      toast('Settings saved!','success');
+    } catch (err) {
+      toast(err?.response?.data?.error || "Could not save store settings.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div>
       <div className="page-header">
         <div><div className="page-title">Store Settings</div><div className="page-sub">Manage your store identity, contact, legal & SEO</div></div>
-        <button className="btn btn-primary" onClick={()=>toast('Settings saved!','success')}>Save All Changes</button>
+        <button className="btn btn-primary" onClick={saveStore} disabled={saving || loading}>{saving ? "Saving..." : "Save All Changes"}</button>
       </div>
 
       <div className="tabs">
@@ -535,19 +587,42 @@ function TenantManagement({ toast }) {
   const [impersonate, setImpersonate] = useState(null);
   const [suspendModal, setSuspendModal] = useState(null);
   const [detailModal, setDetailModal] = useState(null);
+  const [stores, setStores] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const stores = [
-    { id:'ST001', name:'Krishna Textiles', owner:'Ramesh Kumar', email:'ramesh@krishnatextiles.com', plan:'Growth', status:'active', revenue:'₹14.2L', orders:842, theme:'Bazaar', apps:3, joined:'2024-08-15', city:'Pune' },
-    { id:'ST002', name:'Pooja Electronics', owner:'Suresh Mehta', email:'suresh@poojaelec.com', plan:'Pro', status:'active', revenue:'₹32.1L', orders:2341, theme:'Electronics Hub', apps:5, joined:'2024-06-02', city:'Mumbai' },
-    { id:'ST003', name:'Meena Sarees', owner:'Meena Sharma', email:'meena@meenasarees.com', plan:'Starter', status:'trial', revenue:'₹0', orders:0, theme:'Saree Studio', apps:1, joined:'2025-01-20', city:'Surat' },
-    { id:'ST004', name:'Shree Sweets', owner:'Vikram Patel', email:'vikram@shreesweets.com', plan:'Growth', status:'active', revenue:'₹8.9L', orders:1203, theme:'Diwali Festival', apps:4, joined:'2024-11-05', city:'Ahmedabad' },
-    { id:'ST005', name:'Raj Jewellers', owner:'Rajesh Gupta', email:'raj@rajjewellers.com', plan:'Pro', status:'active', revenue:'₹41.7L', orders:567, theme:'Diwali Festival', apps:6, joined:'2024-04-18', city:'Jaipur' },
-    { id:'ST006', name:'Arya Fashion', owner:'Arya Nair', email:'arya@aryafashion.com', plan:'Starter', status:'suspended', revenue:'₹2.1L', orders:234, theme:'Bazaar', apps:2, joined:'2024-09-10', city:'Kochi' },
-    { id:'ST007', name:'TechZone India', owner:'Rahul Singh', email:'rahul@techzone.in', plan:'Pro', status:'active', revenue:'₹56.3L', orders:3892, theme:'Electronics Hub', apps:7, joined:'2024-03-01', city:'Delhi' },
-  ];
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [storesRes] = await Promise.all([
+          api.get("/stores"),
+        ]);
+        const rows = Array.isArray(storesRes.data) ? storesRes.data : [];
+        setStores(rows.map((s) => ({
+          id: s.id,
+          name: s.name,
+          owner: s.merchantName || "Merchant",
+          email: s.merchantPrimaryDomain || "-",
+          plan: "-",
+          status: Number(s.status) === 1 ? "active" : Number(s.status) === 2 ? "suspended" : Number(s.status) === 0 ? "trial" : "inactive",
+          revenue: "₹0",
+          orders: 0,
+          theme: "-",
+          apps: 0,
+          joined: s.createdAt ? String(s.createdAt).slice(0, 10) : "-",
+          city: "-",
+        })));
+      } catch (err) {
+        toast(err?.response?.data?.error || "Could not load tenants.", "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [toast]);
 
   const statuses = { active:'b-green', trial:'b-blue', suspended:'b-red', inactive:'b-gray' };
-  const filtered = stores.filter(s=>(filter==='all'||s.status===filter)&&(s.name.toLowerCase().includes(search.toLowerCase())||s.owner.toLowerCase().includes(search.toLowerCase())||s.city.toLowerCase().includes(search.toLowerCase())));
+  const filtered = stores.filter(s=>(filter==='all'||s.status===filter)&&(s.name.toLowerCase().includes(search.toLowerCase())||s.owner.toLowerCase().includes(search.toLowerCase())||String(s.city||"").toLowerCase().includes(search.toLowerCase())));
 
   return (
     <div>
@@ -559,7 +634,7 @@ function TenantManagement({ toast }) {
       )}
 
       <div className="page-header" style={{marginTop:impersonate?40:0}}>
-        <div><div className="page-title">Tenant Management</div><div className="page-sub">{stores.length} stores · {stores.filter(s=>s.status==='active').length} active</div></div>
+        <div><div className="page-title">Tenant Management</div><div className="page-sub">{loading ? "Loading..." : `${stores.length} stores · ${stores.filter(s=>s.status==='active').length} active`}</div></div>
         <button className="btn btn-primary" onClick={()=>toast('Export initiated')}>📥 Export CSV</button>
       </div>
 
@@ -690,19 +765,33 @@ function AuditLog({ toast }) {
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
   const [detail, setDetail] = useState(null);
+  const [logs, setLogs] = useState([]);
 
-  const logs = [
-    { id:'AL001', action:'layout.publish', actor:'Ramesh Kumar', actorRole:'store_owner', store:'Krishna Textiles', entity:'StorefrontLayoutVersion', entityId:'v6', ip:'103.21.8.44', at:'2025-02-22 14:41:22', severity:'normal', old:null, new:{sections:8,version:6} },
-    { id:'AL002', action:'theme.apply', actor:'Suresh Mehta', actorRole:'store_owner', store:'Pooja Electronics', entity:'StoreThemeConfig', entityId:'TC002', ip:'49.36.71.100', at:'2025-02-22 12:15:03', severity:'high', old:{theme:'Bazaar'}, new:{theme:'Electronics Hub'} },
-    { id:'AL003', action:'payment.config.update', actor:'Meena Sharma', actorRole:'store_owner', store:'Meena Sarees', entity:'PaymentGatewayConfig', entityId:'PG003', ip:'122.167.44.2', at:'2025-02-22 11:02:44', severity:'critical', old:null, new:{gateway:'razorpay',testMode:true} },
-    { id:'AL004', action:'platform.theme.price_update', actor:'Platform Admin', actorRole:'platform_owner', store:null, entity:'PlatformTheme', entityId:'diwali-festival', ip:'127.0.0.1', at:'2025-02-22 10:30:00', severity:'high', old:{price:0}, new:{price:499} },
-    { id:'AL005', action:'store.suspend', actor:'Platform Admin', actorRole:'platform_owner', store:'Arya Fashion', entity:'Store', entityId:'ST006', ip:'127.0.0.1', at:'2025-02-21 16:55:11', severity:'critical', old:{status:'active'}, new:{status:'suspended'} },
-    { id:'AL006', action:'layout.rollback', actor:'Vikram Patel', actorRole:'store_owner', store:'Shree Sweets', entity:'StorefrontLayoutVersion', entityId:'v3', ip:'117.99.210.5', at:'2025-02-21 14:22:07', severity:'high', old:{version:4}, new:{version:3} },
-    { id:'AL007', action:'media.upload', actor:'Arya Nair', actorRole:'store_owner', store:'Arya Fashion', entity:'StoreMediaAsset', entityId:'MA007', ip:'122.167.44.2', at:'2025-02-21 13:10:33', severity:'normal', old:null, new:{filename:'banner.jpg',size:'1.2MB'} },
-    { id:'AL008', action:'platform.impersonate', actor:'Platform Admin', actorRole:'platform_owner', store:'TechZone India', entity:'Store', entityId:'ST007', ip:'127.0.0.1', at:'2025-02-21 11:05:22', severity:'critical', old:null, new:{action:'impersonate_started'} },
-    { id:'AL009', action:'app.install', actor:'Rahul Singh', actorRole:'store_owner', store:'TechZone India', entity:'AppInstallation', entityId:'pg-razorpay', ip:'114.30.21.8', at:'2025-02-20 15:30:00', severity:'normal', old:null, new:{app:'Razorpay',plan:'Growth'} },
-    { id:'AL010', action:'shipping.config.update', actor:'Rajesh Gupta', actorRole:'store_owner', store:'Raj Jewellers', entity:'ShippingZone', entityId:'SZ001', ip:'59.88.77.102', at:'2025-02-20 11:20:44', severity:'normal', old:{rate:80}, new:{rate:100} },
-  ];
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api.get("/audit-logs?page=1&pageSize=100");
+        const rows = Array.isArray(res.data?.items) ? res.data.items : [];
+        setLogs(rows.map((x) => ({
+          id: x.id,
+          action: x.action,
+          actor: x.userId || "system",
+          actorRole: x.platformRole || x.storeRole || "user",
+          store: x.storeId ? String(x.storeId).slice(0, 8) : null,
+          entity: x.action || "-",
+          entityId: x.id,
+          ip: x.clientIp || "-",
+          at: x.createdAt ? String(x.createdAt).replace("T", " ").slice(0, 19) : "-",
+          severity: x.action?.includes("suspend") || x.action?.includes("security") ? "critical" : "normal",
+          old: null,
+          new: x.details || null,
+        })));
+      } catch (err) {
+        toast(err?.response?.data?.error || "Could not load audit logs.", "error");
+      }
+    };
+    load();
+  }, [toast]);
 
   const severityColor = { normal:'b-gray', high:'b-amber', critical:'b-red' };
   const actionColor = (a) => a.includes('suspend')||a.includes('delete')?'var(--red)':a.includes('publish')||a.includes('install')?'var(--green)':a.includes('impersonate')||a.includes('payment')?'var(--amber)':'var(--blue)';
@@ -795,13 +884,61 @@ function PlatformSettings({ toast }) {
     announcementText:'', announcementActive:false,
     razorpayMasterKey:'rzp_live_••••••••', razorpayMasterSecret:'••••••••••••',
   });
+  const [saving, setSaving] = useState(false);
   const set = (k,v) => setSettings(s=>({...s,[k]:v}));
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api.get("/platform/owner/config");
+        const d = res.data || {};
+        setSettings((prev) => ({
+          ...prev,
+          smtpHost: d.communicationProvider || prev.smtpHost,
+          supportEmail: d.communicationProvider || prev.supportEmail,
+        }));
+      } catch (err) {
+        toast(err?.response?.data?.error || "Could not load platform settings.", "error");
+      }
+    };
+    load();
+  }, [toast]);
+
+  const savePlatform = async () => {
+    setSaving(true);
+    try {
+      await api.put("/platform/owner/config", {
+        paymentGatewayProvider: "default",
+        taxGstPercent: "18",
+        featureFlagsJson: JSON.stringify({
+          maintenanceMode: !!settings.maintenanceMode,
+          newSignupsEnabled: !!settings.newSignupsEnabled,
+          forceSSL: !!settings.forceSSL,
+          announcementActive: !!settings.announcementActive,
+          announcementText: settings.announcementText || "",
+        }),
+        limitsJson: JSON.stringify({
+          trialDays: Number(settings.trialDays || 14),
+          maxStoresPerPlan: settings.maxStoresPerPlan,
+          storagePerPlan: settings.storagePerPlan,
+        }),
+        communicationProvider: settings.smtpHost || "smtp",
+        regionRulesJson: "{}",
+        corsOriginsCsv: "*",
+      });
+      toast('Platform settings saved!','success');
+    } catch (err) {
+      toast(err?.response?.data?.error || "Could not save platform settings.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div>
       <div className="page-header">
         <div><div className="page-title">Platform Settings</div><div className="page-sub">Global configuration for all tenants and the platform itself</div></div>
-        <button className="btn btn-primary" onClick={()=>toast('Platform settings saved!','success')}>Save All</button>
+        <button className="btn btn-primary" onClick={savePlatform} disabled={saving}>{saving ? "Saving..." : "Save All"}</button>
       </div>
 
       {/* Announcement */}
@@ -890,12 +1027,41 @@ export default function StoreBuilderSettingsPlatform() {
   const [role, setRole] = useState('store');
   const [page, setPage] = useState('store-settings');
   const [toasts, setToasts] = useState([]);
+  const [context, setContext] = useState({ storeId: null, isPlatformOwner: false, isStoreUser: true });
 
   const toast = (msg, type='') => {
     const id = Date.now();
     setToasts(p=>[...p,{id,msg,type}]);
     setTimeout(()=>setToasts(p=>p.filter(t=>t.id!==id)), 3500);
   };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [accessRes, storesRes] = await Promise.all([
+          api.get("/auth/access"),
+          api.get("/stores"),
+        ]);
+        const access = accessRes.data || {};
+        const stores = Array.isArray(storesRes.data) ? storesRes.data : [];
+        const selectedStoreId = access.currentStoreId || stores[0]?.id || null;
+        if (selectedStoreId) {
+          api.defaults.headers.common["X-Store-Id"] = selectedStoreId;
+        }
+        const isPlatformOwner = !!access.isPlatformOwner;
+        setContext({
+          storeId: selectedStoreId,
+          isPlatformOwner,
+          isStoreUser: !isPlatformOwner,
+        });
+        setRole(isPlatformOwner ? "platform" : "store");
+        setPage(isPlatformOwner ? "tenants" : "store-settings");
+      } catch {
+        // Keep existing defaults when access bootstrap fails.
+      }
+    };
+    load();
+  }, []);
 
   const switchRole = (r) => { setRole(r); setPage(r==='store'?'store-settings':'tenants'); };
 
@@ -911,7 +1077,7 @@ export default function StoreBuilderSettingsPlatform() {
   const nav = role==='store'?storeNav:platformNav;
 
   const renderPage = () => {
-    if(page==='store-settings') return <StoreSettings toast={toast}/>;
+    if(page==='store-settings') return <StoreSettings toast={toast} context={context}/>;
     if(page==='shipping') return <ShippingConfig toast={toast}/>;
     if(page==='tenants') return <TenantManagement toast={toast}/>;
     if(page==='audit') return <AuditLog toast={toast}/>;

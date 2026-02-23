@@ -316,6 +316,7 @@ export const DashboardLayout = () => {
     effectivePermissions: [],
   });
   const [brandLogo, setBrandLogo] = useState("");
+  const [activeThemeId, setActiveThemeId] = useState("");
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
@@ -356,6 +357,42 @@ export const DashboardLayout = () => {
     };
     loadAccess();
   }, [storeId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadActiveTheme = async () => {
+      if (!storeId) {
+        setActiveThemeId("");
+        return;
+      }
+      try {
+        const res = await api.get(`/stores/${storeId}/theme`);
+        if (cancelled) return;
+        setActiveThemeId(res?.data?.activeThemeId ? String(res.data.activeThemeId) : "");
+      } catch {
+        if (!cancelled) setActiveThemeId("");
+      }
+    };
+    loadActiveTheme();
+    return () => {
+      cancelled = true;
+    };
+  }, [storeId]);
+
+  const selectedStore = useMemo(
+    () => stores.find((store) => String(store.id) === String(storeId)),
+    [stores, storeId]
+  );
+  const storefrontHref = useMemo(() => {
+    if (!storeId) return "";
+    const subdomain = (selectedStore?.subdomain || "demo").trim().toLowerCase();
+    return `/s/${encodeURIComponent(subdomain)}?storeId=${encodeURIComponent(storeId)}`;
+  }, [selectedStore?.subdomain, storeId]);
+  const previewStorefrontHref = useMemo(() => {
+    if (!storefrontHref) return "";
+    if (!activeThemeId) return storefrontHref;
+    return `${storefrontHref}&previewThemeId=${encodeURIComponent(activeThemeId)}`;
+  }, [storefrontHref, activeThemeId]);
 
   const visibleSidebarItems = useMemo(() => {
     const perms = new Set((access.effectivePermissions || []).map((x) => String(x).toLowerCase()));
@@ -490,15 +527,35 @@ export const DashboardLayout = () => {
               ) : null}
               {/* View Store */}
               {brandLogo ? <Avatar className="h-8 w-8 hidden sm:flex"><AvatarImage src={brandLogo} /></Avatar> : null}
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden sm:flex items-center gap-2 rounded-full"
-                data-testid="view-store"
-              >
-                <Globe className="w-4 h-4" />
-                <span>View Store</span>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="hidden sm:flex items-center gap-2 rounded-full"
+                    data-testid="view-store"
+                    disabled={!storefrontHref}
+                  >
+                    <Globe className="w-4 h-4" />
+                    <span>View Store</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => storefrontHref && window.open(storefrontHref, "_blank", "noopener,noreferrer")}
+                  >
+                    Open Active Theme
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => previewStorefrontHref && window.open(previewStorefrontHref, "_blank", "noopener,noreferrer")}
+                  >
+                    Open Preview Mode
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Theme Toggle */}
               <Button

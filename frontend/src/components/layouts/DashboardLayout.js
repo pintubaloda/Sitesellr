@@ -63,133 +63,133 @@ const sidebarItems = [
   {
     title: "Dashboard",
     icon: LayoutDashboard,
-    path: "/admin-legacy",
+    path: "/admin",
     scope: "platform-owner-or-store",
     requiredAny: ["orders.read", "products.read", "customers.read", "store.settings.manage", "store.settings.read"],
   },
   {
     title: "Products",
     icon: Package,
-    path: "/admin-legacy/products",
+    path: "/admin/products",
     scope: "store",
     requiredAny: ["products.read", "products.create", "products.update", "products.delete"],
   },
   {
     title: "Orders",
     icon: ShoppingCart,
-    path: "/admin-legacy/orders",
+    path: "/admin/orders",
     scope: "store",
     requiredAny: ["orders.read", "orders.update", "orders.create_manual"],
   },
   {
     title: "Customers",
     icon: Users,
-    path: "/admin-legacy/customers",
+    path: "/admin/customers",
     scope: "store",
     requiredAny: ["customers.read", "customers.update", "customer_groups.manage"],
   },
   {
     title: "Marketing",
     icon: Percent,
-    path: "/admin-legacy/marketing",
+    path: "/admin/marketing",
     scope: "store",
     requiredAny: ["discounts.manage", "coupons.manage", "campaigns.manage"],
   },
   {
     title: "Analytics",
     icon: BarChart3,
-    path: "/admin-legacy/analytics",
+    path: "/admin/analytics",
     scope: "store",
     requiredAny: ["orders.read", "payments.read", "transactions.read", "transactions.read_all"],
   },
   {
     title: "Settings",
     icon: Settings,
-    path: "/admin-legacy/settings",
+    path: "/admin/settings",
     scope: "store",
     requiredAny: ["store.settings.manage", "store.settings.write", "store.settings.read"],
   },
   {
     title: "Merchant / Store Management",
     icon: Building2,
-    path: "/admin-legacy/merchants",
+    path: "/admin/merchants",
     scope: "platform-owner",
     requiredAny: ["merchants.read_all", "merchants.read", "merchants.manage"],
   },
   {
     title: "Payments & Transactions",
     icon: CreditCard,
-    path: "/admin-legacy/platform-payments",
+    path: "/admin/platform-payments",
     scope: "platform-owner",
     requiredAny: ["payments.read_all", "transactions.read_all", "settlements.read_all"],
   },
   {
     title: "Billing & Subscriptions",
     icon: Wallet,
-    path: "/admin-legacy/platform-billing",
+    path: "/admin/platform-billing",
     scope: "platform-owner",
     requiredAny: ["subscriptions.manage", "plans.manage", "billing.adjust", "subscriptions.read_all"],
   },
   {
     title: "Plugin / App Marketplace",
     icon: PlugZap,
-    path: "/admin-legacy/platform-plugins",
+    path: "/admin/platform-plugins",
     scope: "platform-owner",
     requiredAny: ["plugins.read", "plugins.approve", "plugins.suspend", "plugins.scopes.manage"],
   },
   {
     title: "API & Integrations",
     icon: KeyRound,
-    path: "/admin-legacy/platform-api",
+    path: "/admin/platform-api",
     scope: "platform-owner",
     requiredAny: ["api.gateway.manage", "api.routes.manage", "api.rate_limits.manage", "api_keys.revoke"],
   },
   {
     title: "Security & Audit",
     icon: ClipboardList,
-    path: "/admin-legacy/audit-logs",
+    path: "/admin/audit-logs",
     scope: "platform-owner",
     requiredAny: ["security.audit_logs.read_all", "security.policies.manage", "security.sessions.revoke"],
   },
   {
     title: "Risk / Fraud Monitoring",
     icon: ShieldAlert,
-    path: "/admin-legacy/platform-risk",
+    path: "/admin/platform-risk",
     scope: "platform-owner",
     requiredAny: ["fraud.monitor", "risk.actions.execute", "transactions.monitor", "merchants.flag"],
   },
   {
     title: "Platform Configuration",
     icon: SlidersHorizontal,
-    path: "/admin-legacy/platform-config",
+    path: "/admin/platform-config",
     scope: "platform-owner",
     requiredAny: ["platform.settings.manage", "platform.features.manage", "security.policies.manage"],
   },
   {
     title: "Domains & SSL (Platform)",
     icon: Globe,
-    path: "/admin-legacy/platform-domains",
+    path: "/admin/platform-domains",
     scope: "platform-owner",
     requiredAny: ["platform.settings.manage", "platform.features.manage", "security.policies.manage"],
   },
   {
     title: "Reporting & Intelligence",
     icon: LineChart,
-    path: "/admin-legacy/platform-reports",
+    path: "/admin/platform-reports",
     scope: "platform-owner",
     requiredAny: ["payments.read_all", "transactions.read_all", "security.audit_logs.read_all", "merchants.read_all"],
   },
   {
     title: "Role / Permission Governance",
     icon: ShieldCheck,
-    path: "/admin-legacy/platform-rbac",
+    path: "/admin/platform-rbac",
     scope: "platform-owner",
     requiredAny: ["security.policies.manage", "platform.settings.manage"],
   },
   {
     title: "Domains & SSL",
     icon: Shield,
-    path: "/admin-legacy/domains-ssl",
+    path: "/admin/domains-ssl",
     scope: "store",
     requiredAny: ["store.domains.manage", "store.settings.manage", "store.settings.write"],
   },
@@ -212,7 +212,7 @@ const SidebarContent = ({ collapsed, setCollapsed, onItemClick, visibleItems }) 
         "flex items-center h-16 px-4 border-b border-slate-200 dark:border-slate-800",
         collapsed ? "justify-center" : "justify-between"
       )}>
-        <Link to="/admin-legacy" className="flex items-center gap-2" onClick={onItemClick}>
+        <Link to="/admin" className="flex items-center gap-2" onClick={onItemClick}>
           <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
             <Store className="w-5 h-5 text-white" />
           </div>
@@ -238,7 +238,7 @@ const SidebarContent = ({ collapsed, setCollapsed, onItemClick, visibleItems }) 
         <nav className="space-y-1">
           {visibleItems.map((item) => {
             const isActive = location.pathname === item.path || 
-              (item.path !== "/admin-legacy" && location.pathname.startsWith(item.path));
+              (item.path !== "/admin" && location.pathname.startsWith(item.path));
             
             return (
               <TooltipProvider key={item.path} delayDuration={0}>
@@ -637,7 +637,7 @@ export const DashboardLayout = () => {
                     <CreditCard className="w-4 h-4 mr-2" />
                     Billing
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/admin-legacy/settings")}>
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/admin/settings")}>
                     <Settings className="w-4 h-4 mr-2" />
                     Settings
                   </DropdownMenuItem>

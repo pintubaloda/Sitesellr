@@ -444,6 +444,27 @@ CREATE TABLE IF NOT EXISTS store_theme_configs (
     await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_configs ADD COLUMN IF NOT EXISTS ""CheckoutTemplateConfigJson"" character varying(4000) NULL;");
     await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_theme_configs_StoreId ON store_theme_configs (""StoreId"");");
     await db.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS store_theme_licenses (
+  ""Id"" uuid PRIMARY KEY,
+  ""StoreId"" uuid NOT NULL,
+  ""ThemeId"" uuid NOT NULL,
+  ""LicenseKeyHash"" character varying(128) NOT NULL,
+  ""LicenseKeyMasked"" character varying(80) NOT NULL DEFAULT '',
+  ""Status"" character varying(30) NOT NULL DEFAULT 'active',
+  ""PlanCode"" character varying(50) NOT NULL DEFAULT 'free',
+  ""IssuedAt"" timestamp with time zone NOT NULL,
+  ""ExpiresAt"" timestamp with time zone NULL,
+  ""UpdatedAt"" timestamp with time zone NOT NULL
+);");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_licenses ADD COLUMN IF NOT EXISTS ""LicenseKeyHash"" character varying(128) NOT NULL DEFAULT '';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_licenses ADD COLUMN IF NOT EXISTS ""LicenseKeyMasked"" character varying(80) NOT NULL DEFAULT '';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_licenses ADD COLUMN IF NOT EXISTS ""Status"" character varying(30) NOT NULL DEFAULT 'active';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_licenses ADD COLUMN IF NOT EXISTS ""PlanCode"" character varying(50) NOT NULL DEFAULT 'free';");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_licenses ADD COLUMN IF NOT EXISTS ""IssuedAt"" timestamp with time zone NOT NULL DEFAULT now();");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_licenses ADD COLUMN IF NOT EXISTS ""ExpiresAt"" timestamp with time zone NULL;");
+    await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE store_theme_licenses ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT now();");
+    await db.Database.ExecuteSqlRawAsync(@"CREATE UNIQUE INDEX IF NOT EXISTS IX_store_theme_licenses_StoreId_ThemeId ON store_theme_licenses (""StoreId"", ""ThemeId"");");
+    await db.Database.ExecuteSqlRawAsync(@"
 CREATE TABLE IF NOT EXISTS store_homepage_layouts (
   ""Id"" uuid PRIMARY KEY,
   ""StoreId"" uuid NOT NULL,

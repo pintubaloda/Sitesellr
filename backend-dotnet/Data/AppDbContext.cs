@@ -45,6 +45,7 @@ public class AppDbContext : DbContext
     public DbSet<StoreCampaignTemplateSubscription> StoreCampaignTemplateSubscriptions => Set<StoreCampaignTemplateSubscription>();
     public DbSet<CampaignPaymentEvent> CampaignPaymentEvents => Set<CampaignPaymentEvent>();
     public DbSet<StoreThemeConfig> StoreThemeConfigs => Set<StoreThemeConfig>();
+    public DbSet<StoreThemeLicense> StoreThemeLicenses => Set<StoreThemeLicense>();
     public DbSet<StoreHomepageLayout> StoreHomepageLayouts => Set<StoreHomepageLayout>();
     public DbSet<StorefrontLayoutVersion> StorefrontLayoutVersions => Set<StorefrontLayoutVersion>();
     public DbSet<StorefrontEditSession> StorefrontEditSessions => Set<StorefrontEditSession>();
@@ -496,6 +497,22 @@ public class AppDbContext : DbContext
             b.HasIndex(x => x.StoreId).IsUnique();
             b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
             b.HasOne(x => x.ActiveTheme).WithMany().HasForeignKey(x => x.ActiveThemeId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<StoreThemeLicense>(b =>
+        {
+            b.ToTable("store_theme_licenses");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.LicenseKeyHash).IsRequired().HasMaxLength(128);
+            b.Property(x => x.LicenseKeyMasked).HasMaxLength(80);
+            b.Property(x => x.Status).HasMaxLength(30);
+            b.Property(x => x.PlanCode).HasMaxLength(50);
+            b.Property(x => x.IssuedAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.ExpiresAt).HasColumnType("timestamp with time zone");
+            b.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(x => new { x.StoreId, x.ThemeId }).IsUnique();
+            b.HasOne(x => x.Store).WithMany().HasForeignKey(x => x.StoreId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.Theme).WithMany().HasForeignKey(x => x.ThemeId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<StoreHomepageLayout>(b =>

@@ -214,6 +214,26 @@ public class StoreThemeConfig
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public class StoreThemeLicense
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid StoreId { get; set; }
+    public Store Store { get; set; } = default!;
+    public Guid ThemeId { get; set; }
+    public ThemeCatalogItem Theme { get; set; } = default!;
+    [Required, MaxLength(128)]
+    public string LicenseKeyHash { get; set; } = string.Empty;
+    [MaxLength(80)]
+    public string LicenseKeyMasked { get; set; } = string.Empty;
+    [MaxLength(30)]
+    public string Status { get; set; } = "active"; // active, expired, suspended
+    [MaxLength(50)]
+    public string PlanCode { get; set; } = "free";
+    public DateTimeOffset IssuedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ExpiresAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public class StoreMediaAsset
 {
     public Guid Id { get; set; } = Guid.NewGuid();

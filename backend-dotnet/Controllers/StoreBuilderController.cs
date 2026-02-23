@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using backend_dotnet.Data;
 using backend_dotnet.Models;
@@ -355,6 +357,8 @@ public class StoreBuilderController : BaseApiController
         layout.UpdatedAt = DateTimeOffset.UtcNow;
         theme.DesignTokensJson = SafeJson(scopedSettings, theme.DesignTokensJson ?? "{}");
 
+        var license = await EnsureThemeLicenseAsync(storeId, req.ThemeId, caps.PlanCode, ct);
+
         await _db.SaveChangesAsync(ct);
         return Ok(new
         {
@@ -366,7 +370,57 @@ public class StoreBuilderController : BaseApiController
                 themeItem.Slug,
                 themeItem.Category,
                 themeItem.PreviewUrl
+            },
+            license = new
+            {
+                license.themeId,
+                license.planCode,
+                license.status,
+                license.issuedAt,
+                license.expiresAt,
+                license.expiresInDays,
+                license.keyMasked,
+                issuedNow = license.issuedNow,
+                renewed = license.renewed,
+                issuedKey = license.issuedKey
             }
+        });
+    }
+
+    [HttpGet("/api/stores/{storeId:guid}/theme/license")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> GetThemeLicense(Guid storeId, [FromQuery] Guid? themeId, CancellationToken ct)
+    {
+        var access = await EnsureStoreAccessAsync(storeId, ct);
+        if (access is not null) return access;
+
+        var effectiveThemeId = themeId;
+        if (!effectiveThemeId.HasValue)
+        {
+            effectiveThemeId = await _db.StoreThemeConfigs.AsNoTracking()
+                .Where(x => x.StoreId == storeId)
+                .Select(x => x.ActiveThemeId)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        if (!effectiveThemeId.HasValue) return NotFound(new { error = "active_theme_not_set" });
+        var caps = await _caps.GetCapabilitiesAsync(storeId, ct);
+        var themeExists = await _db.ThemeCatalogItems.AsNoTracking().AnyAsync(x => x.Id == effectiveThemeId.Value, ct);
+        if (!themeExists) return NotFound(new { error = "theme_not_found" });
+
+        var license = await EnsureThemeLicenseAsync(storeId, effectiveThemeId.Value, caps.PlanCode, ct);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new
+        {
+            license.themeId,
+            license.planCode,
+            license.status,
+            license.issuedAt,
+            license.expiresAt,
+            license.expiresInDays,
+            license.keyMasked,
+            renewed = license.renewed
         });
     }
 
@@ -871,6 +925,125 @@ public class StoreBuilderController : BaseApiController
         if (plans.Contains("growth")) return "standard";
         return item.IsPaid ? "standard" : "free";
     }
+
+    private async Task<ThemeLicenseResult> EnsureThemeLicenseAsync(Guid storeId, Guid themeId, string planCode, CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var normalizedPlan = string.IsNullOrWhiteSpace(planCode) ? "free" : planCode.Trim().ToLowerInvariant();
+        var subscriptionExpiry = await ResolveSubscriptionExpiryAsync(storeId, ct);
+        var isExpired = subscriptionExpiry.HasValue && subscriptionExpiry.Value <= now;
+        var status = isExpired ? "expired" : "active";
+
+        var row = await _db.StoreThemeLicenses.FirstOrDefaultAsync(x => x.StoreId == storeId && x.ThemeId == themeId, ct);
+        var issuedNow = false;
+        var renewed = false;
+        string? issuedKey = null;
+
+        if (row == null)
+        {
+            issuedNow = true;
+            issuedKey = GenerateLicenseKey(normalizedPlan);
+            row = new StoreThemeLicense
+            {
+                StoreId = storeId,
+                ThemeId = themeId,
+                LicenseKeyHash = HashLicenseKey(issuedKey),
+                LicenseKeyMasked = MaskLicenseKey(issuedKey),
+                PlanCode = normalizedPlan,
+                Status = status,
+                IssuedAt = now,
+                ExpiresAt = subscriptionExpiry,
+                UpdatedAt = now
+            };
+            _db.StoreThemeLicenses.Add(row);
+        }
+        else
+        {
+            var previousExpiry = row.ExpiresAt;
+            row.PlanCode = normalizedPlan;
+            row.Status = status;
+            row.ExpiresAt = subscriptionExpiry;
+            row.UpdatedAt = now;
+            renewed = previousExpiry != row.ExpiresAt || !string.Equals(row.Status, status, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var expiresInDays = row.ExpiresAt.HasValue ? (int?)Math.Max(0, Math.Ceiling((row.ExpiresAt.Value - now).TotalDays)) : null;
+
+        return new ThemeLicenseResult(
+            row.ThemeId,
+            row.PlanCode,
+            row.Status,
+            row.IssuedAt,
+            row.ExpiresAt,
+            expiresInDays,
+            row.LicenseKeyMasked,
+            issuedKey,
+            issuedNow,
+            renewed);
+    }
+
+    private async Task<DateTimeOffset?> ResolveSubscriptionExpiryAsync(Guid storeId, CancellationToken ct)
+    {
+        var store = await _db.Stores.AsNoTracking()
+            .Where(x => x.Id == storeId)
+            .Select(x => new { x.MerchantId })
+            .FirstOrDefaultAsync(ct);
+        if (store == null) return null;
+
+        var sub = await _db.MerchantSubscriptions.AsNoTracking()
+            .Where(x => x.MerchantId == store.MerchantId && !x.IsCancelled)
+            .OrderByDescending(x => x.StartedAt)
+            .Select(x => new { x.ExpiresAt, x.TrialEndsAt })
+            .FirstOrDefaultAsync(ct);
+
+        if (sub == null) return null;
+        return sub.ExpiresAt ?? sub.TrialEndsAt;
+    }
+
+    private static string GenerateLicenseKey(string planCode)
+    {
+        var plan = string.IsNullOrWhiteSpace(planCode)
+            ? "FREE"
+            : new string(planCode.Trim().ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray());
+        if (plan.Length > 8) plan = plan[..8];
+        if (plan.Length == 0) plan = "FREE";
+        return $"SSLR-{plan}-{RandomBlock(6)}-{RandomBlock(6)}-{RandomBlock(6)}";
+    }
+
+    private static string RandomBlock(int size)
+    {
+        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        var bytes = RandomNumberGenerator.GetBytes(size);
+        var chars = new char[size];
+        for (var i = 0; i < size; i++) chars[i] = alphabet[bytes[i] % alphabet.Length];
+        return new string(chars);
+    }
+
+    private static string HashLicenseKey(string rawKey)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(rawKey));
+        return Convert.ToHexString(hash);
+    }
+
+    private static string MaskLicenseKey(string rawKey)
+    {
+        if (string.IsNullOrWhiteSpace(rawKey)) return string.Empty;
+        var trimmed = rawKey.Trim();
+        if (trimmed.Length <= 10) return trimmed;
+        return $"{trimmed[..6]}...{trimmed[^4..]}";
+    }
+
+    private sealed record ThemeLicenseResult(
+        Guid themeId,
+        string planCode,
+        string status,
+        DateTimeOffset issuedAt,
+        DateTimeOffset? expiresAt,
+        int? expiresInDays,
+        string keyMasked,
+        string? issuedKey,
+        bool issuedNow,
+        bool renewed);
 }
 
 public class PluginInstallRequest

@@ -572,15 +572,23 @@ function FieldRenderer({ field, value, onChange }) {
 }
 
 // ─── THEME SETTINGS ──────────────────────────────────────────────────────────
-function ThemeSettings({ toast }) {
-  const [t, setT] = useState({ colorPrimary:'#2563eb',colorAccent:'#0f172a',colorSurface:'#f8fafc',colorText:'#1e293b',colorSuccess:'#16a34a',colorWarning:'#d97706',fontHeading:'Plus Jakarta Sans',fontBody:'Plus Jakarta Sans',headerStyle:'fixed',footerStyle:'dark',borderRadius:'10',buttonStyle:'rounded',logoUrl:'',faviconUrl:'' });
+const DEFAULT_THEME_SETTINGS = { colorPrimary:'#2563eb',colorAccent:'#0f172a',colorSurface:'#f8fafc',colorText:'#1e293b',colorSuccess:'#16a34a',colorWarning:'#d97706',fontHeading:'Plus Jakarta Sans',fontBody:'Plus Jakarta Sans',headerStyle:'fixed',footerStyle:'dark',borderRadius:'10',buttonStyle:'rounded',logoUrl:'',faviconUrl:'' };
+
+function ThemeSettings({ toast, value, onChange, onSave }) {
+  const [t, setT] = useState({ ...DEFAULT_THEME_SETTINGS, ...(value || {}) });
+  useEffect(() => {
+    setT({ ...DEFAULT_THEME_SETTINGS, ...(value || {}) });
+  }, [value]);
   const set = (k,v) => setT(prev=>({...prev,[k]:v}));
+  useEffect(() => {
+    if (onChange) onChange(t);
+  }, [t, onChange]);
   const fonts = ['Plus Jakarta Sans','Poppins','Nunito','Playfair Display','Merriweather','Lato','Raleway','Josefin Sans'];
   return (
     <div style={{padding:14,overflowY:'auto',height:'100%'}}>
       <div className="flex items-center justify-between mb-16">
         <div style={{fontWeight:800,fontSize:14}}>Theme Settings</div>
-        <button className="btn btn-primary btn-sm" onClick={()=>toast('Theme saved!','success')}>Save</button>
+        <button className="btn btn-primary btn-sm" onClick={()=>{ if (onSave) onSave(); else toast('Theme saved!','success'); }}>Save</button>
       </div>
       <div className="theme-token-section">
         <div className="token-section-title">Logo & Identity</div>
@@ -729,20 +737,24 @@ function PageEditor({ toast }) {
 }
 
 // ─── VERSION PANEL ───────────────────────────────────────────────────────────
-function VersionPanel({ onClose, toast }) {
-  const versions = [{v:7,date:'Today, 2:41 PM',label:'Current Draft',sections:9,live:false},{v:6,date:'Today, 11:20 AM',label:'Published',sections:8,live:true},{v:5,date:'Yesterday, 4:10 PM',label:'Pre-sale update',sections:8,live:false},{v:4,date:'Jan 30, 3:00 PM',label:'Diwali layout',sections:7,live:false},{v:3,date:'Jan 22, 1:00 PM',label:'Initial design',sections:5,live:false}];
+function VersionPanel({ onClose, toast, versions, onRestore, loading, error }) {
   return (
     <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal">
         <div className="modal-header"><div className="modal-title">Version History</div><button className="modal-close" onClick={onClose}><Icon name="x" size={14}/></button></div>
-        <div className="modal-body">{versions.map(v=><div key={v.v} className={`version-item ${v.live?'live':''}`}><div className="v-num">v{v.v}</div><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{v.label}</div><div style={{fontSize:11.5,color:'var(--muted)'}}>{v.date} · {v.sections} sections</div></div>{v.live?<span className="badge badge-success">LIVE</span>:<button className="btn btn-outline btn-sm" onClick={()=>{toast(`Rolled back to v${v.v}`,'success');onClose();}}>Restore</button>}</div>)}</div>
+        <div className="modal-body">
+          {loading && <div style={{color:'var(--muted)',fontSize:13}}>Loading versions...</div>}
+          {!loading && versions.length === 0 && <div style={{color:'var(--muted)',fontSize:13}}>No versions yet.</div>}
+          {!loading && versions.map(v=><div key={v.v} className={`version-item ${v.live?'live':''}`}><div className="v-num">v{v.v}</div><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{v.label}</div><div style={{fontSize:11.5,color:'var(--muted)'}}>{v.date} · {v.sections} sections</div></div>{v.live?<span className="badge badge-success">LIVE</span>:<button className="btn btn-outline btn-sm" onClick={()=>onRestore(v.v)}>Restore</button>}</div>)}
+          {error && <div style={{marginTop:10,color:'var(--danger)',fontSize:12.5}}>{error}</div>}
+        </div>
       </div>
     </div>
   );
 }
 
 // ─── THEME BUILDER ───────────────────────────────────────────────────────────
-function ThemeBuilder({ toast }) {
+function ThemeBuilder({ toast, storeId }) {
   const [mode, setMode] = useState('builder');
   const [device, setDevice] = useState('desktop');
   const [sections, setSections] = useState([
@@ -761,24 +773,142 @@ function ThemeBuilder({ toast }) {
   const [rightTab, setRightTab] = useState('section');
   const [dragId, setDragId] = useState(null);
   const [dragOver, setDragOver] = useState(null);
+  const [themeSettings, setThemeSettings] = useState(DEFAULT_THEME_SETTINGS);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadTheme = useCallback(async () => {
+    if (!storeId) return;
+    try {
+      const res = await api.get(`/stores/${storeId}/theme`);
+      const payload = res.data || {};
+      const incomingSections = Array.isArray(payload.sections) ? payload.sections : [];
+      if (incomingSections.length > 0) {
+        setSections(incomingSections.map((s, idx) => ({
+          id: String(s.id || `s${Date.now()}${idx}`),
+          type: s.type || "hero",
+          props: s.props || {},
+        })));
+        setSelId(String(incomingSections[0]?.id || "s2"));
+        setIsDraft(false);
+      }
+      if (payload.settings && typeof payload.settings === "object") {
+        setThemeSettings((prev) => ({ ...prev, ...payload.settings }));
+      }
+      setError("");
+    } catch (err) {
+      setError(toErrorText(err, "Could not load theme data."));
+    }
+  }, [storeId]);
+
+  const loadVersions = useCallback(async () => {
+    if (!storeId) return;
+    try {
+      setVersionsLoading(true);
+      const res = await api.get(`/stores/${storeId}/theme/versions`);
+      const rows = Array.isArray(res.data) ? res.data : [];
+      setVersions(rows.map((v) => ({
+        v: Number(v.version),
+        date: v.createdAt ? new Date(v.createdAt).toLocaleString() : "-",
+        label: v.versionType === "published" ? "Published" : "Draft",
+        sections: 0,
+        live: String(v.versionType).toLowerCase() === "published",
+      })));
+      setError("");
+    } catch (err) {
+      setError(toErrorText(err, "Could not load version history."));
+    } finally {
+      setVersionsLoading(false);
+    }
+  }, [storeId]);
+
+  const saveDraft = useCallback(async (notify = true) => {
+    if (!storeId) {
+      setError("Store is not selected.");
+      return false;
+    }
+    try {
+      setSaveBusy(true);
+      await api.put(`/stores/${storeId}/theme`, {
+        sectionsJson: JSON.stringify(sections),
+        settingsJson: JSON.stringify(themeSettings),
+      });
+      setIsDraft(false);
+      setError("");
+      if (notify) toast("Theme draft saved.", "success");
+      return true;
+    } catch (err) {
+      const message = toErrorText(err, "Could not save theme.");
+      setError(message);
+      toast(message, "error");
+      return false;
+    } finally {
+      setSaveBusy(false);
+    }
+  }, [storeId, sections, themeSettings, toast]);
+
+  const publishTheme = useCallback(async () => {
+    const ok = await saveDraft(false);
+    if (!ok || !storeId) return;
+    try {
+      setSaveBusy(true);
+      await api.post(`/stores/${storeId}/theme/publish`);
+      setIsDraft(false);
+      toast("Layout published!", "success");
+      await loadVersions();
+    } catch (err) {
+      const message = toErrorText(err, "Could not publish theme.");
+      setError(message);
+      toast(message, "error");
+    } finally {
+      setSaveBusy(false);
+    }
+  }, [saveDraft, storeId, toast, loadVersions]);
+
+  const restoreVersion = useCallback(async (version) => {
+    if (!storeId) return;
+    try {
+      await api.post(`/stores/${storeId}/theme/versions/${version}/restore`);
+      await loadTheme();
+      setShowVersions(false);
+      toast(`Rolled back to v${version}`, "success");
+    } catch (err) {
+      const message = toErrorText(err, "Could not restore version.");
+      setError(message);
+      toast(message, "error");
+    }
+  }, [storeId, loadTheme, toast]);
+
+  useEffect(() => {
+    loadTheme();
+  }, [loadTheme]);
+
+  useEffect(() => {
+    if (!showVersions) return;
+    loadVersions();
+  }, [showVersions, loadVersions]);
 
   const addSection = (type) => {
     const def = SECTION_TYPES.find(s=>s.type===type);
     const n = {id:`s${Date.now()}`,type,props:{...def.default}};
     setSections(p=>[...p,n]); setSelId(n.id);
+    setIsDraft(true);
     toast(`${def.label} added`,'success');
   };
-  const removeSection = (id) => { setSections(p=>p.filter(s=>s.id!==id)); if(selId===id) setSelId(null); toast('Section removed'); };
+  const removeSection = (id) => { setSections(p=>p.filter(s=>s.id!==id)); if(selId===id) setSelId(null); setIsDraft(true); toast('Section removed'); };
   const duplicateSection = (id) => {
     const sec = sections.find(s=>s.id===id);
     const dup = {...sec,id:`s${Date.now()}`,props:{...sec.props}};
     setSections(p=>{const idx=p.findIndex(s=>s.id===id);const n=[...p];n.splice(idx+1,0,dup);return n;});
-    setSelId(dup.id); toast('Section duplicated','success');
+    setSelId(dup.id); setIsDraft(true); toast('Section duplicated','success');
   };
   const moveSection = (id,dir) => {
     setSections(p=>{const idx=p.findIndex(s=>s.id===id);if((dir==='up'&&idx===0)||(dir==='down'&&idx===p.length-1)) return p;const n=[...p];[n[idx],n[dir==='up'?idx-1:idx+1]]=[n[dir==='up'?idx-1:idx+1],n[idx]];return n;});
+    setIsDraft(true);
   };
-  const updateProp = (id,key,val) => setSections(p=>p.map(s=>s.id===id?{...s,props:{...s.props,[key]:val}}:s));
+  const updateProp = (id,key,val) => { setSections(p=>p.map(s=>s.id===id?{...s,props:{...s.props,[key]:val}}:s)); setIsDraft(true); };
 
   const selSec = sections.find(s=>s.id===selId);
   const selDef = SECTION_TYPES.find(t=>t.type===selSec?.type);
@@ -811,17 +941,18 @@ function ThemeBuilder({ toast }) {
           <div style={{display:'flex',gap:3,background:'rgba(255,255,255,.08)',borderRadius:7,padding:'3px'}}>
             {[{id:'desktop',icon:'🖥'},{id:'tablet',icon:'📱'},{id:'mobile',icon:'📲'}].map(d=><button key={d.id} onClick={()=>setDevice(d.id)} style={{padding:'4px 9px',borderRadius:5,border:'none',background:device===d.id?'rgba(255,255,255,.18)':'transparent',cursor:'pointer',color:device===d.id?'#fff':'#94a3b8',fontSize:11,fontFamily:'inherit'}}>{d.icon}</button>)}
           </div>
-          <button className="btn btn-ghost btn-sm" style={{color:'#94a3b8',border:'1px solid rgba(255,255,255,.15)'}} onClick={()=>setShowVersions(true)}>📋 History</button>
+          <button className="btn btn-ghost btn-sm" style={{color:'#94a3b8',border:'1px solid rgba(255,255,255,.15)'}} onClick={()=>setShowVersions(true)} disabled={!storeId}>📋 History</button>
+          <button className="btn btn-ghost btn-sm" style={{color:'#94a3b8',border:'1px solid rgba(255,255,255,.15)'}} onClick={()=>saveDraft(true)} disabled={!storeId||saveBusy}>💾 Save</button>
         </>}
         <div style={{fontSize:11,color:'#94a3b8'}}>{isDraft?<><span style={{color:'#f59e0b'}}>●</span> Draft</>:<><span style={{color:'#4ade80'}}>●</span> Live</>}</div>
-        {mode==='builder'&&<button className="btn btn-primary btn-sm" onClick={()=>{setIsDraft(false);toast('Layout published!','success');}}>🚀 Publish</button>}
+        {mode==='builder'&&<button className="btn btn-primary btn-sm" onClick={publishTheme} disabled={!storeId||saveBusy}>🚀 Publish</button>}
       </div>
 
       {mode==='navigation'&&<NavBuilder toast={toast}/>}
       {mode==='pages'&&<PageEditor toast={toast}/>}
       {mode==='theme-settings'&&(
         <div style={{display:'grid',gridTemplateColumns:'300px 1fr',flex:1,overflow:'hidden'}}>
-          <div style={{borderRight:'1px solid var(--border)',overflowY:'auto'}}><ThemeSettings toast={toast}/></div>
+          <div style={{borderRight:'1px solid var(--border)',overflowY:'auto'}}><ThemeSettings toast={toast} value={themeSettings} onChange={(next)=>{setThemeSettings(next);setIsDraft(true);}} onSave={()=>saveDraft(true)}/></div>
           <div style={{padding:36,background:'var(--surface2)',overflowY:'auto'}}>
             <div style={{fontWeight:800,fontSize:14,marginBottom:16}}>Live Preview</div>
             <div style={{background:'#fff',borderRadius:14,boxShadow:'0 20px 60px rgba(0,0,0,.14)',maxWidth:680,overflow:'hidden'}}>
@@ -893,7 +1024,7 @@ function ThemeBuilder({ toast }) {
                 <button className={`tab ${rightTab==='theme'?'active':''}`} onClick={()=>setRightTab('theme')}>Theme</button>
               </div>
             </div>
-            {rightTab==='theme'&&<div style={{flex:1,overflowY:'auto'}}><ThemeSettings toast={toast}/></div>}
+            {rightTab==='theme'&&<div style={{flex:1,overflowY:'auto'}}><ThemeSettings toast={toast} value={themeSettings} onChange={(next)=>{setThemeSettings(next);setIsDraft(true);}} onSave={()=>saveDraft(true)}/></div>}
             {rightTab==='section'&&(
               <div style={{flex:1,overflowY:'auto'}}>
                 {!selSec?<div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--muted)',gap:8,padding:20,textAlign:'center'}}><div style={{fontSize:36}}>👆</div><div style={{fontWeight:700,fontSize:14}}>Select a section</div><div style={{fontSize:12}}>Click any section on the canvas to edit its settings</div></div>:(
@@ -923,7 +1054,8 @@ function ThemeBuilder({ toast }) {
           </div>
         </div>
       )}
-      {showVersions&&<VersionPanel onClose={()=>setShowVersions(false)} toast={toast}/>}
+      {error && <div style={{position:'absolute',bottom:14,left:14,color:'var(--danger)',fontSize:12.5,fontWeight:600}}>{error}</div>}
+      {showVersions&&<VersionPanel onClose={()=>setShowVersions(false)} toast={toast} versions={versions} onRestore={restoreVersion} loading={versionsLoading} error={error}/>}
     </div>
   );
 }
@@ -1944,12 +2076,6 @@ export default function StoreBuilderV1() {
           <div className="sb-logo">
             <div className="sb-logo-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
             <div><div className="sb-wordmark">Sitesellr</div><div className="sb-sub">Admin Panel</div></div>
-          </div>
-
-          {/* Role Toggle */}
-          <div className="role-toggle">
-            <button className={`role-btn ${role==='store'?'active':''}`} onClick={()=>{setRole('store');setPage('dashboard');}}>Store</button>
-            <button className={`role-btn ${role==='platform'?'active':''}`} onClick={()=>{setRole('platform');setPage('dashboard');}} disabled={!access.isPlatformOwner}>Platform</button>
           </div>
 
           <div className="sb-section">

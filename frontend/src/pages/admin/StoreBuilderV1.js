@@ -2121,6 +2121,12 @@ export default function StoreBuilderV1() {
 
   const platformNav = [
     {id:'dashboard',label:'PBAdmin',icon:'dashboard'},
+    {id:'app-manager',label:'App Marketplace',icon:'apps',badge:'16'},
+    {id:'revenue',label:'Revenue',icon:'revenue'},
+    {id:'tenants',label:'Tenants',icon:'users'},
+    {id:'platform-settings',label:'Settings',icon:'settings'},
+    {id:'theme-builder',label:'Theme Builder',icon:'theme'},
+    {id:'api-requirements',label:'API Requirements',icon:'api'},
     {id:'merchant',label:'Merchant',icon:'users',route:'/admin/merchants'},
     {id:'merchant-ops',label:'Merchant Ops',icon:'builder',route:'/admin/merchant-ops'},
     {id:'platform-rbac',label:'Platform RBAC',icon:'lock',route:'/admin/platform-rbac'},

@@ -110,11 +110,33 @@ const sidebarItems = [
     requiredAny: ["store.settings.manage", "store.settings.write", "store.settings.read"],
   },
   {
-    title: "Merchant / Store Management",
+    title: "Merchant Management",
     icon: Building2,
-    path: "/admin/merchants",
     scope: "platform-owner",
-    requiredAny: ["merchants.read_all", "merchants.read", "merchants.manage"],
+    requiredAny: ["merchants.read_all", "merchants.read", "merchants.manage", "security.policies.manage"],
+    children: [
+      {
+        title: "Merchant",
+        icon: Building2,
+        path: "/admin/merchants",
+        scope: "platform-owner",
+        requiredAny: ["merchants.read_all", "merchants.read", "merchants.manage"],
+      },
+      {
+        title: "Merchant Ops",
+        icon: ClipboardList,
+        path: "/admin/merchant-ops",
+        scope: "platform-owner",
+        requiredAny: ["merchants.manage", "merchants.suspend", "security.policies.manage"],
+      },
+      {
+        title: "Platform RBAC",
+        icon: ShieldCheck,
+        path: "/admin/platform-rbac",
+        scope: "platform-owner",
+        requiredAny: ["security.policies.manage", "platform.settings.manage"],
+      },
+    ],
   },
   {
     title: "Payments & Transactions",
@@ -180,13 +202,6 @@ const sidebarItems = [
     requiredAny: ["payments.read_all", "transactions.read_all", "security.audit_logs.read_all", "merchants.read_all"],
   },
   {
-    title: "Role / Permission Governance",
-    icon: ShieldCheck,
-    path: "/admin/platform-rbac",
-    scope: "platform-owner",
-    requiredAny: ["security.policies.manage", "platform.settings.manage"],
-  },
-  {
     title: "Domains & SSL",
     icon: Shield,
     path: "/admin/domains-ssl",
@@ -237,9 +252,62 @@ const SidebarContent = ({ collapsed, setCollapsed, onItemClick, visibleItems }) 
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-1">
           {visibleItems.map((item) => {
-            const isActive = location.pathname === item.path || 
-              (item.path !== "/admin" && location.pathname.startsWith(item.path));
-            
+            if (item.children?.length) {
+              if (collapsed) {
+                const firstPath = item.children[0]?.path || "/admin";
+                const active = item.children.some((child) => location.pathname === child.path || (child.path !== "/admin" && location.pathname.startsWith(child.path)));
+                return (
+                  <TooltipProvider key={item.title} delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          to={firstPath}
+                          onClick={onItemClick}
+                          className={cn(
+                            "flex items-center justify-center px-2 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                            active ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                          )}
+                        >
+                          <item.icon className={cn("w-5 h-5", active && "text-blue-600 dark:text-blue-400")} />
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="font-medium">
+                        {item.title}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                );
+              }
+
+              return (
+                <div key={item.title} className="space-y-1">
+                  <div className="px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    {item.title}
+                  </div>
+                  {item.children.map((child) => {
+                    const isActive = location.pathname === child.path || (child.path !== "/admin" && location.pathname.startsWith(child.path));
+                    return (
+                      <Link
+                        key={child.path}
+                        to={child.path}
+                        onClick={onItemClick}
+                        className={cn(
+                          "ml-2 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                          isActive
+                            ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                            : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                        )}
+                      >
+                        <child.icon className={cn("w-4 h-4 flex-shrink-0", isActive && "text-blue-600 dark:text-blue-400")} />
+                        <span>{child.title}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            }
+
+            const isActive = location.pathname === item.path || (item.path !== "/admin" && location.pathname.startsWith(item.path));
             return (
               <TooltipProvider key={item.path} delayDuration={0}>
                 <Tooltip>
@@ -254,7 +322,7 @@ const SidebarContent = ({ collapsed, setCollapsed, onItemClick, visibleItems }) 
                           : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800",
                         collapsed && "justify-center px-2"
                       )}
-                      data-testid={`sidebar-${item.title.toLowerCase().replace(" ", "-")}`}
+                      data-testid={`sidebar-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
                     >
                       <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-blue-600 dark:text-blue-400")} />
                       {!collapsed && <span>{item.title}</span>}
@@ -400,8 +468,7 @@ export const DashboardLayout = () => {
       if (!Array.isArray(requiredAny) || requiredAny.length === 0) return true;
       return requiredAny.some((p) => perms.has(String(p).toLowerCase()));
     };
-
-    return sidebarItems.filter((item) => {
+    const isScopeAllowed = (item) => {
       if (!hasAnyPermission(item.requiredAny)) return false;
       switch (item.scope) {
         case "platform-owner-or-store":
@@ -418,7 +485,22 @@ export const DashboardLayout = () => {
         default:
           return access.isStoreUser;
       }
-    });
+    };
+
+    const filterItems = (items) =>
+      items
+        .map((item) => {
+          if (!isScopeAllowed(item)) return null;
+          if (Array.isArray(item.children) && item.children.length > 0) {
+            const children = filterItems(item.children);
+            if (!children.length) return null;
+            return { ...item, children };
+          }
+          return item;
+        })
+        .filter(Boolean);
+
+    return filterItems(sidebarItems);
   }, [access]);
 
   const handleLogout = async () => {

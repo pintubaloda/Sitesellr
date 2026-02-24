@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import useApiList from "../../hooks/useApiList";
@@ -13,6 +13,7 @@ export const MerchantOps = () => {
   const [approvalRequired, setApprovalRequired] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("lifecycle");
   const [onboarding, setOnboarding] = useState(null);
   const [franchiseName, setFranchiseName] = useState("");
   const [backofficeEmail, setBackofficeEmail] = useState("");
@@ -61,11 +62,7 @@ export const MerchantOps = () => {
 
   const addBackoffice = async () => {
     await call(async () => {
-      await api.post(`/merchant-ops/${merchantId}/backoffice`, {
-        email: backofficeEmail,
-        scope: "merchant",
-        department: "support",
-      });
+      await api.post(`/merchant-ops/${merchantId}/backoffice`, { email: backofficeEmail, scope: "merchant", department: "support" });
       setBackofficeEmail("");
       setMessage("Back-office assignment added.");
     });
@@ -86,24 +83,27 @@ export const MerchantOps = () => {
     });
   };
 
+  const selectedMerchantName = useMemo(() => {
+    const m = (merchants || []).find((x) => String(x.id) === String(merchantId));
+    return m?.name || "";
+  }, [merchants, merchantId]);
+
   return (
     <div className="space-y-6" data-testid="merchant-ops-page">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Merchant Ops</h1>
-        <p className="text-slate-500 dark:text-slate-400">Lifecycle, onboarding checks, franchise and back-office workflows.</p>
+      <div className="flex items-center justify-between">
+        <h1 className="text-4xl font-semibold text-slate-800">Merchant Operations</h1>
+        <div className="text-slate-500 text-lg">{new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</div>
       </div>
 
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader>
-          <CardTitle>Select Merchant</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <Label className="text-sm tracking-widest uppercase text-slate-500">Select merchant to operate on</Label>
           <select
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full h-12 rounded-xl border border-slate-300 px-4 text-xl"
             value={merchantId}
             onChange={(e) => setMerchantId(e.target.value)}
           >
-            <option value="">Select merchant</option>
+            <option value="">— Choose a merchant —</option>
             {(merchants || []).map((m) => (
               <option key={m.id} value={m.id}>{m.name}</option>
             ))}
@@ -111,86 +111,112 @@ export const MerchantOps = () => {
         </CardContent>
       </Card>
 
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader><CardTitle>Lifecycle Actions</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <Input placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
-          <label className="text-sm text-slate-600 flex items-center gap-2">
-            <input type="checkbox" checked={approvalRequired} onChange={(e) => setApprovalRequired(e.target.checked)} />
-            Require approval for sensitive actions
-          </label>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={() => lifecycle("trial")} disabled={!merchantId}>Set Trial</Button>
-            <Button variant="outline" onClick={() => lifecycle("activate")} disabled={!merchantId}>Activate</Button>
-            <Button variant="outline" onClick={() => lifecycle("suspend")} disabled={!merchantId}>Suspend</Button>
-            <Button variant="outline" onClick={() => lifecycle("expire")} disabled={!merchantId}>Expire</Button>
-            <Button variant="outline" onClick={() => lifecycle("reactivate")} disabled={!merchantId}>Reactivate</Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        {[
+          { key: "lifecycle", label: "Lifecycle" },
+          { key: "onboarding", label: "Onboarding" },
+          { key: "franchise", label: "Franchise & Backoffice" },
+          { key: "approvals", label: `Approvals (${approvals.length})` },
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setActiveTab(t.key)}
+            className={`h-14 rounded-2xl text-3xl font-medium border ${activeTab === t.key ? "bg-white border-slate-300 text-slate-800" : "bg-slate-100 border-transparent text-slate-500"}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader><CardTitle>Onboarding Completion Pipeline</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <Button variant="outline" onClick={loadOnboarding} disabled={!merchantId}>Load Pipeline</Button>
-          {onboarding ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {["emailVerified", "mobileVerified", "kycVerified", "opsApproved", "riskApproved"].map((k) => (
-                <label key={k} className="text-sm text-slate-700 flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={!!onboarding[k]}
-                    onChange={(e) => setOnboarding((p) => ({ ...p, [k]: e.target.checked }))}
-                  />
-                  {k}
-                </label>
-              ))}
-              <div className="space-y-2">
-                <Label>Pipeline Status</Label>
-                <Input value={onboarding.pipelineStatus || "pending"} onChange={(e) => setOnboarding((p) => ({ ...p, pipelineStatus: e.target.value }))} />
-              </div>
-              <div className="md:col-span-2">
-                <Button onClick={saveOnboarding}>Save Pipeline</Button>
-              </div>
+      {activeTab === "lifecycle" ? (
+        <Card>
+          <CardContent className="p-6 space-y-5">
+            <div>
+              <h2 className="text-4xl font-semibold text-slate-800">Lifecycle Management</h2>
+              <p className="text-slate-500">Control merchant account status transitions</p>
             </div>
-          ) : null}
-        </CardContent>
-      </Card>
+            <div className="space-y-2">
+              <Label className="text-sm tracking-widest uppercase text-slate-500">Reason for action</Label>
+              <Input className="h-12" placeholder="Describe the reason for this lifecycle change..." value={reason} onChange={(e) => setReason(e.target.value)} />
+            </div>
+            <label className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+              <span className="text-xl font-medium text-slate-700">Require approval for sensitive actions</span>
+              <input type="checkbox" checked={approvalRequired} onChange={(e) => setApprovalRequired(e.target.checked)} />
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <Button variant="outline" className="h-28 text-3xl" disabled={!merchantId} onClick={() => lifecycle("trial")}>Set Trial</Button>
+              <Button variant="outline" className="h-28 text-3xl" disabled={!merchantId} onClick={() => lifecycle("activate")}>Activate</Button>
+              <Button variant="outline" className="h-28 text-3xl" disabled={!merchantId} onClick={() => lifecycle("suspend")}>Suspend</Button>
+              <Button variant="outline" className="h-28 text-3xl" disabled={!merchantId} onClick={() => lifecycle("expire")}>Expire</Button>
+              <Button variant="outline" className="h-28 text-3xl" disabled={!merchantId} onClick={() => lifecycle("reactivate")}>Reactivate</Button>
+            </div>
+            {!merchantId ? <p className="text-slate-500">Select a merchant above to enable lifecycle actions.</p> : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader><CardTitle>Franchise / Back-office</CardTitle></CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Franchise Unit Name</Label>
-            <Input value={franchiseName} onChange={(e) => setFranchiseName(e.target.value)} />
-            <Button onClick={addFranchise} disabled={!merchantId || !franchiseName.trim()}>Add Franchise Unit</Button>
-          </div>
-          <div className="space-y-2">
-            <Label>Back-office User Email</Label>
-            <Input value={backofficeEmail} onChange={(e) => setBackofficeEmail(e.target.value)} />
-            <Button onClick={addBackoffice} disabled={!merchantId || !backofficeEmail.trim()}>Assign Back-office</Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardHeader><CardTitle>Sensitive Action Approvals</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <Button variant="outline" onClick={loadApprovals}>Load Pending Approvals</Button>
-          <div className="space-y-2">
-            {approvals.map((a) => (
-              <div key={a.id} className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 flex items-center justify-between gap-3">
+      {activeTab === "onboarding" ? (
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <h2 className="text-3xl font-semibold text-slate-800">Onboarding Pipeline{selectedMerchantName ? ` · ${selectedMerchantName}` : ""}</h2>
+            <Button variant="outline" disabled={!merchantId} onClick={loadOnboarding}>Load Pipeline</Button>
+            {onboarding ? (
+              <div className="grid md:grid-cols-2 gap-3">
+                {["emailVerified", "mobileVerified", "kycVerified", "opsApproved", "riskApproved"].map((k) => (
+                  <label key={k} className="flex items-center gap-2 p-3 rounded-xl border">
+                    <input type="checkbox" checked={!!onboarding[k]} onChange={(e) => setOnboarding((p) => ({ ...p, [k]: e.target.checked }))} />
+                    <span>{k}</span>
+                  </label>
+                ))}
+                <Input value={onboarding.pipelineStatus || "pending"} onChange={(e) => setOnboarding((p) => ({ ...p, pipelineStatus: e.target.value }))} />
                 <div>
-                  <p className="text-sm font-medium">{a.actionType}</p>
-                  <p className="text-xs text-slate-500">{a.entityType}:{a.entityId}</p>
+                  <Button onClick={saveOnboarding}>Save Pipeline</Button>
                 </div>
-                <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => approve(a.id)}>Approve</Button>
               </div>
-            ))}
-            {approvals.length === 0 ? <p className="text-sm text-slate-500">No pending approvals loaded.</p> : null}
-          </div>
-        </CardContent>
-      </Card>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {activeTab === "franchise" ? (
+        <Card>
+          <CardContent className="p-6 grid md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <Label>Franchise Unit Name</Label>
+              <Input value={franchiseName} onChange={(e) => setFranchiseName(e.target.value)} />
+              <Button onClick={addFranchise} disabled={!merchantId || !franchiseName.trim()}>Add Franchise Unit</Button>
+            </div>
+            <div className="space-y-3">
+              <Label>Back-office User Email</Label>
+              <Input value={backofficeEmail} onChange={(e) => setBackofficeEmail(e.target.value)} />
+              <Button onClick={addBackoffice} disabled={!merchantId || !backofficeEmail.trim()}>Assign Back-office</Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {activeTab === "approvals" ? (
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-semibold text-slate-800">Sensitive Action Approvals</h2>
+              <Button variant="outline" onClick={loadApprovals}>Load Pending</Button>
+            </div>
+            <div className="space-y-2">
+              {approvals.map((a) => (
+                <div key={a.id} className="rounded-xl border p-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{a.actionType}</p>
+                    <p className="text-sm text-slate-500">{a.entityType}:{a.entityId}</p>
+                  </div>
+                  <Button onClick={() => approve(a.id)}>Approve</Button>
+                </div>
+              ))}
+              {approvals.length === 0 ? <p className="text-slate-500">No pending approvals loaded.</p> : null}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {message ? <p className="text-sm text-green-600">{message}</p> : null}

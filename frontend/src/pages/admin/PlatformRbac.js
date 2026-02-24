@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
 import { Badge } from "../../components/ui/badge";
 import api from "../../lib/api";
 
@@ -123,13 +122,7 @@ export const PlatformRbac = () => {
         roles: [platformRole === "Owner" ? 0 : 1],
         reason: reason.trim(),
       });
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === selectedUser.id
-            ? { ...u, platformRoles: [platformRole] }
-            : u
-        )
-      );
+      setUsers((prev) => prev.map((u) => (u.id === selectedUser.id ? { ...u, platformRoles: [platformRole] } : u)));
       setMessage(`Updated ${selectedUser.email} as ${platformRole}.`);
     });
   };
@@ -141,123 +134,112 @@ export const PlatformRbac = () => {
         role: storeRole,
         reason: reason.trim(),
       });
-      setMessage(`Updated ${selectedUser.email} as ${storeRole} for selected store.`);
+      setMessage(`Updated ${selectedUser.email} as ${storeRole}.`);
     });
   };
 
+  const platformUsers = useMemo(() => users.filter((u) => (u.platformRoles || []).length > 0).length, [users]);
+  const storeUsers = useMemo(() => users.filter((u) => (u.storeMemberships || 0) > 0).length, [users]);
+  const totalRolesAssigned = useMemo(() => users.reduce((sum, u) => sum + (u.platformRoles || []).length + (u.storeRoles || []).length, 0), [users]);
+
   return (
     <div className="space-y-6" data-testid="platform-rbac-page">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Platform RBAC</h1>
-        <p className="text-slate-500 dark:text-slate-400">Select user type, pick user, review current role, then update.</p>
+      <div className="flex items-center justify-between">
+        <h1 className="text-4xl font-semibold text-slate-800">Platform RBAC</h1>
+        <div className="text-slate-500 text-lg">{new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</div>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card><CardContent className="p-6"><p className="text-slate-500">Platform Users</p><p className="mt-4 text-5xl font-semibold text-slate-800">{platformUsers}</p></CardContent></Card>
+        <Card><CardContent className="p-6"><p className="text-slate-500">Store Users</p><p className="mt-4 text-5xl font-semibold text-slate-800">{storeUsers}</p></CardContent></Card>
+        <Card><CardContent className="p-6"><p className="text-slate-500">Total Roles Assigned</p><p className="mt-4 text-5xl font-semibold text-slate-800">{totalRolesAssigned}</p></CardContent></Card>
       </div>
 
       <div className="grid xl:grid-cols-[360px_minmax(0,1fr)] gap-6">
-        <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
-          <CardHeader className="space-y-3">
-            <CardTitle>Users</CardTitle>
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant={category === "platform" ? "default" : "outline"} onClick={() => setCategory("platform")}>Platform Users</Button>
-              <Button variant={category === "store" ? "default" : "outline"} onClick={() => setCategory("store")}>Store Users</Button>
+        <Card>
+          <CardContent className="p-0">
+            <div className="p-5 space-y-3 border-b">
+              <h3 className="text-3xl font-semibold text-slate-800">Users</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant={category === "platform" ? "default" : "outline"} onClick={() => setCategory("platform")}>Platform</Button>
+                <Button variant={category === "store" ? "default" : "outline"} onClick={() => setCategory("store")}>Store</Button>
+              </div>
+              <Input placeholder="Search by email..." value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Input placeholder="Search by email..." value={search} onChange={(e) => setSearch(e.target.value)} />
-            <Button variant="outline" onClick={() => loadLists(search)}>Refresh</Button>
-          </CardHeader>
-          <CardContent className="space-y-2 max-h-[70vh] overflow-auto">
-            {filteredUsers.map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                onClick={() => onSelectUser(u)}
-                className={`w-full text-left p-3 rounded-xl border transition ${selectedUser?.id === u.id ? "border-blue-500 bg-blue-50/40" : "border-slate-200 hover:bg-slate-50"}`}
-              >
-                <p className="text-sm font-semibold text-slate-900">{u.email}</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <Badge variant="secondary">
-                    {category === "platform"
-                      ? ((u.platformRoles || []).join(", ") || "No Platform Role")
-                      : ((u.storeRoles || []).join(", ") || "No Store Role")}
-                  </Badge>
-                  <span className="text-xs text-slate-500">stores: {u.storeMemberships || 0}</span>
-                </div>
-                <p className="mt-1 text-[11px] text-slate-400 truncate">{u.id}</p>
-              </button>
-            ))}
-            {filteredUsers.length === 0 ? <p className="text-sm text-slate-500">No users found.</p> : null}
+            <div className="max-h-[540px] overflow-auto">
+              {filteredUsers.map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => onSelectUser(u)}
+                  className={`w-full text-left p-4 border-b hover:bg-slate-50 ${selectedUser?.id === u.id ? "bg-blue-50" : "bg-white"}`}
+                >
+                  <p className="text-2xl font-semibold text-slate-800">{u.email}</p>
+                  <div className="mt-1 flex items-center gap-2 text-sm">
+                    <Badge variant="secondary">{category === "platform" ? ((u.platformRoles || []).join(", ") || "No Platform Role") : ((u.storeRoles || []).join(", ") || "No Store Role")}</Badge>
+                    <span className="text-slate-500">{u.storeMemberships || 0} stores</span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
-          <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
-            <CardHeader>
-              <CardTitle>Selected User</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {selectedUser ? (
-                <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/70">
-                  <p className="font-semibold">{selectedUser.email}</p>
-                  <p className="text-xs text-slate-500 mt-1">{selectedUser.id}</p>
-                  <div className="mt-3 flex gap-2">
-                    <Badge variant="secondary">Platform: {(selectedUser.platformRoles || []).join(", ") || "none"}</Badge>
-                    <Badge variant="secondary">Store Roles: {(selectedUser.storeRoles || []).join(", ") || "none"}</Badge>
-                    <Badge variant="secondary">Stores: {selectedUser.storeMemberships || 0}</Badge>
-                  </div>
-                </div>
+        <div className="space-y-5">
+          <Card>
+            <CardContent className="p-6">
+              {!selectedUser ? (
+                <p className="text-center text-slate-500 text-xl py-8">Select a user from the list to manage their roles</p>
               ) : (
-                <p className="text-sm text-slate-500">Select a user from the left list.</p>
+                <div className="space-y-4">
+                  <h3 className="text-3xl font-semibold text-slate-800">{selectedUser.email}</h3>
+                  {category === "platform" ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Current / New Role</Label>
+                        <select className="w-full h-11 border rounded-lg px-3" value={platformRole} onChange={(e) => setPlatformRole(e.target.value)}>
+                          <option value="Owner">Owner</option>
+                          <option value="Staff">Staff</option>
+                        </select>
+                      </div>
+                      <Input placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+                      <Button disabled={loading || !reason.trim()} onClick={savePlatformRole}>Save Platform Role</Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        <select className="w-full h-11 border rounded-lg px-3" value={selectedStoreId} onChange={(e) => onStoreChange(e.target.value)}>
+                          <option value="">Select store</option>
+                          {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <select className="w-full h-11 border rounded-lg px-3" value={storeRole} onChange={(e) => setStoreRole(e.target.value)}>
+                          <option value="Owner">Owner</option>
+                          <option value="Admin">Admin</option>
+                          <option value="Staff">Staff</option>
+                        </select>
+                      </div>
+                      <Input placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+                      <Button disabled={loading || !selectedStoreId || !reason.trim()} onClick={saveStoreRole}>Save Store Role</Button>
+                    </>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
 
-          {category === "platform" ? (
-            <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
-              <CardHeader><CardTitle>Update Platform Role</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Current / New Role</Label>
-                  <select className="w-full h-11 border rounded-lg px-3 bg-white dark:bg-slate-950" value={platformRole} onChange={(e) => setPlatformRole(e.target.value)}>
-                    <option value="Owner">Owner</option>
-                    <option value="Staff">Staff</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Reason</Label>
-                  <Input placeholder="Reason for role change" value={reason} onChange={(e) => setReason(e.target.value)} />
-                </div>
-                <Button disabled={loading || !selectedUser || !reason.trim()} onClick={savePlatformRole}>Save Platform Role</Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
-              <CardHeader><CardTitle>Update Store Role</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Store</Label>
-                    <select className="w-full h-11 border rounded-lg px-3 bg-white dark:bg-slate-950" value={selectedStoreId} onChange={(e) => onStoreChange(e.target.value)}>
-                      <option value="">Select store</option>
-                      {stores.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.subdomain || "no-subdomain"})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Current / New Role</Label>
-                    <select className="w-full h-11 border rounded-lg px-3 bg-white dark:bg-slate-950" value={storeRole} onChange={(e) => setStoreRole(e.target.value)}>
-                      <option value="Owner">Owner</option>
-                      <option value="Admin">Admin</option>
-                      <option value="Staff">Staff</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Reason</Label>
-                  <Input placeholder="Reason for role change" value={reason} onChange={(e) => setReason(e.target.value)} />
-                </div>
-                <Button disabled={loading || !selectedUser || !selectedStoreId || !reason.trim()} onClick={saveStoreRole}>Save Store Role</Button>
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-3xl font-semibold text-slate-800">Role Permissions Reference</h3>
+              <p className="text-slate-500 mb-4">Overview of what each role can access</p>
+              <div className="space-y-3 text-slate-700">
+                <div><span className="font-semibold">Platform Owner:</span> Manage all merchants, approvals, platform RBAC, analytics, billing</div>
+                <div><span className="font-semibold">Platform Staff:</span> View merchant list, basic operations, support tickets</div>
+                <div><span className="font-semibold">Store Owner:</span> Full store control, team management, reports, products/orders</div>
+                <div><span className="font-semibold">Store Admin:</span> Products/orders, customer management, limited settings</div>
+                <div><span className="font-semibold">Store Staff:</span> View orders and fulfillment actions</div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

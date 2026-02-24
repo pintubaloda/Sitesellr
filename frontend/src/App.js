@@ -93,6 +93,10 @@ function App() {
             <Route path="marketing" element={<Marketing />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="settings/general" element={<Settings />} />
+            <Route path="settings/notifications" element={<Settings />} />
+            <Route path="settings/tax" element={<Settings />} />
+            <Route path="settings/team" element={<Settings />} />
             <Route path="merchants" element={<Merchants />} />
             <Route path="platform-rbac" element={<PlatformRbac />} />
             <Route path="audit-logs" element={<AuditLogs />} />

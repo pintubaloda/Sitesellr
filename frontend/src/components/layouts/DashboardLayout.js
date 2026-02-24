@@ -56,6 +56,7 @@ import {
   HelpCircle,
   CreditCard,
   Globe,
+  Receipt,
   ChevronDown,
 } from "lucide-react";
 
@@ -105,9 +106,38 @@ const sidebarItems = [
   {
     title: "Settings",
     icon: Settings,
-    path: "/admin/settings",
     scope: "store",
     requiredAny: ["store.settings.manage", "store.settings.write", "store.settings.read"],
+    children: [
+      {
+        title: "General Settings",
+        icon: Store,
+        path: "/admin/settings",
+        scope: "store",
+        requiredAny: ["store.settings.manage", "store.settings.write", "store.settings.read"],
+      },
+      {
+        title: "Notification Settings",
+        icon: Bell,
+        path: "/admin/settings/notifications",
+        scope: "store",
+        requiredAny: ["store.settings.manage", "store.settings.write", "store.settings.read"],
+      },
+      {
+        title: "Tax Settings",
+        icon: Receipt,
+        path: "/admin/settings/tax",
+        scope: "store",
+        requiredAny: ["store.settings.manage", "store.settings.write", "store.settings.read"],
+      },
+      {
+        title: "Team Management",
+        icon: Users,
+        path: "/admin/settings/team",
+        scope: "store",
+        requiredAny: ["store.settings.manage", "store.settings.write", "store.settings.read"],
+      },
+    ],
   },
   {
     title: "Merchant Management",

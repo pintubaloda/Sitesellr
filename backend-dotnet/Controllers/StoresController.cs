@@ -5,11 +5,13 @@ using backend_dotnet.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+using System.Text.Json;
 
 namespace backend_dotnet.Controllers;
 
 public class StoresController : BaseApiController
 {
+    private static readonly JsonSerializerOptions StoreSettingsJsonOptions = new(JsonSerializerDefaults.Web);
     private readonly AppDbContext _db;
     private readonly ICloudflareDnsService _cloudflareDns;
     private readonly ILogger<StoresController> _logger;
@@ -168,6 +170,66 @@ public class StoresController : BaseApiController
         return Ok(new { storeId = id, corsOriginsCsv = value, saved = true });
     }
 
+    [HttpGet("{id:guid}/settings/notifications")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> GetNotificationSettings(Guid id, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
+        var exists = await _db.Stores.AsNoTracking().AnyAsync(s => s.Id == id, ct);
+        if (!exists) return NotFound();
+
+        var payload = await ReadStoreSettingsAsync(
+            id,
+            "notifications",
+            new StoreNotificationSettingsRequest(),
+            ct);
+        return Ok(payload);
+    }
+
+    [HttpPut("{id:guid}/settings/notifications")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> UpdateNotificationSettings(Guid id, [FromBody] StoreNotificationSettingsRequest req, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
+        var exists = await _db.Stores.AsNoTracking().AnyAsync(s => s.Id == id, ct);
+        if (!exists) return NotFound();
+
+        await WriteStoreSettingsAsync(id, "notifications", req ?? new StoreNotificationSettingsRequest(), ct);
+        return Ok(new { storeId = id, saved = true });
+    }
+
+    [HttpGet("{id:guid}/settings/tax")]
+    [Authorize(Policy = Policies.StoreSettingsRead)]
+    public async Task<IActionResult> GetTaxSettings(Guid id, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
+        var exists = await _db.Stores.AsNoTracking().AnyAsync(s => s.Id == id, ct);
+        if (!exists) return NotFound();
+
+        var payload = await ReadStoreSettingsAsync(
+            id,
+            "tax",
+            new StoreTaxSettingsRequest(),
+            ct);
+        return Ok(payload);
+    }
+
+    [HttpPut("{id:guid}/settings/tax")]
+    [Authorize(Policy = Policies.StoreSettingsWrite)]
+    public async Task<IActionResult> UpdateTaxSettings(Guid id, [FromBody] StoreTaxSettingsRequest req, CancellationToken ct)
+    {
+        if (Tenancy?.Store != null && Tenancy.Store.Id != id) return Forbid();
+        var exists = await _db.Stores.AsNoTracking().AnyAsync(s => s.Id == id, ct);
+        if (!exists) return NotFound();
+
+        var payload = req ?? new StoreTaxSettingsRequest();
+        payload.GstinNumber = (payload.GstinNumber ?? string.Empty).Trim().ToUpperInvariant();
+        payload.DefaultTaxRate = string.IsNullOrWhiteSpace(payload.DefaultTaxRate) ? "18" : payload.DefaultTaxRate.Trim();
+
+        await WriteStoreSettingsAsync(id, "tax", payload, ct);
+        return Ok(new { storeId = id, saved = true });
+    }
+
     [HttpPut("{id:guid}")]
     [Authorize(Policy = Policies.StoreSettingsWrite)]
     public async Task<IActionResult> Update(Guid id, [FromBody] StoreUpsertRequest input, CancellationToken ct)
@@ -247,6 +309,50 @@ public class StoresController : BaseApiController
         return candidate;
     }
 
+    private async Task<T> ReadStoreSettingsAsync<T>(Guid storeId, string settingName, T fallback, CancellationToken ct)
+    {
+        var key = BuildStoreSettingKey(storeId, settingName);
+        var raw = await _db.PlatformBrandingSettings.AsNoTracking()
+            .Where(x => x.Key == key)
+            .Select(x => x.Value)
+            .FirstOrDefaultAsync(ct);
+        if (string.IsNullOrWhiteSpace(raw)) return fallback;
+        try
+        {
+            return JsonSerializer.Deserialize<T>(raw, StoreSettingsJsonOptions) ?? fallback;
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
+
+    private async Task WriteStoreSettingsAsync<T>(Guid storeId, string settingName, T payload, CancellationToken ct)
+    {
+        var key = BuildStoreSettingKey(storeId, settingName);
+        var value = JsonSerializer.Serialize(payload, StoreSettingsJsonOptions);
+        var row = await _db.PlatformBrandingSettings.FirstOrDefaultAsync(x => x.Key == key, ct);
+        if (row == null)
+        {
+            row = new PlatformBrandingSetting
+            {
+                Key = key,
+                Value = value,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            _db.PlatformBrandingSettings.Add(row);
+        }
+        else
+        {
+            row.Value = value;
+            row.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private static string BuildStoreSettingKey(Guid storeId, string settingName) =>
+        $"store.settings.{settingName}.{storeId:N}";
+
     private static StoreResponse ToResponse(Store s)
     {
         return new StoreResponse
@@ -281,6 +387,24 @@ public class StoreUpsertRequest
 public class StoreCorsOriginsRequest
 {
     public string CorsOriginsCsv { get; set; } = string.Empty;
+}
+
+public class StoreNotificationSettingsRequest
+{
+    public bool NewOrder { get; set; } = true;
+    public bool OrderShipped { get; set; } = true;
+    public bool LowStockAlert { get; set; } = true;
+    public bool NewCustomer { get; set; }
+    public bool PaymentFailed { get; set; } = true;
+    public bool AbandonedCart { get; set; }
+}
+
+public class StoreTaxSettingsRequest
+{
+    public bool EnableGst { get; set; } = true;
+    public string GstinNumber { get; set; } = string.Empty;
+    public string DefaultTaxRate { get; set; } = "18";
+    public bool TaxInclusive { get; set; }
 }
 
 public class StoreResponse

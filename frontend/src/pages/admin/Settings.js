@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -7,7 +8,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { Switch } from "../../components/ui/switch";
 import { Badge } from "../../components/ui/badge";
 import { Separator } from "../../components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Tabs, TabsContent } from "../../components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -17,40 +18,18 @@ import {
 } from "../../components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import {
-  Store,
-  CreditCard,
-  Truck,
   Receipt,
-  Bell,
-  Users,
-  Shield,
   Globe,
-  Mail,
-  Phone,
-  MapPin,
   Upload,
   Check,
-  ExternalLink,
   Trash2,
   Plus,
-  Key,
 } from "lucide-react";
 import useActiveStore from "../../hooks/useActiveStore";
 import api from "../../lib/api";
 
-const SettingSection = ({ title, description, children }) => (
-  <div className="space-y-4">
-    <div>
-      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h3>
-      {description && (
-        <p className="text-sm text-slate-500 dark:text-slate-400">{description}</p>
-      )}
-    </div>
-    {children}
-  </div>
-);
-
 export const Settings = () => {
+  const location = useLocation();
   const { storeId, stores } = useActiveStore();
   const selectedStore = useMemo(
     () => (stores || []).find((store) => store.id === storeId) || null,
@@ -81,6 +60,26 @@ export const Settings = () => {
   const [templateName, setTemplateName] = useState("");
   const [templatePermissions, setTemplatePermissions] = useState("");
   const [templateSensitive, setTemplateSensitive] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsSaving, setNotificationsSaving] = useState(false);
+  const [notificationsMessage, setNotificationsMessage] = useState("");
+  const [notificationSettings, setNotificationSettings] = useState({
+    newOrder: true,
+    orderShipped: true,
+    lowStockAlert: true,
+    newCustomer: false,
+    paymentFailed: true,
+    abandonedCart: false,
+  });
+  const [taxLoading, setTaxLoading] = useState(false);
+  const [taxSaving, setTaxSaving] = useState(false);
+  const [taxMessage, setTaxMessage] = useState("");
+  const [taxSettings, setTaxSettings] = useState({
+    enableGst: true,
+    gstinNumber: "",
+    defaultTaxRate: "18",
+    taxInclusive: false,
+  });
 
   useEffect(() => {
     if (!selectedStore) return;
@@ -129,6 +128,52 @@ export const Settings = () => {
 
   useEffect(() => {
     loadTeamMembers();
+  }, [storeId]);
+
+  useEffect(() => {
+    const loadNotificationSettings = async () => {
+      if (!storeId) return;
+      setNotificationsLoading(true);
+      setNotificationsMessage("");
+      try {
+        const res = await api.get(`/stores/${storeId}/settings/notifications`);
+        setNotificationSettings({
+          newOrder: !!res.data?.newOrder,
+          orderShipped: !!res.data?.orderShipped,
+          lowStockAlert: !!res.data?.lowStockAlert,
+          newCustomer: !!res.data?.newCustomer,
+          paymentFailed: !!res.data?.paymentFailed,
+          abandonedCart: !!res.data?.abandonedCart,
+        });
+      } catch {
+        setNotificationsMessage("Could not load notification settings.");
+      } finally {
+        setNotificationsLoading(false);
+      }
+    };
+    loadNotificationSettings();
+  }, [storeId]);
+
+  useEffect(() => {
+    const loadTaxSettings = async () => {
+      if (!storeId) return;
+      setTaxLoading(true);
+      setTaxMessage("");
+      try {
+        const res = await api.get(`/stores/${storeId}/settings/tax`);
+        setTaxSettings({
+          enableGst: !!res.data?.enableGst,
+          gstinNumber: res.data?.gstinNumber || "",
+          defaultTaxRate: String(res.data?.defaultTaxRate || "18"),
+          taxInclusive: !!res.data?.taxInclusive,
+        });
+      } catch {
+        setTaxMessage("Could not load tax settings.");
+      } finally {
+        setTaxLoading(false);
+      }
+    };
+    loadTaxSettings();
   }, [storeId]);
 
   const handleSaveGeneral = async () => {
@@ -246,6 +291,48 @@ export const Settings = () => {
     }
   };
 
+  const handleSaveNotificationSettings = async () => {
+    if (!storeId) {
+      setNotificationsMessage("Select a store first.");
+      return;
+    }
+    setNotificationsSaving(true);
+    setNotificationsMessage("");
+    try {
+      await api.put(`/stores/${storeId}/settings/notifications`, notificationSettings);
+      setNotificationsMessage("Notification settings saved.");
+    } catch {
+      setNotificationsMessage("Could not save notification settings.");
+    } finally {
+      setNotificationsSaving(false);
+    }
+  };
+
+  const handleSaveTaxSettings = async () => {
+    if (!storeId) {
+      setTaxMessage("Select a store first.");
+      return;
+    }
+    setTaxSaving(true);
+    setTaxMessage("");
+    try {
+      await api.put(`/stores/${storeId}/settings/tax`, taxSettings);
+      setTaxMessage("Tax settings saved.");
+    } catch {
+      setTaxMessage("Could not save tax settings.");
+    } finally {
+      setTaxSaving(false);
+    }
+  };
+
+  const activeTab = useMemo(() => {
+    const path = location.pathname.toLowerCase();
+    if (path.endsWith("/settings/notifications")) return "notifications";
+    if (path.endsWith("/settings/tax")) return "taxes";
+    if (path.endsWith("/settings/team")) return "team";
+    return "general";
+  }, [location.pathname]);
+
   return (
     <div className="space-y-6" data-testid="settings-page">
       {/* Page Header */}
@@ -257,33 +344,7 @@ export const Settings = () => {
       </div>
 
       {/* Settings Tabs */}
-      <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex-wrap h-auto">
-          <TabsTrigger value="general" className="rounded-lg">
-            <Store className="w-4 h-4 mr-2" />
-            General
-          </TabsTrigger>
-          <TabsTrigger value="payments" className="rounded-lg">
-            <CreditCard className="w-4 h-4 mr-2" />
-            Payments
-          </TabsTrigger>
-          <TabsTrigger value="shipping" className="rounded-lg">
-            <Truck className="w-4 h-4 mr-2" />
-            Shipping
-          </TabsTrigger>
-          <TabsTrigger value="taxes" className="rounded-lg">
-            <Receipt className="w-4 h-4 mr-2" />
-            Taxes
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="rounded-lg">
-            <Bell className="w-4 h-4 mr-2" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger value="team" className="rounded-lg">
-            <Users className="w-4 h-4 mr-2" />
-            Team
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} className="space-y-6">
 
         {/* General Settings */}
         <TabsContent value="general" className="space-y-6">
@@ -438,131 +499,6 @@ export const Settings = () => {
           </Card>
         </TabsContent>
 
-        {/* Payments Settings */}
-        <TabsContent value="payments" className="space-y-6">
-          <Card className="border-slate-200 dark:border-slate-800">
-            <CardHeader>
-              <CardTitle>Payment Methods</CardTitle>
-              <CardDescription>Configure payment options for your store</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Razorpay */}
-              <div className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                    <CreditCard className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-900 dark:text-white">Razorpay</p>
-                    <p className="text-sm text-slate-500">UPI, Cards, Net Banking, Wallets</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">
-                    Connected
-                  </Badge>
-                  <Button variant="outline" size="sm">Configure</Button>
-                </div>
-              </div>
-
-              {/* COD */}
-              <div className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
-                    <Receipt className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-900 dark:text-white">Cash on Delivery</p>
-                    <p className="text-sm text-slate-500">Accept cash payments on delivery</p>
-                  </div>
-                </div>
-                <Switch defaultChecked data-testid="cod-switch" />
-              </div>
-
-              {/* PayU */}
-              <div className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
-                    <CreditCard className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-900 dark:text-white">PayU</p>
-                    <p className="text-sm text-slate-500">Alternative payment gateway</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" data-testid="connect-payu">Connect</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Shipping Settings */}
-        <TabsContent value="shipping" className="space-y-6">
-          <Card className="border-slate-200 dark:border-slate-800">
-            <CardHeader>
-              <CardTitle>Shipping Partners</CardTitle>
-              <CardDescription>Connect shipping providers for automatic fulfillment</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { name: "Shiprocket", desc: "Multi-courier aggregator", connected: true },
-                { name: "Delhivery", desc: "Pan-India courier service", connected: false },
-                { name: "Bluedart", desc: "Premium express delivery", connected: false },
-              ].map((partner) => (
-                <div key={partner.name} className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                      <Truck className="w-6 h-6 text-slate-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{partner.name}</p>
-                      <p className="text-sm text-slate-500">{partner.desc}</p>
-                    </div>
-                  </div>
-                  {partner.connected ? (
-                    <Badge className="bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">
-                      Connected
-                    </Badge>
-                  ) : (
-                    <Button variant="outline" size="sm">Connect</Button>
-                  )}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 dark:border-slate-800">
-            <CardHeader>
-              <CardTitle>Shipping Zones</CardTitle>
-              <CardDescription>Configure shipping rates by region</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {[
-                  { zone: "Metro Cities", rate: "Free above ₹500", delivery: "2-3 days" },
-                  { zone: "Tier 2 Cities", rate: "₹50", delivery: "4-5 days" },
-                  { zone: "Rest of India", rate: "₹100", delivery: "5-7 days" },
-                ].map((zone) => (
-                  <div key={zone.zone} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-xl">
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{zone.zone}</p>
-                      <p className="text-sm text-slate-500">{zone.delivery}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-slate-900 dark:text-white">{zone.rate}</p>
-                      <Button variant="link" size="sm" className="h-auto p-0 text-blue-600">Edit</Button>
-                    </div>
-                  </div>
-                ))}
-                <Button variant="outline" className="w-full" data-testid="add-shipping-zone">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Shipping Zone
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Taxes Settings */}
         <TabsContent value="taxes" className="space-y-6">
           <Card className="border-slate-200 dark:border-slate-800">
@@ -571,22 +507,34 @@ export const Settings = () => {
               <CardDescription>Configure GST for Indian tax compliance</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-emerald-200">
                 <div>
                   <p className="font-medium text-slate-900 dark:text-white">Enable GST</p>
                   <p className="text-sm text-slate-500">Add GST to product prices and invoices</p>
                 </div>
-                <Switch defaultChecked data-testid="enable-gst-switch" />
+                <Switch
+                  checked={taxSettings.enableGst}
+                  onCheckedChange={(v) => setTaxSettings((prev) => ({ ...prev, enableGst: v }))}
+                  data-testid="enable-gst-switch"
+                />
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label>GSTIN Number</Label>
-                  <Input placeholder="e.g., 27AABCU9603R1ZM" data-testid="gstin-input" />
+                  <Input
+                    placeholder="e.g., 27AABCU9603R1ZM"
+                    value={taxSettings.gstinNumber}
+                    onChange={(e) => setTaxSettings((prev) => ({ ...prev, gstinNumber: e.target.value.toUpperCase() }))}
+                    data-testid="gstin-input"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Default Tax Rate</Label>
-                  <Select defaultValue="18">
+                  <Select
+                    value={taxSettings.defaultTaxRate}
+                    onValueChange={(v) => setTaxSettings((prev) => ({ ...prev, defaultTaxRate: v }))}
+                  >
                     <SelectTrigger data-testid="tax-rate-select">
                       <SelectValue />
                     </SelectTrigger>
@@ -606,12 +554,23 @@ export const Settings = () => {
                   <p className="font-medium text-slate-900 dark:text-white">Include Tax in Prices</p>
                   <p className="text-sm text-slate-500">Display prices with tax included</p>
                 </div>
-                <Switch data-testid="tax-inclusive-switch" />
+                <Switch
+                  checked={taxSettings.taxInclusive}
+                  onCheckedChange={(v) => setTaxSettings((prev) => ({ ...prev, taxInclusive: v }))}
+                  data-testid="tax-inclusive-switch"
+                />
               </div>
 
+              {taxLoading ? <p className="text-sm text-slate-500">Loading tax settings...</p> : null}
+              {taxMessage ? <p className="text-sm text-slate-600 dark:text-slate-300">{taxMessage}</p> : null}
               <div className="flex justify-end">
-                <Button className="bg-blue-600 hover:bg-blue-700" data-testid="save-tax-settings">
-                  Save Tax Settings
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  data-testid="save-tax-settings"
+                  disabled={taxSaving}
+                  onClick={handleSaveTaxSettings}
+                >
+                  {taxSaving ? "Saving..." : "Save Tax Settings"}
                 </Button>
               </div>
             </CardContent>
@@ -623,24 +582,42 @@ export const Settings = () => {
           <Card className="border-slate-200 dark:border-slate-800">
             <CardHeader>
               <CardTitle>Email Notifications</CardTitle>
-              <CardDescription>Configure when to send email alerts</CardDescription>
+              <CardDescription>Configure when to send email alerts to you and your team</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {[
-                { title: "New Order", desc: "When a customer places an order", enabled: true },
-                { title: "Order Shipped", desc: "When an order is marked as shipped", enabled: true },
-                { title: "Low Stock Alert", desc: "When product stock goes below threshold", enabled: true },
-                { title: "New Customer", desc: "When a new customer registers", enabled: false },
-                { title: "Payment Failed", desc: "When a payment attempt fails", enabled: true },
+                { key: "newOrder", title: "New Order", desc: "When a customer places an order" },
+                { key: "orderShipped", title: "Order Shipped", desc: "When an order is marked as shipped" },
+                { key: "lowStockAlert", title: "Low Stock Alert", desc: "When product stock goes below threshold" },
+                { key: "newCustomer", title: "New Customer", desc: "When a new customer registers" },
+                { key: "paymentFailed", title: "Payment Failed", desc: "When a payment attempt fails" },
+                { key: "abandonedCart", title: "Abandoned Cart", desc: "When a cart is abandoned for 1 hour" },
               ].map((notification) => (
                 <div key={notification.title} className="flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
                   <div>
                     <p className="font-medium text-slate-900 dark:text-white">{notification.title}</p>
                     <p className="text-sm text-slate-500">{notification.desc}</p>
                   </div>
-                  <Switch defaultChecked={notification.enabled} />
+                  <Switch
+                    checked={!!notificationSettings[notification.key]}
+                    onCheckedChange={(v) =>
+                      setNotificationSettings((prev) => ({ ...prev, [notification.key]: v }))
+                    }
+                  />
                 </div>
               ))}
+              {notificationsLoading ? <p className="text-sm text-slate-500">Loading notification settings...</p> : null}
+              {notificationsMessage ? <p className="text-sm text-slate-600 dark:text-slate-300">{notificationsMessage}</p> : null}
+              <div className="flex justify-end">
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  data-testid="save-notification-settings"
+                  onClick={handleSaveNotificationSettings}
+                  disabled={notificationsSaving}
+                >
+                  {notificationsSaving ? "Saving..." : "Save Notification Settings"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -670,7 +647,6 @@ export const Settings = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Owner">Owner</SelectItem>
                     <SelectItem value="Admin">Admin</SelectItem>
                     <SelectItem value="Staff">Staff</SelectItem>
                     <SelectItem value="Custom">Custom</SelectItem>
@@ -729,17 +705,20 @@ export const Settings = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Select value={member.role} onValueChange={(value) => updateMemberRole(member.userId, value)}>
-                      <SelectTrigger className="w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Owner">Owner</SelectItem>
-                        <SelectItem value="Admin">Admin</SelectItem>
-                        <SelectItem value="Staff">Staff</SelectItem>
-                        <SelectItem value="Custom">Custom</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {member.role === "Owner" ? (
+                      <Badge className="bg-blue-100 text-blue-700">Owner</Badge>
+                    ) : (
+                      <Select value={member.role} onValueChange={(value) => updateMemberRole(member.userId, value)}>
+                        <SelectTrigger className="w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Admin">Admin</SelectItem>
+                          <SelectItem value="Staff">Staff</SelectItem>
+                          <SelectItem value="Custom">Custom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                     {member.role === "Custom" ? (
                       <div className="flex items-center gap-2">
                         <Input
@@ -775,11 +754,11 @@ export const Settings = () => {
                         ))}
                       </select>
                     ) : null}
-                    {member.role !== "Owner" && (
+                    {member.role !== "Owner" ? (
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => removeMember(member.userId)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -789,35 +768,6 @@ export const Settings = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200 dark:border-slate-800">
-            <CardHeader>
-              <CardTitle>API Keys</CardTitle>
-              <CardDescription>Manage API access for integrations</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Key className="w-5 h-5 text-slate-400" />
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-white">Production API Key</p>
-                      <p className="text-sm text-slate-500">Created Jan 15, 2024</p>
-                    </div>
-                  </div>
-                  <Badge>Active</Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input value="sk_live_••••••••••••••••" readOnly className="font-mono" />
-                  <Button variant="outline" size="sm">Reveal</Button>
-                  <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">Revoke</Button>
-                </div>
-              </div>
-              <Button variant="outline" className="w-full mt-4" data-testid="create-api-key">
-                <Plus className="w-4 h-4 mr-2" />
-                Create New API Key
-              </Button>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>

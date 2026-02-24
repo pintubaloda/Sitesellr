@@ -242,7 +242,7 @@ const sidebarItems = [
     title: "PBAdmin",
     icon: Wrench,
     path: "/pbadmin",
-    scope: "platform-owner-or-store",
+    scope: "platform-only",
     requiredAny: ["store.settings.manage", "store.settings.read", "platform.settings.manage"],
   },
 ];
@@ -509,6 +509,8 @@ export const DashboardLayout = () => {
     const isScopeAllowed = (item) => {
       if (!hasAnyPermission(item.requiredAny)) return false;
       switch (item.scope) {
+        case "platform-only":
+          return access.isPlatformOwner || access.isPlatformStaff;
         case "platform-owner-or-store":
           return access.isPlatformOwner || access.isStoreUser;
         case "platform-owner":

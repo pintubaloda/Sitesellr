@@ -1632,6 +1632,13 @@ function PlatformAppManager({ toast }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (access.loading) return;
+    if (!access.isPlatformOwner) {
+      navigate("/admin", { replace: true });
+    }
+  }, [access.loading, access.isPlatformOwner, navigate]);
+
   const filtered = apps.filter(a=>(catFilter==='All'||a.cat===catFilter)&&(a.name.toLowerCase().includes(search.toLowerCase())||a.cat.toLowerCase().includes(search.toLowerCase())));
   const totalRev = backendStats ? Number(backendStats.campaignEvents?.reduce((sum, ev) => sum + Number(ev.amount || 0), 0) || 0) : apps.reduce((s,a)=>s+a.totalRevenue,0);
   const totalInst = backendStats ? Number(backendStats.themesTotal || 0) + Number(backendStats.campaignTemplatesTotal || 0) : apps.reduce((s,a)=>s+a.installs,0);

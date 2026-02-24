@@ -404,6 +404,7 @@ const SidebarContent = ({ collapsed, setCollapsed, onItemClick, visibleItems }) 
 export const DashboardLayout = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const { stores, storeId, setStoreId } = useActiveStore();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -425,7 +426,7 @@ export const DashboardLayout = () => {
         setBrandLogo(b.logoUrl || "");
         document.documentElement.style.setProperty("--platform-primary", b.primaryColor || "#2563eb");
         document.documentElement.style.setProperty("--platform-accent", b.accentColor || "#0f172a");
-        document.documentElement.style.setProperty("--platform-font", b.fontFamily || "'Segoe UI', Roboto, Helvetica, Arial, sans-serif");
+        document.documentElement.style.setProperty("--platform-font", b.fontFamily || "'Plus Jakarta Sans', 'Inter', 'Segoe UI', sans-serif");
       })
       .catch(() => {});
   }, []);
@@ -455,6 +456,13 @@ export const DashboardLayout = () => {
     };
     loadAccess();
   }, [storeId]);
+
+  useEffect(() => {
+    if (location.pathname !== "/admin") return;
+    if (access.isPlatformOwner || access.isPlatformStaff) {
+      navigate("/store-builder-v1", { replace: true });
+    }
+  }, [access.isPlatformOwner, access.isPlatformStaff, location.pathname, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -573,7 +581,7 @@ export const DashboardLayout = () => {
       <div className={cn(
         "transition-all duration-300",
         collapsed ? "lg:pl-[72px]" : "lg:pl-64"
-      )} style={{ fontFamily: "var(--platform-font, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif)" }}>
+      )} style={{ fontFamily: "var(--platform-font, 'Plus Jakarta Sans', 'Inter', 'Segoe UI', sans-serif)" }}>
         {/* Top Header */}
         <header className="sticky top-0 z-30 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between h-full px-4 lg:px-6">

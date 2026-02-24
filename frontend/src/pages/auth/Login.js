@@ -72,7 +72,16 @@ export const Login = () => {
         clearStoredStoreId();
         delete api.defaults.headers.common["X-Store-Id"];
       }
-      navigate("/admin");
+      let targetPath = "/admin";
+      try {
+        const accessRes = await api.get("/auth/access");
+        if (accessRes?.data?.isPlatformOwner || accessRes?.data?.isPlatformStaff) {
+          targetPath = "/store-builder-v1";
+        }
+      } catch {
+        // Keep default path when access check is unavailable.
+      }
+      navigate(targetPath);
     } catch (err) {
       const reason = resolveLoginError(err);
       setError(reason);

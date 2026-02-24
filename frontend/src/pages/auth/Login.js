@@ -76,7 +76,7 @@ export const Login = () => {
       try {
         const accessRes = await api.get("/auth/access");
         if (accessRes?.data?.isPlatformOwner || accessRes?.data?.isPlatformStaff) {
-          targetPath = "/store-builder-v1";
+          targetPath = "/pbadmin";
         }
       } catch {
         // Keep default path when access check is unavailable.

@@ -239,9 +239,9 @@ const sidebarItems = [
     requiredAny: ["store.domains.manage", "store.settings.manage", "store.settings.write"],
   },
   {
-    title: "Store Builder V1",
+    title: "PBAdmin",
     icon: Wrench,
-    path: "/store-builder-v1",
+    path: "/pbadmin",
     scope: "platform-owner-or-store",
     requiredAny: ["store.settings.manage", "store.settings.read", "platform.settings.manage"],
   },
@@ -460,7 +460,7 @@ export const DashboardLayout = () => {
   useEffect(() => {
     if (location.pathname !== "/admin") return;
     if (access.isPlatformOwner || access.isPlatformStaff) {
-      navigate("/store-builder-v1", { replace: true });
+      navigate("/pbadmin", { replace: true });
     }
   }, [access.isPlatformOwner, access.isPlatformStaff, location.pathname, navigate]);
 

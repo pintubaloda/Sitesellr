@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../lib/api";
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
@@ -2092,6 +2093,7 @@ const toErrorText = (err, fallback) =>
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function StoreBuilderV1() {
+  const navigate = useNavigate();
   const [role, setRole] = useState("store");
   const [page, setPage] = useState("dashboard");
   const [toasts, setToasts] = useState([]);
@@ -2111,13 +2113,19 @@ export default function StoreBuilderV1() {
   }, []);
 
   const platformNav = [
-    {id:'dashboard',label:'Dashboard',icon:'dashboard'},
-    {id:'app-manager',label:'App Marketplace',icon:'apps',badge:'16'},
-    {id:'revenue',label:'Revenue',icon:'revenue'},
-    {id:'tenants',label:'Tenants',icon:'users'},
-    {id:'platform-settings',label:'Settings',icon:'settings'},
-    {id:'theme-builder',label:'Theme Builder',icon:'theme'},
-    {id:'api-requirements',label:'API Requirements',icon:'api'},
+    {id:'dashboard',label:'PBAdmin',icon:'dashboard'},
+    {id:'merchant',label:'Merchant',icon:'users',route:'/admin/merchants'},
+    {id:'merchant-ops',label:'Merchant Ops',icon:'builder',route:'/admin/merchant-ops'},
+    {id:'platform-rbac',label:'Platform RBAC',icon:'lock',route:'/admin/platform-rbac'},
+    {id:'platform-payments',label:'Payments & Transactions',icon:'revenue',route:'/admin/platform-payments'},
+    {id:'platform-billing',label:'Billing & Subscriptions',icon:'tag',route:'/admin/platform-billing'},
+    {id:'platform-plugins',label:'Plugin / App Marketplace',icon:'apps',route:'/admin/platform-plugins'},
+    {id:'platform-api',label:'API & Integrations',icon:'api',route:'/admin/platform-api'},
+    {id:'security-audit',label:'Security & Audit',icon:'lock',route:'/admin/audit-logs'},
+    {id:'platform-risk',label:'Risk / Fraud Monitoring',icon:'info',route:'/admin/platform-risk'},
+    {id:'platform-config',label:'Platform Configuration',icon:'settings',route:'/admin/platform-config'},
+    {id:'platform-domains',label:'Domains & SSL (Platform)',icon:'store',route:'/admin/platform-domains'},
+    {id:'platform-reports',label:'Reporting & Intelligence',icon:'analytics',route:'/admin/platform-reports'},
   ];
   const storeNav = [
     {id:'dashboard',label:'Dashboard',icon:'dashboard'},
@@ -2202,13 +2210,23 @@ export default function StoreBuilderV1() {
         <aside className="sidebar">
           <div className="sb-logo">
             <div className="sb-logo-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
-            <div><div className="sb-wordmark">Sitesellr</div><div className="sb-sub">Admin Panel</div></div>
+            <div><div className="sb-wordmark">Sitesellr</div><div className="sb-sub">PBAdmin</div></div>
           </div>
 
           <div className="sb-section">
             <div className="sb-section-label">{role==='platform'?'Platform':'My Store'}</div>
             {nav.map(item=>(
-              <div key={item.id} className={`sb-item ${page===item.id?'active':''}`} onClick={()=>setPage(item.id)}>
+              <div
+                key={item.id}
+                className={`sb-item ${page===item.id?'active':''}`}
+                onClick={() => {
+                  if (item.route) {
+                    navigate(item.route);
+                    return;
+                  }
+                  setPage(item.id);
+                }}
+              >
                 <Icon name={item.icon} size={14}/>
                 {item.label}
                 {item.badge&&<span className={`sb-badge ${item.badge==='NEW'?'new':''}`}>{item.badge}</span>}

@@ -91,15 +91,15 @@ export const MerchantOps = () => {
   return (
     <div className="space-y-6" data-testid="merchant-ops-page">
       <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-semibold text-slate-800">Merchant Operations</h1>
-        <div className="text-slate-500 text-lg">{new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</div>
+        <h1 className="text-2xl font-bold text-slate-900">Merchant Operations</h1>
+        <div className="text-slate-500 text-sm">{new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</div>
       </div>
 
       <Card>
         <CardContent className="p-6 space-y-4">
           <Label className="text-sm tracking-widest uppercase text-slate-500">Select merchant to operate on</Label>
           <select
-            className="w-full h-12 rounded-xl border border-slate-300 px-4 text-xl"
+            className="w-full h-12 rounded-xl border border-slate-300 px-4 text-base"
             value={merchantId}
             onChange={(e) => setMerchantId(e.target.value)}
           >
@@ -121,7 +121,7 @@ export const MerchantOps = () => {
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`h-14 rounded-2xl text-3xl font-medium border ${activeTab === t.key ? "bg-white border-slate-300 text-slate-800" : "bg-slate-100 border-transparent text-slate-500"}`}
+            className={`h-14 rounded-2xl text-lg font-medium border ${activeTab === t.key ? "bg-white border-slate-300 text-slate-800" : "bg-slate-100 border-transparent text-slate-500"}`}
           >
             {t.label}
           </button>
@@ -132,7 +132,7 @@ export const MerchantOps = () => {
         <Card>
           <CardContent className="p-6 space-y-5">
             <div>
-              <h2 className="text-4xl font-semibold text-slate-800">Lifecycle Management</h2>
+              <h2 className="text-2xl font-bold text-slate-900">Lifecycle Management</h2>
               <p className="text-slate-500">Control merchant account status transitions</p>
             </div>
             <div className="space-y-2">
@@ -140,15 +140,15 @@ export const MerchantOps = () => {
               <Input className="h-12" placeholder="Describe the reason for this lifecycle change..." value={reason} onChange={(e) => setReason(e.target.value)} />
             </div>
             <label className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-              <span className="text-xl font-medium text-slate-700">Require approval for sensitive actions</span>
+              <span className="text-base font-medium text-slate-700">Require approval for sensitive actions</span>
               <input type="checkbox" checked={approvalRequired} onChange={(e) => setApprovalRequired(e.target.checked)} />
             </label>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <Button variant="outline" className="h-28 text-3xl" disabled={!merchantId} onClick={() => lifecycle("trial")}>Set Trial</Button>
-              <Button variant="outline" className="h-28 text-3xl" disabled={!merchantId} onClick={() => lifecycle("activate")}>Activate</Button>
-              <Button variant="outline" className="h-28 text-3xl" disabled={!merchantId} onClick={() => lifecycle("suspend")}>Suspend</Button>
-              <Button variant="outline" className="h-28 text-3xl" disabled={!merchantId} onClick={() => lifecycle("expire")}>Expire</Button>
-              <Button variant="outline" className="h-28 text-3xl" disabled={!merchantId} onClick={() => lifecycle("reactivate")}>Reactivate</Button>
+              <Button variant="outline" className="h-16 text-lg" disabled={!merchantId} onClick={() => lifecycle("trial")}>Set Trial</Button>
+              <Button variant="outline" className="h-16 text-lg" disabled={!merchantId} onClick={() => lifecycle("activate")}>Activate</Button>
+              <Button variant="outline" className="h-16 text-lg" disabled={!merchantId} onClick={() => lifecycle("suspend")}>Suspend</Button>
+              <Button variant="outline" className="h-16 text-lg" disabled={!merchantId} onClick={() => lifecycle("expire")}>Expire</Button>
+              <Button variant="outline" className="h-16 text-lg" disabled={!merchantId} onClick={() => lifecycle("reactivate")}>Reactivate</Button>
             </div>
             {!merchantId ? <p className="text-slate-500">Select a merchant above to enable lifecycle actions.</p> : null}
           </CardContent>
@@ -158,7 +158,7 @@ export const MerchantOps = () => {
       {activeTab === "onboarding" ? (
         <Card>
           <CardContent className="p-6 space-y-4">
-            <h2 className="text-3xl font-semibold text-slate-800">Onboarding Pipeline{selectedMerchantName ? ` · ${selectedMerchantName}` : ""}</h2>
+            <h2 className="text-xl font-semibold text-slate-900">Onboarding Pipeline{selectedMerchantName ? ` · ${selectedMerchantName}` : ""}</h2>
             <Button variant="outline" disabled={!merchantId} onClick={loadOnboarding}>Load Pipeline</Button>
             {onboarding ? (
               <div className="grid md:grid-cols-2 gap-3">
@@ -199,7 +199,7 @@ export const MerchantOps = () => {
         <Card>
           <CardContent className="p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-semibold text-slate-800">Sensitive Action Approvals</h2>
+              <h2 className="text-xl font-semibold text-slate-900">Sensitive Action Approvals</h2>
               <Button variant="outline" onClick={loadApprovals}>Load Pending</Button>
             </div>
             <div className="space-y-2">

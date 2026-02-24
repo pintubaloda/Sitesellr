@@ -3,6 +3,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
+import { Label } from "../../components/ui/label";
 import api from "../../lib/api";
 
 const normalizePlatformRole = (value) => (String(value || "").toLowerCase() === "owner" ? "Owner" : "Staff");
@@ -145,21 +146,21 @@ export const PlatformRbac = () => {
   return (
     <div className="space-y-6" data-testid="platform-rbac-page">
       <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-semibold text-slate-800">Platform RBAC</h1>
-        <div className="text-slate-500 text-lg">{new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</div>
+        <h1 className="text-2xl font-bold text-slate-900">Platform RBAC</h1>
+        <div className="text-slate-500 text-sm">{new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        <Card><CardContent className="p-6"><p className="text-slate-500">Platform Users</p><p className="mt-4 text-5xl font-semibold text-slate-800">{platformUsers}</p></CardContent></Card>
-        <Card><CardContent className="p-6"><p className="text-slate-500">Store Users</p><p className="mt-4 text-5xl font-semibold text-slate-800">{storeUsers}</p></CardContent></Card>
-        <Card><CardContent className="p-6"><p className="text-slate-500">Total Roles Assigned</p><p className="mt-4 text-5xl font-semibold text-slate-800">{totalRolesAssigned}</p></CardContent></Card>
+        <Card><CardContent className="p-6"><p className="text-slate-500">Platform Users</p><p className="mt-4 text-4xl font-bold text-slate-900">{platformUsers}</p></CardContent></Card>
+        <Card><CardContent className="p-6"><p className="text-slate-500">Store Users</p><p className="mt-4 text-4xl font-bold text-slate-900">{storeUsers}</p></CardContent></Card>
+        <Card><CardContent className="p-6"><p className="text-slate-500">Total Roles Assigned</p><p className="mt-4 text-4xl font-bold text-slate-900">{totalRolesAssigned}</p></CardContent></Card>
       </div>
 
       <div className="grid xl:grid-cols-[360px_minmax(0,1fr)] gap-6">
         <Card>
           <CardContent className="p-0">
             <div className="p-5 space-y-3 border-b">
-              <h3 className="text-3xl font-semibold text-slate-800">Users</h3>
+              <h3 className="text-2xl font-bold text-slate-900">Users</h3>
               <div className="grid grid-cols-2 gap-2">
                 <Button variant={category === "platform" ? "default" : "outline"} onClick={() => setCategory("platform")}>Platform</Button>
                 <Button variant={category === "store" ? "default" : "outline"} onClick={() => setCategory("store")}>Store</Button>
@@ -174,7 +175,7 @@ export const PlatformRbac = () => {
                   onClick={() => onSelectUser(u)}
                   className={`w-full text-left p-4 border-b hover:bg-slate-50 ${selectedUser?.id === u.id ? "bg-blue-50" : "bg-white"}`}
                 >
-                  <p className="text-2xl font-semibold text-slate-800">{u.email}</p>
+                  <p className="text-lg font-semibold text-slate-900">{u.email}</p>
                   <div className="mt-1 flex items-center gap-2 text-sm">
                     <Badge variant="secondary">{category === "platform" ? ((u.platformRoles || []).join(", ") || "No Platform Role") : ((u.storeRoles || []).join(", ") || "No Store Role")}</Badge>
                     <span className="text-slate-500">{u.storeMemberships || 0} stores</span>
@@ -189,10 +190,10 @@ export const PlatformRbac = () => {
           <Card>
             <CardContent className="p-6">
               {!selectedUser ? (
-                <p className="text-center text-slate-500 text-xl py-8">Select a user from the list to manage their roles</p>
+                <p className="text-center text-slate-500 text-base py-8">Select a user from the list to manage their roles</p>
               ) : (
                 <div className="space-y-4">
-                  <h3 className="text-3xl font-semibold text-slate-800">{selectedUser.email}</h3>
+                  <h3 className="text-xl font-semibold text-slate-900">{selectedUser.email}</h3>
                   {category === "platform" ? (
                     <>
                       <div className="space-y-2">
@@ -229,7 +230,7 @@ export const PlatformRbac = () => {
 
           <Card>
             <CardContent className="p-6">
-              <h3 className="text-3xl font-semibold text-slate-800">Role Permissions Reference</h3>
+              <h3 className="text-xl font-semibold text-slate-900">Role Permissions Reference</h3>
               <p className="text-slate-500 mb-4">Overview of what each role can access</p>
               <div className="space-y-3 text-slate-700">
                 <div><span className="font-semibold">Platform Owner:</span> Manage all merchants, approvals, platform RBAC, analytics, billing</div>

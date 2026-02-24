@@ -111,10 +111,10 @@ export const Merchants = () => {
   return (
     <div className="space-y-5" data-testid="merchants-page">
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card><CardContent className="p-6"><div className="flex items-start justify-between"><p className="text-slate-500">Total Merchants</p><div className="h-12 w-12 rounded-xl bg-blue-50 grid place-items-center"><Building2 className="h-5 w-5 text-blue-600" /></div></div><p className="mt-5 text-5xl font-semibold text-slate-800">{stats.total}</p></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="flex items-start justify-between"><p className="text-slate-500">Active</p><div className="h-12 w-12 rounded-xl bg-emerald-50 grid place-items-center"><CheckCircle2 className="h-5 w-5 text-emerald-600" /></div></div><p className="mt-5 text-5xl font-semibold text-slate-800">{stats.active}</p></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="flex items-start justify-between"><p className="text-slate-500">Trial</p><div className="h-12 w-12 rounded-xl bg-amber-50 grid place-items-center"><Clock3 className="h-5 w-5 text-amber-600" /></div></div><p className="mt-5 text-5xl font-semibold text-slate-800">{stats.trial}</p></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="flex items-start justify-between"><p className="text-slate-500">Suspended</p><div className="h-12 w-12 rounded-xl bg-rose-50 grid place-items-center"><Ban className="h-5 w-5 text-rose-600" /></div></div><p className="mt-5 text-5xl font-semibold text-slate-800">{stats.suspended}</p></CardContent></Card>
+        <Card><CardContent className="p-6"><div className="flex items-start justify-between"><p className="text-slate-500">Total Merchants</p><div className="h-12 w-12 rounded-xl bg-blue-50 grid place-items-center"><Building2 className="h-5 w-5 text-blue-600" /></div></div><p className="mt-5 text-4xl font-bold text-slate-900">{stats.total}</p></CardContent></Card>
+        <Card><CardContent className="p-6"><div className="flex items-start justify-between"><p className="text-slate-500">Active</p><div className="h-12 w-12 rounded-xl bg-emerald-50 grid place-items-center"><CheckCircle2 className="h-5 w-5 text-emerald-600" /></div></div><p className="mt-5 text-4xl font-bold text-slate-900">{stats.active}</p></CardContent></Card>
+        <Card><CardContent className="p-6"><div className="flex items-start justify-between"><p className="text-slate-500">Trial</p><div className="h-12 w-12 rounded-xl bg-amber-50 grid place-items-center"><Clock3 className="h-5 w-5 text-amber-600" /></div></div><p className="mt-5 text-4xl font-bold text-slate-900">{stats.trial}</p></CardContent></Card>
+        <Card><CardContent className="p-6"><div className="flex items-start justify-between"><p className="text-slate-500">Suspended</p><div className="h-12 w-12 rounded-xl bg-rose-50 grid place-items-center"><Ban className="h-5 w-5 text-rose-600" /></div></div><p className="mt-5 text-4xl font-bold text-slate-900">{stats.suspended}</p></CardContent></Card>
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">
@@ -156,7 +156,7 @@ export const Merchants = () => {
       <Card>
         <CardContent className="p-0 overflow-auto">
           <div className="px-6 py-5 border-b">
-            <h2 className="text-3xl font-semibold text-slate-800">Merchants ({filteredRows.length})</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Merchants ({filteredRows.length})</h2>
             <p className="text-slate-500">Manage all merchant accounts</p>
           </div>
           <table className="w-full min-w-[980px]">
@@ -189,7 +189,7 @@ export const Merchants = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-2xl text-slate-600">{m.primaryDomain || "-"}</td>
+                    <td className="px-6 py-5 text-base text-slate-600">{m.primaryDomain || "-"}</td>
                     <td className="px-6 py-5"><span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 font-medium">{m.planName || "Starter"}</span></td>
                     <td className="px-6 py-5 text-blue-600 font-semibold">{storesCount} stores</td>
                     <td className="px-6 py-5"><span className={`px-4 py-1 rounded-full text-sm font-medium ${status.cls}`}>{status.label}</span></td>

@@ -53,7 +53,7 @@ function App() {
           <Route path="/onboarding" element={<Navigate to="/auth/register" replace />} />
           <Route path="/s/:subdomain/*" element={<StorefrontPublic />} />
           <Route
-            path="/pbadmin"
+            path="/pbadmin/*"
             element={
               <ProtectedRoute>
                 <StoreBuilderV1 />

@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../../lib/api";
+import Merchants from "./Merchants";
+import MerchantOps from "./MerchantOps";
+import PlatformRbac from "./PlatformRbac";
+import AuditLogs from "./AuditLogs";
+import PlatformModule from "./PlatformModule";
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const CSS = `
@@ -1632,13 +1637,6 @@ function PlatformAppManager({ toast }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (access.loading) return;
-    if (!access.isPlatformOwner) {
-      navigate("/admin", { replace: true });
-    }
-  }, [access.loading, access.isPlatformOwner, navigate]);
-
   const filtered = apps.filter(a=>(catFilter==='All'||a.cat===catFilter)&&(a.name.toLowerCase().includes(search.toLowerCase())||a.cat.toLowerCase().includes(search.toLowerCase())));
   const totalRev = backendStats ? Number(backendStats.campaignEvents?.reduce((sum, ev) => sum + Number(ev.amount || 0), 0) || 0) : apps.reduce((s,a)=>s+a.totalRevenue,0);
   const totalInst = backendStats ? Number(backendStats.themesTotal || 0) + Number(backendStats.campaignTemplatesTotal || 0) : apps.reduce((s,a)=>s+a.installs,0);
@@ -2101,6 +2099,7 @@ const toErrorText = (err, fallback) =>
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function StoreBuilderV1() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [role, setRole] = useState("store");
   const [page, setPage] = useState("dashboard");
   const [toasts, setToasts] = useState([]);
@@ -2127,18 +2126,18 @@ export default function StoreBuilderV1() {
     {id:'platform-settings',label:'Settings',icon:'settings'},
     {id:'theme-builder',label:'Theme Builder',icon:'theme'},
     {id:'api-requirements',label:'API Requirements',icon:'api'},
-    {id:'merchant',label:'Merchant',icon:'users',route:'/admin/merchants'},
-    {id:'merchant-ops',label:'Merchant Ops',icon:'builder',route:'/admin/merchant-ops'},
-    {id:'platform-rbac',label:'Platform RBAC',icon:'lock',route:'/admin/platform-rbac'},
-    {id:'platform-payments',label:'Payments & Transactions',icon:'revenue',route:'/admin/platform-payments'},
-    {id:'platform-billing',label:'Billing & Subscriptions',icon:'tag',route:'/admin/platform-billing'},
-    {id:'platform-plugins',label:'Plugin / App Marketplace',icon:'apps',route:'/admin/platform-plugins'},
-    {id:'platform-api',label:'API & Integrations',icon:'api',route:'/admin/platform-api'},
-    {id:'security-audit',label:'Security & Audit',icon:'lock',route:'/admin/audit-logs'},
-    {id:'platform-risk',label:'Risk / Fraud Monitoring',icon:'info',route:'/admin/platform-risk'},
-    {id:'platform-config',label:'Platform Configuration',icon:'settings',route:'/admin/platform-config'},
-    {id:'platform-domains',label:'Domains & SSL (Platform)',icon:'store',route:'/admin/platform-domains'},
-    {id:'platform-reports',label:'Reporting & Intelligence',icon:'analytics',route:'/admin/platform-reports'},
+    {id:'merchant',label:'Merchant',icon:'users',route:'/pbadmin/merchants'},
+    {id:'merchant-ops',label:'Merchant Ops',icon:'builder',route:'/pbadmin/merchant-ops'},
+    {id:'platform-rbac',label:'Platform RBAC',icon:'lock',route:'/pbadmin/platform-rbac'},
+    {id:'platform-payments',label:'Payments & Transactions',icon:'revenue',route:'/pbadmin/platform-payments'},
+    {id:'platform-billing',label:'Billing & Subscriptions',icon:'tag',route:'/pbadmin/platform-billing'},
+    {id:'platform-plugins',label:'Plugin / App Marketplace',icon:'apps',route:'/pbadmin/platform-plugins'},
+    {id:'platform-api',label:'API & Integrations',icon:'api',route:'/pbadmin/platform-api'},
+    {id:'security-audit',label:'Security & Audit',icon:'lock',route:'/pbadmin/audit-logs'},
+    {id:'platform-risk',label:'Risk / Fraud Monitoring',icon:'info',route:'/pbadmin/platform-risk'},
+    {id:'platform-config',label:'Platform Configuration',icon:'settings',route:'/pbadmin/platform-config'},
+    {id:'platform-domains',label:'Domains & SSL (Platform)',icon:'store',route:'/pbadmin/platform-domains'},
+    {id:'platform-reports',label:'Reporting & Intelligence',icon:'analytics',route:'/pbadmin/platform-reports'},
   ];
   const storeNav = [
     {id:'dashboard',label:'Dashboard',icon:'dashboard'},
@@ -2194,6 +2193,21 @@ export default function StoreBuilderV1() {
     };
   }, []);
 
+  useEffect(() => {
+    if (access.loading) return;
+    if (!access.isPlatformOwner) {
+      navigate("/admin", { replace: true });
+    }
+  }, [access.loading, access.isPlatformOwner, navigate]);
+
+  useEffect(() => {
+    if (access.loading || !access.isPlatformOwner) return;
+    const path = location.pathname.replace(/\/+$/, "");
+    if (!path.startsWith("/pbadmin")) return;
+    const slug = path.replace("/pbadmin", "").replace(/^\/+/, "");
+    setPage(slug || "dashboard");
+  }, [access.loading, access.isPlatformOwner, location.pathname]);
+
   const nav = role === "platform" ? platformNav : storeNav;
 
   const renderPage = () => {
@@ -2205,6 +2219,18 @@ export default function StoreBuilderV1() {
       if(page==='revenue') return <PlatformRevenue toast={showToast}/>;
       if(page==='tenants') return <PlatformTenants toast={showToast}/>;
       if(page==='platform-settings') return <PlatformSettings toast={showToast}/>;
+      if(page==='merchant') return <Merchants />;
+      if(page==='merchant-ops') return <MerchantOps />;
+      if(page==='platform-rbac') return <PlatformRbac />;
+      if(page==='platform-payments') return <PlatformModule moduleKey="payments" />;
+      if(page==='platform-billing') return <PlatformModule moduleKey="billing" />;
+      if(page==='platform-plugins') return <PlatformModule moduleKey="plugins" />;
+      if(page==='platform-api') return <PlatformModule moduleKey="api" />;
+      if(page==='security-audit') return <AuditLogs />;
+      if(page==='platform-risk') return <PlatformModule moduleKey="risk" />;
+      if(page==='platform-config') return <PlatformModule moduleKey="config" />;
+      if(page==='platform-domains') return <PlatformModule moduleKey="domains" />;
+      if(page==='platform-reports') return <PlatformModule moduleKey="reports" />;
     }
     if(role==='store') {
       if(page==='app-store') return <StoreAppStore toast={showToast} storeId={access.storeId}/>;
@@ -2213,7 +2239,29 @@ export default function StoreBuilderV1() {
     return <Dashboard role={role} toast={showToast} setPage={setPage} storeId={access.storeId}/>;
   };
 
-  const breadcrumbs = {dashboard:'Dashboard','app-store':'App Store','app-manager':'App Marketplace','app-settings':'App Settings',revenue:'Revenue & Analytics',tenants:'Tenant Management','platform-settings':'Platform Settings','theme-builder':'Theme Builder','api-requirements':'API Requirements'};
+  const breadcrumbs = {
+    dashboard:'PBAdmin',
+    'app-store':'App Store',
+    'app-manager':'App Marketplace',
+    'app-settings':'App Settings',
+    revenue:'Revenue & Analytics',
+    tenants:'Tenant Management',
+    'platform-settings':'Platform Settings',
+    'theme-builder':'Theme Builder',
+    'api-requirements':'API Requirements',
+    merchant:'Merchant',
+    'merchant-ops':'Merchant Ops',
+    'platform-rbac':'Platform RBAC',
+    'platform-payments':'Payments & Transactions',
+    'platform-billing':'Billing & Subscriptions',
+    'platform-plugins':'Plugin / App Marketplace',
+    'platform-api':'API & Integrations',
+    'security-audit':'Security & Audit',
+    'platform-risk':'Risk / Fraud Monitoring',
+    'platform-config':'Platform Configuration',
+    'platform-domains':'Domains & SSL (Platform)',
+    'platform-reports':'Reporting & Intelligence',
+  };
 
   return (
     <>
@@ -2233,10 +2281,8 @@ export default function StoreBuilderV1() {
                 key={item.id}
                 className={`sb-item ${page===item.id?'active':''}`}
                 onClick={() => {
-                  if (item.route) {
-                    navigate(item.route);
-                    return;
-                  }
+                  const nextPath = item.id === "dashboard" ? "/pbadmin" : `/pbadmin/${item.id}`;
+                  navigate(nextPath);
                   setPage(item.id);
                 }}
               >

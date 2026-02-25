@@ -2140,7 +2140,8 @@ export default function StoreBuilderV1() {
     {id:'dashboard',label:'Dashboard',icon:'dashboard'},
     {id:'app-store',label:'App Store',icon:'apps',badge:'NEW'},
     {id:'app-settings',label:'App Settings',icon:'settings'},
-    {id:'theme-builder',label:'Theme Builder',icon:'theme'},
+    {id:'theme-builder',label:'Theme & Design',icon:'theme'},
+    {id:'store-settings',label:'Store Settings',icon:'settings'},
     {id:'api-requirements',label:'API Requirements',icon:'api'},
   ];
 
@@ -2205,6 +2206,12 @@ export default function StoreBuilderV1() {
     setPage(slug || "dashboard");
   }, [access.loading, access.isPlatformOwner, location.pathname]);
 
+  useEffect(() => {
+    if (role === "store" && page === "store-settings") {
+      navigate("/admin/settings", { replace: true });
+    }
+  }, [role, page, navigate]);
+
   const nav = role === "platform" ? platformNav : storeNav;
 
   const renderPage = () => {
@@ -2239,6 +2246,7 @@ export default function StoreBuilderV1() {
     'app-store':'App Store',
     'app-manager':'App Marketplace',
     'app-settings':'App Settings',
+    'store-settings':'Store Settings',
     revenue:'Revenue & Analytics',
     tenants:'Tenant Management',
     'platform-settings':'Platform Settings',

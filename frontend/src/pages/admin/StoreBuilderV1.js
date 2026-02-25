@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../../lib/api";
-import Merchants from "./Merchants";
 import MerchantOps from "./MerchantOps";
 import PlatformRbac from "./PlatformRbac";
 import AuditLogs from "./AuditLogs";
@@ -2126,12 +2125,10 @@ export default function StoreBuilderV1() {
     {id:'platform-settings',label:'Settings',icon:'settings'},
     {id:'theme-builder',label:'Theme Builder',icon:'theme'},
     {id:'api-requirements',label:'API Requirements',icon:'api'},
-    {id:'merchant',label:'Merchant',icon:'users',route:'/pbadmin/merchants'},
     {id:'merchant-ops',label:'Merchant Ops',icon:'builder',route:'/pbadmin/merchant-ops'},
     {id:'platform-rbac',label:'Platform RBAC',icon:'lock',route:'/pbadmin/platform-rbac'},
     {id:'platform-payments',label:'Payments & Transactions',icon:'revenue',route:'/pbadmin/platform-payments'},
     {id:'platform-billing',label:'Billing & Subscriptions',icon:'tag',route:'/pbadmin/platform-billing'},
-    {id:'platform-plugins',label:'Plugin / App Marketplace',icon:'apps',route:'/pbadmin/platform-plugins'},
     {id:'platform-api',label:'API & Integrations',icon:'api',route:'/pbadmin/platform-api'},
     {id:'security-audit',label:'Security & Audit',icon:'lock',route:'/pbadmin/audit-logs'},
     {id:'platform-risk',label:'Risk / Fraud Monitoring',icon:'info',route:'/pbadmin/platform-risk'},
@@ -2219,12 +2216,10 @@ export default function StoreBuilderV1() {
       if(page==='revenue') return <PlatformRevenue toast={showToast}/>;
       if(page==='tenants') return <PlatformTenants toast={showToast}/>;
       if(page==='platform-settings') return <PlatformSettings toast={showToast}/>;
-      if(page==='merchant') return <Merchants />;
       if(page==='merchant-ops') return <MerchantOps />;
       if(page==='platform-rbac') return <PlatformRbac />;
       if(page==='platform-payments') return <PlatformModule moduleKey="payments" />;
       if(page==='platform-billing') return <PlatformModule moduleKey="billing" />;
-      if(page==='platform-plugins') return <PlatformModule moduleKey="plugins" />;
       if(page==='platform-api') return <PlatformModule moduleKey="api" />;
       if(page==='security-audit') return <AuditLogs />;
       if(page==='platform-risk') return <PlatformModule moduleKey="risk" />;
@@ -2249,12 +2244,10 @@ export default function StoreBuilderV1() {
     'platform-settings':'Platform Settings',
     'theme-builder':'Theme Builder',
     'api-requirements':'API Requirements',
-    merchant:'Merchant',
     'merchant-ops':'Merchant Ops',
     'platform-rbac':'Platform RBAC',
     'platform-payments':'Payments & Transactions',
     'platform-billing':'Billing & Subscriptions',
-    'platform-plugins':'Plugin / App Marketplace',
     'platform-api':'API & Integrations',
     'security-audit':'Security & Audit',
     'platform-risk':'Risk / Fraud Monitoring',

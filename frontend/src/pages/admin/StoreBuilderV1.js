@@ -1979,46 +1979,95 @@ function PlatformTenants({ toast }) {
   const [tenants, setTenants] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ name: "", primaryDomain: "", status: "0" });
+  const loadTenants = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const [storesRes, merchantsRes] = await Promise.all([api.get("/stores"), api.get("/merchants")]);
+      const stores = Array.isArray(storesRes.data) ? storesRes.data : [];
+      const merchants = Array.isArray(merchantsRes.data) ? merchantsRes.data : [];
+      const normalizeStatus = (value) => {
+        if (value === 0 || value === "0") return "trial";
+        if (value === 1 || value === "1") return "active";
+        if (value === 2 || value === "2") return "suspended";
+        if (value === 3 || value === "3") return "expired";
+        return String(value || "").toLowerCase() || "active";
+      };
+      const rows = merchants.map((m) => {
+        const merchantStores = stores.filter((s) => s.merchantId === m.id);
+        return {
+          id: m.id,
+          name: m.name,
+          domain: m.primaryDomain || (merchantStores[0]?.subdomain ? `${merchantStores[0]?.subdomain}.sitesellr.com` : "-"),
+          plan: "Growth",
+          status: normalizeStatus(m.status),
+          stores: merchantStores.length,
+          revenue: "₹0",
+          joined: m.createdAt ? new Date(m.createdAt).toISOString().slice(0, 10) : "-",
+        };
+      });
+      setTenants(rows);
+    } catch (err) {
+      setError(toErrorText(err, "Could not load tenants."));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
   useEffect(() => {
-    let mounted = true;
     const run = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        const [storesRes, merchantsRes] = await Promise.all([api.get("/stores"), api.get("/merchants")]);
-        if (!mounted) return;
-        const stores = Array.isArray(storesRes.data) ? storesRes.data : [];
-        const merchants = Array.isArray(merchantsRes.data) ? merchantsRes.data : [];
-        const rows = merchants.map((m) => {
-          const merchantStores = stores.filter((s) => s.merchantId === m.id);
-          return {
-            id: m.id,
-            name: m.name,
-            domain: m.primaryDomain || (merchantStores[0]?.subdomain ? `${merchantStores[0]?.subdomain}.sitesellr.com` : "-"),
-            plan: "Growth",
-            status: String(m.status || "").toLowerCase() || "active",
-            stores: merchantStores.length,
-            revenue: "₹0",
-            joined: m.createdAt ? new Date(m.createdAt).toISOString().slice(0, 10) : "-",
-          };
-        });
-        setTenants(rows);
-      } catch (err) {
-        if (!mounted) return;
-        setError(toErrorText(err, "Could not load tenants."));
-      } finally {
-        if (mounted) setLoading(false);
-      }
+      await loadTenants();
     };
     run();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-  const statusBadge = {active:'badge-success',trial:'badge-warning',suspended:'badge-danger'};
+  }, [loadTenants]);
+
+  const createTenant = async () => {
+    if (!form.name.trim()) return;
+    try {
+      setSaving(true);
+      setError("");
+      await api.post("/merchants", {
+        name: form.name.trim(),
+        primaryDomain: form.primaryDomain.trim() || null,
+        status: Number(form.status),
+      });
+      setForm({ name: "", primaryDomain: "", status: "0" });
+      setShowCreate(false);
+      toast("Merchant created successfully.", "success");
+      await loadTenants();
+    } catch (err) {
+      setError(toErrorText(err, "Could not create merchant."));
+    } finally {
+      setSaving(false);
+    }
+  };
+  const statusBadge = {active:'badge-success',trial:'badge-warning',suspended:'badge-danger',expired:'badge-muted'};
   return (
     <div>
-      <div className="page-header"><div><div className="page-title">Tenant Management</div><div className="page-sub">Manage all merchants & their stores</div></div><button className="btn btn-primary"><Icon name="plus" size={13}/> Add Merchant</button></div>
+      <div className="page-header"><div><div className="page-title">Tenant Management</div><div className="page-sub">Manage all merchants & their stores</div></div><button className="btn btn-primary" onClick={()=>setShowCreate(v=>!v)}><Icon name="plus" size={13}/> Add Merchant</button></div>
+      {showCreate && (
+        <div className="card" style={{marginBottom:12}}>
+          <div className="settings-grid">
+            <div className="form-group"><label className="form-label">Merchant Name</label><input className="form-input" value={form.name} onChange={(e)=>setForm((p)=>({...p,name:e.target.value}))} placeholder="Enter merchant name"/></div>
+            <div className="form-group"><label className="form-label">Primary Domain</label><input className="form-input" value={form.primaryDomain} onChange={(e)=>setForm((p)=>({...p,primaryDomain:e.target.value}))} placeholder="example.com"/></div>
+            <div className="form-group">
+              <label className="form-label">Status</label>
+              <select className="form-select" value={form.status} onChange={(e)=>setForm((p)=>({...p,status:e.target.value}))}>
+                <option value="0">Trial</option>
+                <option value="1">Active</option>
+                <option value="2">Suspended</option>
+                <option value="3">Expired</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-6" style={{marginTop:10}}>
+            <button className="btn btn-outline" onClick={()=>setShowCreate(false)} disabled={saving}>Cancel</button>
+            <button className="btn btn-primary" onClick={createTenant} disabled={saving || !form.name.trim()}>{saving ? "Saving..." : "Create Merchant"}</button>
+          </div>
+        </div>
+      )}
       {loading && <div style={{marginBottom:12,color:"var(--muted)"}}>Loading tenants...</div>}
       <div className="stats-grid">{[{icon:'🏪',label:'Total Merchants',val:tenants.length,color:'#eff6ff'},{icon:'✅',label:'Active',val:tenants.filter(t=>t.status==='active').length,color:'#f0fdf4'},{icon:'🧪',label:'Trials',val:tenants.filter(t=>t.status==='trial').length,color:'#fffbeb'},{icon:'⛔',label:'Suspended',val:tenants.filter(t=>t.status==='suspended').length,color:'#fef2f2'}].map(s=><div key={s.label} className="stat-card"><div className="stat-icon" style={{background:s.color}}>{s.icon}</div><div><div className="stat-val">{s.val}</div><div className="stat-label">{s.label}</div></div></div>)}</div>
       <div className="card">

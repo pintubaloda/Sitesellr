@@ -72,15 +72,8 @@ export const Login = () => {
         clearStoredStoreId();
         delete api.defaults.headers.common["X-Store-Id"];
       }
-      let targetPath = "/admin";
-      try {
-        const accessRes = await api.get("/auth/access");
-        if (accessRes?.data?.isPlatformOwner || accessRes?.data?.isPlatformStaff) {
-          targetPath = "/pbadmin";
-        }
-      } catch {
-        // Keep default path when access check is unavailable.
-      }
+      const isPlatform = !!response?.data?.is_platform_owner || !!response?.data?.is_platform_staff;
+      const targetPath = isPlatform ? "/pbadmin" : "/admin";
       navigate(targetPath);
     } catch (err) {
       const reason = resolveLoginError(err);

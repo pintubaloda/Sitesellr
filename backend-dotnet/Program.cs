@@ -185,11 +185,20 @@ builder.Services.AddAuthentication("Bearer")
     .AddScheme<AuthenticationSchemeOptions, OpaqueTokenAuthenticationHandler>("Bearer", _ => { });
 builder.Services.AddSingleton<IAuthorizationHandler, AccessRequirementHandler>();
 ICorsOriginRegistry? corsRegistry = null;
+var staticCorsOrigins = (builder.Configuration["CORS_ORIGINS"] ?? string.Empty)
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    .Select(x => x.Trim().TrimEnd('/'))
+    .Where(x => !string.IsNullOrWhiteSpace(x) && x != "*")
+    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+staticCorsOrigins.Add("https://sitesellr-web.onrender.com");
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ApiCorsPolicy", policy =>
     {
-        policy.SetIsOriginAllowed(origin => corsRegistry?.IsAllowed(origin) ?? false)
+        policy.SetIsOriginAllowed(origin =>
+              staticCorsOrigins.Contains(origin.Trim().TrimEnd('/')) ||
+              (corsRegistry?.IsAllowed(origin) ?? false))
               .AllowCredentials();
 
         policy.AllowAnyHeader()
@@ -1269,6 +1278,12 @@ api.MapPost("/auth/login", async (LoginRequest req, AppDbContext db, ITokenServi
     await db.SaveChangesAsync(ct);
 
     var (access, refresh, _, refreshRec) = await tokenService.IssueAsync(user, scope: null, clientIp: ip, userAgent: ua, ct);
+    var platformRoles = await db.PlatformUserRoles.AsNoTracking()
+        .Where(r => r.UserId == user.Id)
+        .Select(r => r.Role)
+        .ToListAsync(ct);
+    var isPlatformOwner = platformRoles.Contains(PlatformRole.Owner);
+    var isPlatformStaff = isPlatformOwner || platformRoles.Contains(PlatformRole.Staff);
     var defaultStoreId = await db.StoreUserRoles.AsNoTracking()
         .Where(r => r.UserId == user.Id)
         .OrderBy(r => r.Role == StoreRole.Owner ? 0 : r.Role == StoreRole.Admin ? 1 : r.Role == StoreRole.Staff ? 2 : 3)
@@ -1297,7 +1312,9 @@ api.MapPost("/auth/login", async (LoginRequest req, AppDbContext db, ITokenServi
         AccessToken = access,
         RefreshToken = refresh,
         ExpiresInSeconds = 15 * 60,
-        DefaultStoreId = defaultStoreId
+        DefaultStoreId = defaultStoreId,
+        IsPlatformOwner = isPlatformOwner,
+        IsPlatformStaff = isPlatformStaff
     });
 }).WithName("Login");
 
@@ -1318,6 +1335,12 @@ api.MapPost("/auth/refresh", async (RefreshRequest req, AppDbContext db, ITokenS
     await tokenService.RevokeRefreshFamilyAsync(refresh.Id, ct);
 
     var (access, newRefresh, _, refreshRec) = await tokenService.IssueAsync(refresh.User, scope: null, clientIp: ip, userAgent: ua, ct);
+    var platformRoles = await db.PlatformUserRoles.AsNoTracking()
+        .Where(r => r.UserId == refresh.UserId)
+        .Select(r => r.Role)
+        .ToListAsync(ct);
+    var isPlatformOwner = platformRoles.Contains(PlatformRole.Owner);
+    var isPlatformStaff = isPlatformOwner || platformRoles.Contains(PlatformRole.Staff);
     var defaultStoreId = await db.StoreUserRoles.AsNoTracking()
         .Where(r => r.UserId == refresh.UserId)
         .OrderBy(r => r.Role == StoreRole.Owner ? 0 : r.Role == StoreRole.Admin ? 1 : r.Role == StoreRole.Staff ? 2 : 3)
@@ -1345,7 +1368,9 @@ api.MapPost("/auth/refresh", async (RefreshRequest req, AppDbContext db, ITokenS
         AccessToken = access,
         RefreshToken = newRefresh,
         ExpiresInSeconds = 15 * 60,
-        DefaultStoreId = defaultStoreId
+        DefaultStoreId = defaultStoreId,
+        IsPlatformOwner = isPlatformOwner,
+        IsPlatformStaff = isPlatformStaff
     });
 }).WithName("Refresh");
 

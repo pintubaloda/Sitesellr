@@ -76,6 +76,12 @@ public class TokenResponse
 
     [JsonPropertyName("default_store_id")]
     public Guid? DefaultStoreId { get; set; }
+
+    [JsonPropertyName("is_platform_owner")]
+    public bool IsPlatformOwner { get; set; }
+
+    [JsonPropertyName("is_platform_staff")]
+    public bool IsPlatformStaff { get; set; }
 }
 
 public class RefreshRequest
